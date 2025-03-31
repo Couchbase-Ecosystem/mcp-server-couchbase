@@ -67,7 +67,7 @@ To use this MCP server with Cursor:
 
 2. In Cursor, go to Cursor > Cursor Settings > MCP > Add a new global MCP server.
 
-3. Specify the same configuration as above. You may need to a parent key of mcpServers like this.
+3. Specify the same configuration as above. You may need to a parent key of mcpServers like this below.
 ```json
 {
     "mcpServers": {
@@ -89,12 +89,15 @@ To use this MCP server with Cursor:
     }
 }
 ```
+> Also checkout cursor MCP docs on [setting up configuration here](https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers).
 
 4. Save the configuration.
 
 5. You will see couchbase as an added server in MCP list. Refresh to see if server is enabled.
 
 6. You can now use the Couchbase MCP server in Cursor to query your Couchbase cluster using natural language.
+
+For more details about MCP integration with Cursor, refer to the [official Cursor MCP documentation](https://docs.cursor.sh/ai-features/mcp-model-context-protocol).
 
 ### Troubleshooting in Cursor
 
