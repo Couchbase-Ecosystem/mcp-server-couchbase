@@ -28,24 +28,26 @@ An [MCP](https://modelcontextprotocol.io/) server implementation that integrates
    - On Mac, the configuration file is located at `~/Library/Application Support/Claude/claude_desktop_config.json`
    - On Windows, the configuration file is located at `%APPDATA%\Claude\claude_desktop_config.json`
 
-   Open the configuration file and add the following to the `mcpServers`:
+   Open the configuration file and add the following configuration to the `mcpServers` section:
 
    ```json
-   "couchbase": {
-               "command": "uv",
-               "args": [
-                   "--directory",
-                   "/path/to/couchbase-mcp-server-repo/",
-                   "run",
-                   "src/mcp_server.py"
-               ],
-               "env": {
-                   "CB_CONNECTION_STRING": "couchbases://connection-string",
-                   "CB_USERNAME": "username",
-                   "CB_PASSWORD": "password",
-                   "CB_BUCKET_NAME": "bucket_name"
-               }
-           }
+     "mcpServers": {
+       "couchbase": {
+         "command": "uv",
+         "args": [
+           "--directory",
+           "<path/to/couchbase-mcp-server-repo>",
+           "run",
+           "src/mcp_server.py"
+         ],
+         "env": {
+           "CB_CONNECTION_STRING": "couchbases://connection-string",
+           "CB_USERNAME": "username",
+           "CB_PASSWORD": "password",
+           "CB_BUCKET_NAME": "bucket_name"
+         }
+       }
+     }
    ```
 
    The server can be configured using environment variables. The following variables are supported:
@@ -54,6 +56,12 @@ An [MCP](https://modelcontextprotocol.io/) server implementation that integrates
    - `CB_USERNAME`: The username with access to the bucket to use to connect
    - `CB_PASSWORD`: The password for the username to connect
    - `CB_BUCKET_NAME`: The name of the bucket that the server will access
+
+   Notes:
+
+   - `<path/to/couchbase-mcp-server-repo>` should be the path to the cloned repository on your local machine.
+   - On some systems, Claude Desktop may not be able to find the `uv` command. If this is the case, you can replace `uv` with the absolute path to the `uv` executable, such as `/Users/username/.local/bin/uv` in the `command` field.
+   - If using Couchbase Capella, ensure that the cluster is [accessible](https://docs.couchbase.com/cloud/clusters/allow-ip-address.html) from the machine where the MCP server is running.
 
 3. Restart Claude Desktop to apply the changes.
 
