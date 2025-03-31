@@ -58,3 +58,50 @@ An [MCP](https://modelcontextprotocol.io/) server implementation that integrates
 3. Restart Claude Desktop to apply the changes.
 
 4. You can now use the server in Claude Desktop to run queries on the Couchbase cluster using natural language.
+
+## Using with Cursor
+
+To use this MCP server with Cursor:
+
+1. Install [Cursor](https://cursor.sh/) on your machine.
+
+2. In Cursor, go to Cursor > Cursor Settings > MCP > Add a new global MCP server.
+
+3. Specify the same configuration as above. You may need to a parent key of mcpServers like this.
+```json
+{
+    "mcpServers": {
+        "couchbase": {
+            "command": "uv",
+            "args": [
+                "--directory",
+                "/path/to/couchbase-mcp-server-repo/",
+                "run",
+                "src/mcp_server.py"
+            ],
+            "env": {
+                "CB_CONNECTION_STRING": "couchbases://connection-string",
+                "CB_USERNAME": "username",
+                "CB_PASSWORD": "password",
+                "CB_BUCKET_NAME": "bucket_name"
+            }
+        }
+    }
+}
+```
+
+4. Save the configuration.
+
+5. You will see couchbase as an added server in MCP list. Refresh to see if server is enabled.
+
+6. You can now use the Couchbase MCP server in Cursor to query your Couchbase cluster using natural language.
+
+### Troubleshooting in Cursor
+
+In the bottom panel of Cursor, click on "Output" and select "Cursor MCP" from the dropdown menu to view server logs. This can help diagnose connection issues or other problems with your MCP server configuration.
+
+Common issues to check:
+- Verify that your Couchbase connection string, username, password and bucket name are correct
+- Ensure the path to your MCP server repository is correct in the configuration
+- Check that the server has proper permissions to access the specified bucket
+- Confirm that the uv package manager is properly installed and accessible. You may need to provide absolute path to uv.
