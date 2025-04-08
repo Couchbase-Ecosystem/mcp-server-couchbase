@@ -1,6 +1,6 @@
 # Couchbase MCP Server
 
-An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase that allows LLMs to directly interact with Couchbase clusters. 
+An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase that allows LLMs to directly interact with Couchbase clusters.
 
 ## Features
 
@@ -11,7 +11,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 ## Prerequisites
 
 - Python 3.10 or higher.
-- A running Couchbase cluster. The easiest way to get started is to use [Capella](https://docs.couchbase.com/cloud/get-started/create-account.html#getting-started) free tier, which is fully managed version of Couchbase server. You can follow [instructions](https://docs.couchbase.com/cloud/clusters/data-service/import-data-documents.html#import-sample-data) to import one of the sample datasets of import your own.
+- A running Couchbase cluster. The easiest way to get started is to use [Capella](https://docs.couchbase.com/cloud/get-started/create-account.html#getting-started) free tier, which is fully managed version of Couchbase server. You can follow [instructions](https://docs.couchbase.com/cloud/clusters/data-service/import-data-documents.html#import-sample-data) to import one of the sample datasets or import your own.
 - [uv](https://docs.astral.sh/uv/) installed to run the server.
 - An [MCP client](https://modelcontextprotocol.io/clients) such as [Claude Desktop](https://claude.ai/download) installed to connect the server to Claude. The instructions are provided for Claude Desktop and Cursor. Other MCP clients could be used as well.
 
@@ -69,6 +69,7 @@ Follow the steps below to use Couchbase MCP server with Claude Desktop MCP clien
 3. You can now use the server in Claude Desktop to run queries on the Couchbase cluster using natural language.
 
 #### Claude Desktop Logs
+
 The logs for Claude Desktop can be found in the following locations:
 
 - MacOS: ~/Library/Logs/Claude
@@ -107,13 +108,14 @@ Follow steps below to use Couchbase MCP server with Cursor:
   }
 }
 ```
-  The server can be configured using environment variables. The following variables are supported:
 
-   - `CB_CONNECTION_STRING`: The connection string to the Couchbase cluster
-   - `CB_USERNAME`: The username with access to the bucket to use to connect
-   - `CB_PASSWORD`: The password for the username to connect
-   - `CB_BUCKET_NAME`: The name of the bucket that the server will access
-   - `path/to/cloned/repo/mcp-server-couchbase/` should be the path to the cloned repository on your local machine. Don't forget the trailing slash at the end!
+The server can be configured using environment variables. The following variables are supported:
+
+- `CB_CONNECTION_STRING`: The connection string to the Couchbase cluster
+- `CB_USERNAME`: The username with access to the bucket to use to connect
+- `CB_PASSWORD`: The password for the username to connect
+- `CB_BUCKET_NAME`: The name of the bucket that the server will access
+- `path/to/cloned/repo/mcp-server-couchbase/` should be the path to the cloned repository on your local machine. Don't forget the trailing slash at the end!
 
 4. Save the configuration.
 
@@ -123,10 +125,9 @@ Follow steps below to use Couchbase MCP server with Cursor:
 
 For more details about MCP integration with Cursor, refer to the [official Cursor MCP documentation](https://docs.cursor.sh/ai-features/mcp-model-context-protocol).
 
-### Cursor Logs
+#### Cursor Logs
 
 In the bottom panel of Cursor, click on "Output" and select "Cursor MCP" from the dropdown menu to view server logs. This can help diagnose connection issues or other problems with your MCP server configuration.
-
 
 ## Troubleshooting Tips
 
@@ -136,6 +137,3 @@ In the bottom panel of Cursor, click on "Output" and select "Cursor MCP" from th
 - Check that the database user has proper permissions to access the specified bucket.
 - Confirm that the uv package manager is properly installed and accessible. You may need to provide absolute path to uv in the `command` field in the configuration.
 - Check the logs for any errors or warnings that may indicate issues with the MCP server. The server logs are under the name, `mcp-server-couchbase.log`.
-
-
-
