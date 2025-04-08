@@ -121,6 +121,40 @@ def get_schema_for_collection(
         logger.error(f"Error getting schema: {e}")
         raise
 
+@mcp.tool()
+def list_documents_in_collection(
+    ctx: Context, scope_name: str, collection_name: str, limit: int = 100
+) -> list[dict[str, Any]]:
+    """List documents (ID and content) in a specified collection.
+    Returns a list of documents. Be cautious as collections can be large.
+    Uses a default limit of 100 documents, which can be adjusted.
+    """
+    bucket = ctx.request_context.lifespan_context.bucket
+    cluster = ctx.request_context.lifespan_context.cluster # Cluster needed for query
+    # Ensure cluster is available
+    if not cluster:
+        raise ValueError("Cluster connection not available in context.")
+
+    try:
+        # We need to query the cluster, specifying the scope.collection namespace
+        # Using f-string requires backticks for names containing special chars, safer to use fully qualified name
+        fully_qualified_name = f"`{bucket.name}`.`{scope_name}`.`{collection_name}`"
+        query = f"SELECT META().id as doc_id, * FROM {fully_qualified_name} LIMIT {limit}"
+
+        logger.info(f"Running query to list documents: {query}")
+        result = cluster.query(query) # Use cluster.query for N1QL
+
+        results = []
+        for row in result.rows():
+            # The query returns the collection name as a key, holding the document content.
+            # We want to flatten this slightly for a cleaner output.
+            doc_content = row.get(collection_name, {})
+            doc_content['doc_id'] = row.get('doc_id') # Ensure doc_id is included
+            results.append(doc_content)
+        return results
+    except Exception as e:
+        logger.error(f"Error listing documents in {scope_name}.{collection_name}: {e}")
+        raise
 
 @mcp.tool()
 def get_document(
