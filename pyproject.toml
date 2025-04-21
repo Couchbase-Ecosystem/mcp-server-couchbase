@@ -8,6 +8,7 @@ license = "Apache-2.0"
 
 dependencies = [
     "couchbase>=4.3.5",
+    "lark-sqlpp",
     "mcp[cli]>=1.5.0",
     "python-dotenv>=1.0.0",
 ]
@@ -16,3 +17,6 @@ dependencies = [
 Homepage = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase"
 Documentation = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase#readme"
 Issues = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues"
+
+[tool.uv.sources]
+lark-sqlpp = { git = "ssh://git@github.com/couchbaselabs/lark_sqlpp" }

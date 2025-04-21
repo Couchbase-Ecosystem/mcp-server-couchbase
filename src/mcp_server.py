@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
-
+from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 
 MCP_SERVER_NAME = "couchbase"
 
@@ -25,6 +25,16 @@ logger = logging.getLogger(MCP_SERVER_NAME)
 class AppContext:
     cluster: Cluster | None = None
     bucket: Any | None = None
+    read_only_query_mode: bool = True
+
+
+def parse_bool(value: str) -> bool:
+    """Parse a string value to boolean.
+
+    Treats 'false', 'no', 'n', '0' (case-insensitive) as False.
+    Everything else is treated as True.
+    """
+    return value.lower() not in ("false", "no", "n", "0")
 
 
 @asynccontextmanager
@@ -35,6 +45,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     username = os.getenv("CB_USERNAME")
     password = os.getenv("CB_PASSWORD")
     bucket_name = os.getenv("CB_BUCKET_NAME")
+    read_only_mode = parse_bool(os.getenv("READ_ONLY_QUERY_MODE", "true"))
 
     # Validate environment variables
     missing_vars = []
@@ -58,6 +69,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             "Environment variable CB_BUCKET_NAME with Database bucket name is not set"
         )
         missing_vars.append("CB_BUCKET_NAME")
+
     if missing_vars:
         error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
         logger.error(error_msg)
@@ -75,7 +87,9 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         logger.info("Successfully connected to Couchbase cluster")
 
         bucket = cluster.bucket(bucket_name)
-        yield AppContext(cluster=cluster, bucket=bucket)
+        yield AppContext(
+            cluster=cluster, bucket=bucket, read_only_query_mode=read_only_mode
+        )
 
     except Exception as e:
         logger.error(f"Failed to connect to Couchbase: {e}")
@@ -128,14 +142,39 @@ def run_sql_plus_plus_query(
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
     bucket = ctx.request_context.lifespan_context.bucket
+    read_only_mode = ctx.request_context.lifespan_context.read_only_query_mode
+    logger.info(f"Running SQL++ queries in read-only mode: {read_only_mode}")
 
     try:
         scope = bucket.scope(scope_name)
-        result = scope.query(query)
+
         results = []
-        for row in result:
-            results.append(row)
-        return results
+        # If read-only mode is enabled, check if the query is a data or structure modification query
+        if read_only_mode:
+            data_modification_query = modifies_data(parse_sqlpp(query))
+            structure_modification_query = modifies_structure(parse_sqlpp(query))
+
+            if data_modification_query:
+                logger.error("Data modification query is not allowed in read-only mode")
+                raise ValueError(
+                    "Data modification query is not allowed in read-only mode"
+                )
+            if structure_modification_query:
+                logger.error(
+                    "Structure modification query is not allowed in read-only mode"
+                )
+                raise ValueError(
+                    "Structure modification query is not allowed in read-only mode"
+                )
+
+        # Run the query if it is not a data or structure modification query
+        if not read_only_mode or (
+            not data_modification_query and not structure_modification_query
+        ):
+            result = scope.query(query)
+            for row in result:
+                results.append(row)
+            return results
     except Exception as e:
         logger.error(f"Error running query: {str(e)}", exc_info=True)
         raise
