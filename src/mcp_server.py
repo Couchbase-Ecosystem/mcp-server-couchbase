@@ -137,6 +137,59 @@ def get_schema_for_collection(
 
 
 @mcp.tool()
+def get_document_by_id(
+    ctx: Context, scope_name: str, collection_name: str, document_id: str
+) -> dict[str, Any]:
+    """Get a document by its ID from the specified scope and collection."""
+    bucket = ctx.request_context.lifespan_context.bucket
+    try:
+        collection = bucket.scope(scope_name).collection(collection_name)
+        result = collection.get(document_id)
+        return result.content_as[dict]
+    except Exception as e:
+        logger.error(f"Error getting document {document_id}: {e}")
+        raise
+
+
+@mcp.tool()
+def upsert_document_by_id(
+    ctx: Context,
+    scope_name: str,
+    collection_name: str,
+    document_id: str,
+    document_content: dict[str, Any],
+) -> bool:
+    """Insert or update a document by its ID.
+    Returns True on success, False on failure."""
+    bucket = ctx.request_context.lifespan_context.bucket
+    try:
+        collection = bucket.scope(scope_name).collection(collection_name)
+        collection.upsert(document_id, document_content)
+        logger.info(f"Successfully upserted document {document_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error upserting document {document_id}: {e}")
+        return False
+
+
+@mcp.tool()
+def delete_document_by_id(
+    ctx: Context, scope_name: str, collection_name: str, document_id: str
+) -> bool:
+    """Delete a document by its ID.
+    Returns True on success, False on failure."""
+    bucket = ctx.request_context.lifespan_context.bucket
+    try:
+        collection = bucket.scope(scope_name).collection(collection_name)
+        collection.remove(document_id)
+        logger.info(f"Successfully deleted document {document_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting document {document_id}: {e}")
+        return False
+
+
+@mcp.tool()
 def run_sql_plus_plus_query(
     ctx: Context, scope_name: str, query: str
 ) -> list[dict[str, Any]]:
