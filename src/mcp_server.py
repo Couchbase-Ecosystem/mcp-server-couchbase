@@ -283,8 +283,8 @@ def run_sql_plus_plus_query(
                 )
 
         # Run the query if it is not a data or structure modification query
-        if not read_only_mode or (
-            not data_modification_query and not structure_modification_query
+        if not read_only_mode or not (
+            data_modification_query or structure_modification_query
         ):
             result = scope.query(query)
             for row in result:
