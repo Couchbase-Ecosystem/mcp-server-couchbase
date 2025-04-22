@@ -30,13 +30,13 @@ class AppContext:
     read_only_query_mode: bool = True
 
 
-def parse_bool(value: str) -> bool:
-    """Parse a string value to boolean.
-
-    Treats 'false', 'no', 'n', '0' (case-insensitive) as False.
-    Everything else is treated as True.
-    """
-    return value.lower() not in ("false", "no", "n", "0")
+def validate_required_param(
+    ctx: click.Context, param: click.Parameter, value: str | None
+) -> str:
+    """Validate that a required parameter is not empty."""
+    if not value or value.strip() == "":
+        raise click.BadParameter(f"{param.name} cannot be empty")
+    return value
 
 
 def get_settings() -> dict:
@@ -50,16 +50,32 @@ def get_settings() -> dict:
     "--connection-string",
     envvar="CB_CONNECTION_STRING",
     help="Couchbase connection string",
+    callback=validate_required_param,
 )
-@click.option("--username", envvar="CB_USERNAME", help="Couchbase database user")
-@click.option("--password", envvar="CB_PASSWORD", help="Couchbase database password")
-@click.option("--bucket-name", envvar="CB_BUCKET_NAME", help="Couchbase bucket name")
+@click.option(
+    "--username",
+    envvar="CB_USERNAME",
+    help="Couchbase database user",
+    callback=validate_required_param,
+)
+@click.option(
+    "--password",
+    envvar="CB_PASSWORD",
+    help="Couchbase database password",
+    callback=validate_required_param,
+)
+@click.option(
+    "--bucket-name",
+    envvar="CB_BUCKET_NAME",
+    help="Couchbase bucket name",
+    callback=validate_required_param,
+)
 @click.option(
     "--read-only-queries",
     envvar="READ_ONLY_QUERY_MODE",
     type=bool,
     default=True,
-    help="Enable read-only query mode",
+    help="Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
 )
 @click.option(
     "--transport",
@@ -99,7 +115,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     username = settings.get("username")
     password = settings.get("password")
     bucket_name = settings.get("bucket_name")
-    read_only_mode = settings.get("read_only_queries", True)
+    read_only_mode = settings.get("read_only_queries")
 
     # Validate configuration
     missing_vars = []
