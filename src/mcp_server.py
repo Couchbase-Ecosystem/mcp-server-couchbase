@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Any
+from typing import Any, Dict, List
 from mcp.server.fastmcp import FastMCP, Context
 from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
@@ -10,6 +10,13 @@ from dataclasses import dataclass
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+# Import the helper functions from meta.py
+from .meta import (
+    _get_cluster_info,
+    _get_bucket_info,
+    _list_fts_indexes,
+    _list_n1ql_indexes,
+)
 
 MCP_SERVER_NAME = "couchbase"
 
@@ -86,7 +93,66 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
 
 
-# Tools
+# --- Metadata Tools ---
+
+@mcp.tool()
+def get_cluster_info(ctx: Context) -> Dict[str, Any]:
+    """Get diagnostic information about the Couchbase cluster."""
+    cluster = ctx.request_context.lifespan_context.cluster
+    if not cluster:
+        raise ValueError("Cluster connection not available in context.")
+    try:
+        return _get_cluster_info(cluster)
+    except Exception as e:
+        logger.error(f"Tool error getting cluster info: {type(e).__name__} - {e}")
+        # Re-raise to signal failure to the MCP framework/caller
+        raise
+
+
+@mcp.tool()
+def get_bucket_info(ctx: Context) -> Dict[str, Any]:
+    """Get configuration settings for the current Couchbase bucket."""
+    bucket = ctx.request_context.lifespan_context.bucket
+    if not bucket:
+        raise ValueError("Bucket connection not available in context.")
+    try:
+        return _get_bucket_info(bucket)
+    except Exception as e:
+        logger.error(f"Tool error getting bucket info: {type(e).__name__} - {e}")
+        raise
+
+
+@mcp.tool()
+def list_fts_indexes(ctx: Context) -> List[Dict[str, Any]]:
+    """List all Full-Text Search (FTS) indexes in the cluster."""
+    cluster = ctx.request_context.lifespan_context.cluster
+    if not cluster:
+        raise ValueError("Cluster connection not available in context.")
+    try:
+        return _list_fts_indexes(cluster)
+    except Exception as e:
+        logger.error(f"Tool error listing FTS indexes: {type(e).__name__} - {e}")
+        raise
+
+
+@mcp.tool()
+def list_n1ql_indexes(ctx: Context) -> List[Dict[str, Any]]:
+    """List all N1QL (Query) indexes for the current bucket."""
+    cluster = ctx.request_context.lifespan_context.cluster
+    bucket = ctx.request_context.lifespan_context.bucket
+    if not cluster:
+        raise ValueError("Cluster connection not available in context.")
+    if not bucket:
+        raise ValueError("Bucket connection not available in context.")
+    try:
+        return _list_n1ql_indexes(cluster, bucket.name)
+    except Exception as e:
+        logger.error(f"Tool error listing N1QL indexes: {type(e).__name__} - {e}")
+        raise
+
+
+# --- Existing Tools ---
+
 @mcp.tool()
 def get_scopes_and_collections_in_bucket(ctx: Context) -> dict[str, list[str]]:
     """Get the names of all scopes and collections in the bucket.
