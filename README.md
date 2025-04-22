@@ -65,6 +65,7 @@ Follow the steps below to use Couchbase MCP server with Claude Desktop MCP clien
    - `CB_USERNAME`: The username with access to the bucket to use to connect
    - `CB_PASSWORD`: The password for the username to connect
    - `CB_BUCKET_NAME`: The name of the bucket that the server will access
+   - `READ_ONLY_QUERY_MODE`: Setting to configure if SQL++ queries that allow data to be modified are allowed. It is set to False by default.
    - `path/to/cloned/repo/mcp-server-couchbase/` should be the path to the cloned repository on your local machine. Don't forget the trailing slash at the end!
 
 2. Restart Claude Desktop to apply the changes.
@@ -118,6 +119,7 @@ The server can be configured using environment variables. The following variable
 - `CB_USERNAME`: The username with access to the bucket to use to connect
 - `CB_PASSWORD`: The password for the username to connect
 - `CB_BUCKET_NAME`: The name of the bucket that the server will access
+- `READ_ONLY_QUERY_MODE`: Setting to configure if SQL++ queries that allow data to be modified are allowed. It is set to False by default.
 - `path/to/cloned/repo/mcp-server-couchbase/` should be the path to the cloned repository on your local machine. Don't forget the trailing slash at the end!
 
 4. Save the configuration.
@@ -131,6 +133,18 @@ For more details about MCP integration with Cursor, refer to the [official Curso
 #### Cursor Logs
 
 In the bottom panel of Cursor, click on "Output" and select "Cursor MCP" from the dropdown menu to view server logs. This can help diagnose connection issues or other problems with your MCP server configuration.
+
+### SSE Server Mode
+
+There is an option to run the MCP server in [Server-Sent Events (SSE)](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse) transport mode.
+
+#### Usage
+
+By default, the MCP server will run on port 8080 but this can be configured using the `FASTMCP_PORT` environment variable.
+
+> uv run src/mcp_server.py --connection-string='couchbase_connection_string>' --username='database_username' --password='database_password' --bucket-name='couchbase_bucket_to_use' --read-only-query-mode=true --transport=sse
+
+The server will be available on http://localhost:8080/sse. This can be used in MCP clients supporting SSE transport mode.
 
 ## Troubleshooting Tips
 
