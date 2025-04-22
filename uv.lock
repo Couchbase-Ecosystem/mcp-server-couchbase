@@ -163,9 +163,13 @@ wheels = [
 [[package]]
 name = "lark-sqlpp"
 version = "0.0.1"
-source = { git = "ssh://git@github.com/couchbaselabs/lark_sqlpp#9411c6da73e4b3e6befb8d85301dfc953b0126d8" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "lark" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a7/8a/062ecc8c3b477f222ee1476b110d7c4c9090135f85162fc306a69a7ed6d9/lark_sqlpp-0.0.1.tar.gz", hash = "sha256:cc6d0a9b362515765601b8d9d4b493e246da684e7bb00c8c97e0404c0ebe3df3", size = 13489 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ca/70/1652d9b1034402ff10ff8495b1af6e8606dba76f2e17bd488d653d972adf/lark_sqlpp-0.0.1-py3-none-any.whl", hash = "sha256:35f1e849938be878396783588508c8479144b889c43a06b62d1792ec9b71be0e", size = 9632 },
 ]
 
 [[package]]
@@ -221,7 +225,7 @@ dependencies = [
 requires-dist = [
     { name = "click", specifier = ">=8.1.8" },
     { name = "couchbase", specifier = ">=4.3.5" },
-    { name = "lark-sqlpp", git = "ssh://git@github.com/couchbaselabs/lark_sqlpp" },
+    { name = "lark-sqlpp", specifier = ">=0.0.1" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.5.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
 ]
