@@ -4,9 +4,12 @@ An [MCP](https://modelcontextprotocol.io/) server implementation that integrates
 
 ## Features
 
-- Get a list of all the scopes and collections in the specified bucket in a Couchbase cluster
-- Get the structure for a collection in a Couchbase cluster
-- Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) in a Couchbase cluster
+- Get a list of all the scopes and collections in the specified bucket
+- Get the structure for a collection
+- Get a document by ID from a specified scope and collection
+- Upsert a document by ID to a specified scope and collection
+- Delete a document by ID from a specified scope and collection
+- Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope
 
 ## Prerequisites
 
