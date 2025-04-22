@@ -210,6 +210,7 @@ name = "mcp-couchbase"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "click" },
     { name = "couchbase" },
     { name = "lark-sqlpp" },
     { name = "mcp", extra = ["cli"] },
@@ -218,6 +219,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.1.8" },
     { name = "couchbase", specifier = ">=4.3.5" },
     { name = "lark-sqlpp", git = "ssh://git@github.com/couchbaselabs/lark_sqlpp" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.5.0" },
