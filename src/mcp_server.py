@@ -71,7 +71,7 @@ def get_settings() -> dict:
     callback=validate_required_param,
 )
 @click.option(
-    "--read-only-queries",
+    "--read-only-query-mode",
     envvar="READ_ONLY_QUERY_MODE",
     type=bool,
     default=True,
@@ -91,7 +91,7 @@ def main(
     username,
     password,
     bucket_name,
-    read_only_queries,
+    read_only_query_mode,
     transport,
 ):
     """Couchbase MCP Server"""
@@ -100,7 +100,7 @@ def main(
         "username": username,
         "password": password,
         "bucket_name": bucket_name,
-        "read_only_queries": read_only_queries,
+        "read_only_query_mode": read_only_query_mode,
     }
     mcp.run(transport=transport)
 
@@ -115,7 +115,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     username = settings.get("username")
     password = settings.get("password")
     bucket_name = settings.get("bucket_name")
-    read_only_mode = settings.get("read_only_queries")
+    read_only_query_mode = settings.get("read_only_query_mode")
 
     # Validate configuration
     missing_vars = []
@@ -150,7 +150,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
         bucket = cluster.bucket(bucket_name)
         yield AppContext(
-            cluster=cluster, bucket=bucket, read_only_query_mode=read_only_mode
+            cluster=cluster, bucket=bucket, read_only_query_mode=read_only_query_mode
         )
 
     except Exception as e:
@@ -257,15 +257,15 @@ def run_sql_plus_plus_query(
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
     bucket = ctx.request_context.lifespan_context.bucket
-    read_only_mode = ctx.request_context.lifespan_context.read_only_query_mode
-    logger.info(f"Running SQL++ queries in read-only mode: {read_only_mode}")
+    read_only_query_mode = ctx.request_context.lifespan_context.read_only_query_mode
+    logger.info(f"Running SQL++ queries in read-only mode: {read_only_query_mode}")
 
     try:
         scope = bucket.scope(scope_name)
 
         results = []
         # If read-only mode is enabled, check if the query is a data or structure modification query
-        if read_only_mode:
+        if read_only_query_mode:
             data_modification_query = modifies_data(parse_sqlpp(query))
             structure_modification_query = modifies_structure(parse_sqlpp(query))
 
@@ -283,7 +283,7 @@ def run_sql_plus_plus_query(
                 )
 
         # Run the query if it is not a data or structure modification query
-        if not read_only_mode or not (
+        if not read_only_query_mode or not (
             data_modification_query or structure_modification_query
         ):
             result = scope.query(query)
