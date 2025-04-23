@@ -99,7 +99,7 @@ Follow steps below to use Couchbase MCP server with Cursor:
 
 4. Save the configuration.
 
-5. You will see couchbase as an added server in MCP list. Refresh to see if server is enabled.
+5. You will see couchbase as an added server in MCP servers list. Refresh to see if server is enabled.
 
 6. You can now use the Couchbase MCP server in Cursor to query your Couchbase cluster using natural language and perform CRUD operations on documents.
 
@@ -121,7 +121,7 @@ Follow the steps below to use the Couchbase MCP server with [Windsurf Editor](ht
 
 4. Save the configuration.
 
-5. You will see couchbase as an added server in MCP list under Advanced Settings. Refresh to see if server is enabled.
+5. You will see couchbase as an added server in MCP Servers list under Advanced Settings. Refresh to see if server is enabled.
 
 6. You can now use the Couchbase MCP server in Windsurf Editor to query your Couchbase cluster using natural language and perform CRUD operations on documents.
 
