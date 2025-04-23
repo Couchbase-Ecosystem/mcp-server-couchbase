@@ -152,7 +152,13 @@ docker built -t mcp/couchbase .
 The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Configuration section](#server-configuration-for-mcp-clients)
 
 ```bash
-docker run -i -e CB_CONNECTION_STRING='couchbase_connection_string' -e CB_USERNAME='database_username' -e CB_PASSWORD='database_password' -e CB_BUCKET_NAME='couchbase_bucket_to_use' -e MCP_TRANSPORT='stdio' mcp/couchbase
+docker run -i \
+  -e CB_CONNECTION_STRING='couchbase://localhost' \
+  -e CB_USERNAME='Administrator' \
+  -e CB_PASSWORD='password' \
+  -e CB_BUCKET_NAME='default' \
+  -e MCP_TRANSPORT='stdio' \
+  mcp/couchbase
 ```
 
 ### Risks Associated with LLMs
