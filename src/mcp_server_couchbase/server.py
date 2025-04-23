@@ -1,15 +1,15 @@
-from datetime import timedelta
-from typing import Any
-from mcp.server.fastmcp import FastMCP, Context
-from couchbase.cluster import Cluster
-from couchbase.auth import PasswordAuthenticator
-from couchbase.options import ClusterOptions
 import logging
-from dataclasses import dataclass
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
-from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
+from dataclasses import dataclass
+from datetime import timedelta
+from typing import Any, AsyncIterator
+
 import click
+from couchbase.auth import PasswordAuthenticator
+from couchbase.cluster import Cluster
+from couchbase.options import ClusterOptions
+from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
+from mcp.server.fastmcp import Context, FastMCP
 
 MCP_SERVER_NAME = "couchbase"
 
@@ -75,7 +75,10 @@ def get_settings() -> dict:
     envvar="READ_ONLY_QUERY_MODE",
     type=bool,
     default=True,
-    help="Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
+    help=(
+        "Enable read-only query mode. Set to True (default) to allow only read-only "
+        "queries. Can be set to False to allow data modification queries."
+    ),
 )
 @click.option(
     "--transport",
@@ -166,7 +169,8 @@ mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
 @mcp.tool()
 def get_scopes_and_collections_in_bucket(ctx: Context) -> dict[str, list[str]]:
     """Get the names of all scopes and collections in the bucket.
-    Returns a dictionary with scope names as keys and lists of collection names as values.
+    Returns a dictionary with scope names as keys and lists of
+    collection names as values.
     """
     bucket = ctx.request_context.lifespan_context.bucket
     try:
@@ -187,7 +191,8 @@ def get_schema_for_collection(
     ctx: Context, scope_name: str, collection_name: str
 ) -> dict[str, Any]:
     """Get the schema for a collection in the specified scope.
-    Returns a dictionary with the schema returned by running INFER on the Couchbase collection.
+    Returns a dictionary with the schema returned by running INFER on the Couchbase
+    collection.
     """
     try:
         query = f"INFER {collection_name}"
@@ -264,7 +269,7 @@ def run_sql_plus_plus_query(
         scope = bucket.scope(scope_name)
 
         results = []
-        # If read-only mode is enabled, check if the query is a data or structure modification query
+        # If read-only mode is enabled, check if the query modifies data or structure
         if read_only_query_mode:
             data_modification_query = modifies_data(parse_sqlpp(query))
             structure_modification_query = modifies_structure(parse_sqlpp(query))
