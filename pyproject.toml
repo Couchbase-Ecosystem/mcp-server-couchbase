@@ -28,7 +28,7 @@ Documentation = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase#rea
 Issues = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues"
 
 [project.scripts]
-mcp-couchbase-server = "server:main"
+mcp-couchbase-server = "mcp_couchbase.server:main"
 
 [build-system]
 requires = ["hatchling >= 1.26"]
@@ -39,3 +39,6 @@ select = ["E", "F", "I", "T201"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.hatch.build]
+packages = ["src/mcp_couchbase"]
