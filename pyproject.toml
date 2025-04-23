@@ -36,3 +36,6 @@ build-backend = "hatchling.build"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "T201"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
