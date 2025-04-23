@@ -117,7 +117,7 @@ Follow the steps below to use the Couchbase MCP server with [Windsurf Editor](ht
 
 2. In Windsurf Editor, navigate to Command Palette > Windsurf MCP Configuration Panel or Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers. For more details on the configuration, please refer to the [official documentation](https://docs.windsurf.com/windsurf/mcp#configuring-mcp).
 
-3. Click on Add Server and then Add custom server. On the configuration that opens in the editor, add the Couchbase MCP Server [configuration] from above.
+3. Click on Add Server and then Add custom server. On the configuration that opens in the editor, add the Couchbase MCP Server [configuration](#server-configuration-for-mcp-clients) from above.
 
 4. Save the configuration.
 
