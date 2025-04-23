@@ -139,6 +139,20 @@ By default, the MCP server will run on port 8080 but this can be configured usin
 
 The server will be available on http://localhost:8080/sse. This can be used in MCP clients supporting SSE transport mode.
 
+## Docker Image
+
+The MCP server can also be built and run as a Docker container.
+
+```bash
+docker built -t mcp/couchbase .
+```
+
+### Running
+
+```bash
+docker run -i -e CB_CONNECTION_STRING='couchbase_connection_string' -e CB_USERNAME='database_username' -e CB_PASSWORD='database_password' -e CB_BUCKET_NAME='couchbase_bucket_to_use' -e MCP_TRANSPORT='stdio' mcp/couchbase
+```
+
 ### Risks Associated with LLMs
 
 - The use of large language models and similar technology involves risks, including the potential for inaccurate or harmful outputs.
