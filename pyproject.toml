@@ -1,5 +1,5 @@
 [project]
-name = "mcp-couchbase"
+name = "mcp-server-couchbase"
 version = "0.2.0-rc.0"
 description = "Couchbase MCP Server - The Developer Data Platform for Critical Applications in Our AI World"
 readme = "README.md"
@@ -28,7 +28,7 @@ Documentation = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase#rea
 Issues = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues"
 
 [project.scripts]
-mcp-couchbase-server = "mcp_couchbase.server:main"
+mcp-couchbase-server = "mcp_server_couchbase:main"
 
 [build-system]
 requires = ["hatchling >= 1.26"]
@@ -37,8 +37,5 @@ build-backend = "hatchling.build"
 [tool.ruff.lint]
 select = ["E", "F", "I", "T201"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src"]
-
 [tool.hatch.build]
-packages = ["src/mcp_couchbase"]
+packages = ["src/mcp_server_couchbase"]
