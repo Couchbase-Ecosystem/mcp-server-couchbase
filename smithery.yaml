@@ -1,0 +1,54 @@
+# Smithery.ai configuration
+startCommand:
+type: stdio
+configSchema:
+  # JSON Schema defining the configuration options for the MCP.
+  {
+  "properties": {
+    "CB_BUCKET_NAME": {
+      "description": "The name of the bucket that the server will access",
+      "type": "string"
+    },
+    "CB_CONNECTION_STRING": {
+      "description": "The connection string to the Couchbase cluster",
+      "type": "string"
+    },
+    "CB_PASSWORD": {
+      "description": "The password for the username to connect",
+      "type": "string"
+    },
+    "CB_USERNAME": {
+      "description": "The username with access to the bucket to use to connect",
+      "type": "string"
+    },
+    "READ_ONLY_QUERY_MODE": {
+      "default": true,
+      "description": "Setting to configure whether SQL++ queries that allow data to be modified are allowed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "CB_CONNECTION_STRING",
+    "CB_USERNAME",
+    "CB_PASSWORD",
+    "CB_BUCKET_NAME"
+  ],
+  "type": "object"
+  }
+commandFunction:
+  # A function that produces the CLI command to start the MCP on stdio.
+  |-
+  (config) => ({
+    "command": "uv",
+    "args": [
+      "run",
+      "src/mcp_server.py"
+    ],
+    "env": {
+      "CB_CONNECTION_STRING": config.CB_CONNECTION_STRING,
+      "CB_USERNAME": config.CB_USERNAME,
+      "CB_PASSWORD": config.CB_PASSWORD,
+      "CB_BUCKET_NAME": config.CB_BUCKET_NAME,
+      "READ_ONLY_QUERY_MODE": config.READ_ONLY_QUERY_MODE
+    }
+  })
