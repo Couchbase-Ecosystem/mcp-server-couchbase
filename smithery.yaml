@@ -10,22 +10,18 @@ startCommand:
       - CB_PASSWORD
       - CB_BUCKET_NAME
     properties:
-      CB_CONNECTION_STRING:
-        type: string
-        description: The connection string for the Couchbase cluster.
       CB_USERNAME:
         type: string
         description: The username with access to the bucket to use to connect
       CB_PASSWORD:
         type: string
         description: The password for the username to connect
+      CB_CONNECTION_STRING:
+        type: string
+        description: The connection string for the Couchbase cluster.
       CB_BUCKET_NAME:
         type: string
         description: The name of the bucket that the server will access
-      READ_ONLY_QUERY_MODE:
-        type: boolean
-        description: Setting to configure whether SQL++ queries that allow data to be modified are allowed
-        default: true
   commandFunction:
     # A function that produces the CLI command to start the MCP on stdio.
     |-
@@ -40,7 +36,5 @@ startCommand:
         "CB_USERNAME": config.CB_USERNAME,
         "CB_PASSWORD": config.CB_PASSWORD,
         "CB_BUCKET_NAME": config.CB_BUCKET_NAME,
-        // Explicitly handle the default if the config value is undefined, ensuring a string is passed
-        "READ_ONLY_QUERY_MODE": config.READ_ONLY_QUERY_MODE === undefined ? 'True' : String(config.READ_ONLY_QUERY_MODE)
       }
     })
