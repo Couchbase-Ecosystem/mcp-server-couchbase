@@ -1,10 +1,18 @@
 [project]
 name = "mcp-couchbase"
-version = "0.1.0"
+version = "0.2.0"
 description = "Couchbase MCP Server - The Developer Data Platform for Critical Applications in Our AI World"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
+authors = [
+    { name="Nithish Raghunandanan", email="devadvocates@couchbase.com" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+]
 
 dependencies = [
     "click>=8.1.8",

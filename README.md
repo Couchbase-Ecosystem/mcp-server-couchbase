@@ -10,6 +10,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - Upsert a document by ID to a specified scope and collection
 - Delete a document by ID from a specified scope and collection
 - Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope
+  - There is an option in the MCP server, `READ_ONLY_QUERY_MODE` that is set to true by default to disable running queries that change the data or the underlying collection structure.
 
 ## Prerequisites
 
@@ -159,7 +160,6 @@ docker run -i \
   -e CB_BUCKET_NAME='<bucket_name>' \
   -e MCP_TRANSPORT='stdio/sse' \
   -e READ_ONLY_QUERY_MODE="true/false" \
-
   mcp/couchbase
 ```
 
