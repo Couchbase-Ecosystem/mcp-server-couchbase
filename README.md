@@ -153,12 +153,12 @@ The MCP server can be run with the environment variables being used to configure
 
 ```bash
 docker run -i \
-  -e CB_CONNECTION_STRING='couchbase://localhost' \
-  -e CB_USERNAME='Administrator' \
-  -e CB_PASSWORD='Password' \
-  -e CB_BUCKET_NAME='travel-sample' \
-  -e MCP_TRANSPORT='stdio' \
-  -e READ_ONLY_QUERY_MODE="true" \
+  -e CB_CONNECTION_STRING='<couchbase_connection_string>' \
+  -e CB_USERNAME='<database_user>' \
+  -e CB_PASSWORD='<database_password>' \
+  -e CB_BUCKET_NAME='<bucket_name>' \
+  -e MCP_TRANSPORT='stdio/sse' \
+  -e READ_ONLY_QUERY_MODE="true/false" \
 
   mcp/couchbase
 ```
