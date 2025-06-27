@@ -1,3 +1,11 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+sources = ["src"]
+
 [project]
 name = "mcp-couchbase"
 version = "0.3.0"
@@ -25,3 +33,6 @@ dependencies = [
 Homepage = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase"
 Documentation = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase#readme"
 Issues = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues"
+
+[project.scripts]
+mcp-couchbase = "mcp_server:main"
