@@ -132,6 +132,8 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 
 There is an option to run the MCP server in [Server-Sent Events (SSE)](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse) transport mode.
 
+> Note: SSE mode has been [deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) by MCP. We are investigating adding support for Streamable HTTP.
+
 #### Usage
 
 By default, the MCP server will run on port 8080 but this can be configured using the `FASTMCP_PORT` environment variable.
