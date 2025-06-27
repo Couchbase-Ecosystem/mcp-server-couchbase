@@ -1,6 +1,6 @@
 [project]
 name = "mcp-couchbase"
-version = "0.2.0"
+version = "0.3.0"
 description = "Couchbase MCP Server - The Developer Data Platform for Critical Applications in Our AI World"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,11 +15,10 @@ classifiers = [
 ]
 
 dependencies = [
-    "click>=8.1.8",
-    "couchbase>=4.3.5",
-    "lark-sqlpp>=0.0.1",
-    "mcp[cli]>=1.5.0",
-    "python-dotenv>=1.0.0",
+    "click==8.2.1",
+    "couchbase==4.4.0",
+    "lark-sqlpp==0.0.1",
+    "mcp[cli]==1.6.0",
 ]
 
 [project.urls]
