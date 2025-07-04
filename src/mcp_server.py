@@ -137,6 +137,21 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    yield AppContext(
+        read_only_query_mode=read_only_query_mode
+    )
+
+
+def get_cluster(ctx: Context) -> Cluster:
+
+    settings = get_settings()
+
+    connection_string = settings.get("connection_string")
+    username = settings.get("username")
+    password = settings.get("password")
+    bucket_name = settings.get("bucket_name")
+    read_only_query_mode = settings.get("read_only_query_mode")
+
     try:
         logger.info("Creating Couchbase cluster connection...")
         auth = PasswordAuthenticator(username, password)
@@ -148,10 +163,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         cluster.wait_until_ready(timedelta(seconds=5))
         logger.info("Successfully connected to Couchbase cluster")
 
-        bucket = cluster.bucket(bucket_name)
-        yield AppContext(
-            cluster=cluster, bucket=bucket, read_only_query_mode=read_only_query_mode
-        )
+        return cluster
 
     except Exception as e:
         logger.error(f"Failed to connect to Couchbase: {e}")
@@ -168,7 +180,9 @@ def get_scopes_and_collections_in_bucket(ctx: Context) -> dict[str, list[str]]:
     """Get the names of all scopes and collections in the bucket.
     Returns a dictionary with scope names as keys and lists of collection names as values.
     """
-    bucket = ctx.request_context.lifespan_context.bucket
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
     try:
         scopes_collections = {}
         collection_manager = bucket.collections()
@@ -203,7 +217,9 @@ def get_document_by_id(
     ctx: Context, scope_name: str, collection_name: str, document_id: str
 ) -> dict[str, Any]:
     """Get a document by its ID from the specified scope and collection."""
-    bucket = ctx.request_context.lifespan_context.bucket
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         result = collection.get(document_id)
@@ -223,7 +239,9 @@ def upsert_document_by_id(
 ) -> bool:
     """Insert or update a document by its ID.
     Returns True on success, False on failure."""
-    bucket = ctx.request_context.lifespan_context.bucket
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.upsert(document_id, document_content)
@@ -240,7 +258,9 @@ def delete_document_by_id(
 ) -> bool:
     """Delete a document by its ID.
     Returns True on success, False on failure."""
-    bucket = ctx.request_context.lifespan_context.bucket
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.remove(document_id)
@@ -256,9 +276,12 @@ def run_sql_plus_plus_query(
     ctx: Context, scope_name: str, query: str
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
-    bucket = ctx.request_context.lifespan_context.bucket
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
     read_only_query_mode = ctx.request_context.lifespan_context.read_only_query_mode
-    logger.info(f"Running SQL++ queries in read-only mode: {read_only_query_mode}")
+    logger.info(
+        f"Running SQL++ queries in read-only mode: {read_only_query_mode}")
 
     try:
         scope = bucket.scope(scope_name)
@@ -267,10 +290,12 @@ def run_sql_plus_plus_query(
         # If read-only mode is enabled, check if the query is a data or structure modification query
         if read_only_query_mode:
             data_modification_query = modifies_data(parse_sqlpp(query))
-            structure_modification_query = modifies_structure(parse_sqlpp(query))
+            structure_modification_query = modifies_structure(
+                parse_sqlpp(query))
 
             if data_modification_query:
-                logger.error("Data modification query is not allowed in read-only mode")
+                logger.error(
+                    "Data modification query is not allowed in read-only mode")
                 raise ValueError(
                     "Data modification query is not allowed in read-only mode"
                 )
