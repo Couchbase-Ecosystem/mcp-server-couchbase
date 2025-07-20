@@ -26,7 +26,6 @@ class AppContext:
     """Context for the MCP server."""
 
     cluster: Cluster | None = None
-    bucket: Any | None = None
     read_only_query_mode: bool = True
 
 
@@ -64,12 +63,7 @@ def get_settings() -> dict:
     help="Couchbase database password",
     callback=validate_required_param,
 )
-@click.option(
-    "--bucket-name",
-    envvar="CB_BUCKET_NAME",
-    help="Couchbase bucket name",
-    callback=validate_required_param,
-)
+
 @click.option(
     "--read-only-query-mode",
     envvar="READ_ONLY_QUERY_MODE",
@@ -90,7 +84,6 @@ def main(
     connection_string,
     username,
     password,
-    bucket_name,
     read_only_query_mode,
     transport,
 ):
@@ -99,7 +92,6 @@ def main(
         "connection_string": connection_string,
         "username": username,
         "password": password,
-        "bucket_name": bucket_name,
         "read_only_query_mode": read_only_query_mode,
     }
     mcp.run(transport=transport)
@@ -114,7 +106,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     connection_string = settings.get("connection_string")
     username = settings.get("username")
     password = settings.get("password")
-    bucket_name = settings.get("bucket_name")
     read_only_query_mode = settings.get("read_only_query_mode")
 
     # Validate configuration
@@ -128,9 +119,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     if not password:
         logger.error("Couchbase database password is not set")
         missing_vars.append("password")
-    if not bucket_name:
-        logger.error("Couchbase bucket name is not set")
-        missing_vars.append("bucket_name")
+
 
     if missing_vars:
         error_msg = f"Missing required configuration: {', '.join(missing_vars)}"
@@ -148,9 +137,9 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         cluster.wait_until_ready(timedelta(seconds=5))
         logger.info("Successfully connected to Couchbase cluster")
 
-        bucket = cluster.bucket(bucket_name)
         yield AppContext(
-            cluster=cluster, bucket=bucket, read_only_query_mode=read_only_query_mode
+            cluster=cluster, 
+            read_only_query_mode=read_only_query_mode
         )
 
     except Exception as e:
@@ -162,13 +151,41 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
 
 
+
 # Tools
+
 @mcp.tool()
-def get_scopes_and_collections_in_bucket(ctx: Context) -> dict[str, list[str]]:
-    """Get the names of all scopes and collections in the bucket.
+def get_list_of_buckets_with_settings(
+    ctx: Context
+) -> list[str]:
+    """Get the list of buckets from the Couchbase cluster, including their bucket settings.
+    Returns a list of bucket setting objects.
+    """
+    cluster = ctx.request_context.lifespan_context.cluster
+    result=[]
+    try:
+        bucket_manager = cluster.buckets()
+        buckets = bucket_manager.get_all_buckets()
+        for b in buckets:
+            result.append(b)
+        return result
+    except Exception as e:
+        logger.error(f"Error getting bucket names: {e}")
+        raise e
+
+
+@mcp.tool()
+def get_scopes_and_collections_in_bucket(ctx: Context, bucket_name: str) -> dict[str, list[str]]:
+    """Get the names of all scopes and collections for a specified bucket.
     Returns a dictionary with scope names as keys and lists of collection names as values.
     """
-    bucket = ctx.request_context.lifespan_context.bucket
+    cluster = ctx.request_context.lifespan_context.cluster
+
+    try:
+        bucket = cluster.bucket(bucket_name)
+    except Exception as e:
+        logger.error(f"Error accessing bucket: {e}")
+        raise ValueError("Tool does not have access to bucket, or bucket does not exist.")
     try:
         scopes_collections = {}
         collection_manager = bucket.collections()
@@ -184,14 +201,14 @@ def get_scopes_and_collections_in_bucket(ctx: Context) -> dict[str, list[str]]:
 
 @mcp.tool()
 def get_schema_for_collection(
-    ctx: Context, scope_name: str, collection_name: str
+    ctx: Context, bucket_name: str, scope_name: str, collection_name: str
 ) -> dict[str, Any]:
-    """Get the schema for a collection in the specified scope.
+    """Get the schema for a collection in the specified scope of a specified bucket.
     Returns a dictionary with the schema returned by running INFER on the Couchbase collection.
     """
     try:
         query = f"INFER {collection_name}"
-        result = run_sql_plus_plus_query(ctx, scope_name, query)
+        result = run_sql_plus_plus_query(ctx, bucket_name, scope_name, query)
         return result
     except Exception as e:
         logger.error(f"Error getting schema: {e}")
@@ -200,10 +217,15 @@ def get_schema_for_collection(
 
 @mcp.tool()
 def get_document_by_id(
-    ctx: Context, scope_name: str, collection_name: str, document_id: str
+    ctx: Context, bucket_name: str, scope_name: str, collection_name: str, document_id: str
 ) -> dict[str, Any]:
-    """Get a document by its ID from the specified scope and collection."""
-    bucket = ctx.request_context.lifespan_context.bucket
+    """Get a document by its ID from the specified bucket, scope and collection."""
+    cluster = ctx.request_context.lifespan_context.cluster
+    try:
+        bucket = cluster.bucket(bucket_name)
+    except Exception as e:
+        logger.error(f"Error accessing bucket: {e}")
+        raise ValueError("Tool does not have access to bucket, or bucket does not exist.")
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         result = collection.get(document_id)
@@ -216,14 +238,20 @@ def get_document_by_id(
 @mcp.tool()
 def upsert_document_by_id(
     ctx: Context,
+    bucket_name: str,
     scope_name: str,
     collection_name: str,
     document_id: str,
     document_content: dict[str, Any],
 ) -> bool:
-    """Insert or update a document by its ID.
+    """Insert or update a document in a bucket, scope and collection by its ID.
     Returns True on success, False on failure."""
-    bucket = ctx.request_context.lifespan_context.bucket
+    cluster = ctx.request_context.lifespan_context.cluster
+    try:
+        bucket = cluster.bucket(bucket_name)
+    except Exception as e:
+        logger.error(f"Error accessing bucket: {e}")
+        raise ValueError("Tool does not have access to bucket, or bucket does not exist.")
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.upsert(document_id, document_content)
@@ -236,11 +264,16 @@ def upsert_document_by_id(
 
 @mcp.tool()
 def delete_document_by_id(
-    ctx: Context, scope_name: str, collection_name: str, document_id: str
+    ctx: Context, bucket_name: str, scope_name: str, collection_name: str, document_id: str
 ) -> bool:
-    """Delete a document by its ID.
+    """Delete a document in a bucket, scope and collection by its ID.
     Returns True on success, False on failure."""
-    bucket = ctx.request_context.lifespan_context.bucket
+    cluster = ctx.request_context.lifespan_context.cluster
+    try:
+        bucket = cluster.bucket(bucket_name)
+    except Exception as e:
+        logger.error(f"Error accessing bucket: {e}")
+        raise ValueError("Tool does not have access to bucket, or bucket does not exist.")
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.remove(document_id)
@@ -250,13 +283,44 @@ def delete_document_by_id(
         logger.error(f"Error deleting document {document_id}: {e}")
         return False
 
+@mcp.tool()
+def advise_index_for_sql_plus_plus_query(
+    ctx: Context, bucket_name: str, scope_name: str, query: str
+) -> dict[str, Any]:
+    """Get an index recommendation from the SQL++ index advisor for a specified query on a specified bucket and scope.
+    Returns a dictionary with the query advised on, as well as:
+    1. an array of the current indexes used and their status (or a string indicating no existing indexes available)
+    2. an array of recommended indexes and/or covering indexes with reasoning (or a string indicating no possible index improvements)
+    """
+    response = {}
+
+    try:
+        advise_query = f"ADVISE {query}"
+        result = run_sql_plus_plus_query(ctx, bucket_name, scope_name, advise_query)
+
+        if result and (advice := result[0].get("advice")):
+            if (advice is not None):
+                advise_info = advice.get("adviseinfo")
+                if ( advise_info is not None):
+                    response["current_indexes"] = advise_info.get("current_indexes", "No current indexes")
+                    response["recommended_indexes"] = advise_info.get("recommended_indexes","No index recommendations available")
+                    response["query"]=result[0].get("query","Query statement unavailable")
+        return response
+    except Exception as e:
+        logger.error(f"Error running Advise on query: {e}")
+        raise ValueError(f"Unable to run ADVISE on: {query} for keyspace {bucket_name}.{scope_name}") from e
 
 @mcp.tool()
 def run_sql_plus_plus_query(
-    ctx: Context, scope_name: str, query: str
+    ctx: Context, bucket_name: str, scope_name: str, query: str
 ) -> list[dict[str, Any]]:
-    """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
-    bucket = ctx.request_context.lifespan_context.bucket
+    """Run a SQL++ query on a scope in a specified bucket and return the results as a list of JSON objects."""
+    cluster = ctx.request_context.lifespan_context.cluster
+    try:
+        bucket = cluster.bucket(bucket_name)
+    except Exception as e:
+        logger.error(f"Error accessing bucket: {e}")
+        raise ValueError("Tool does not have access to bucket, or bucket does not exist.")
     read_only_query_mode = ctx.request_context.lifespan_context.read_only_query_mode
     logger.info(f"Running SQL++ queries in read-only mode: {read_only_query_mode}")
 
