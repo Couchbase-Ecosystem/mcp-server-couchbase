@@ -8,17 +8,14 @@ import logging
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
-from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 import click
+from couchbase_mcp import logger, set_mcp, MCP_SERVER_NAME
+import json
+import importlib
+import os
 
-MCP_SERVER_NAME = "couchbase"
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(MCP_SERVER_NAME)
 
 
 @dataclass
@@ -26,7 +23,6 @@ class AppContext:
     """Context for the MCP server."""
 
     cluster: Cluster | None = None
-    bucket: Any | None = None
     read_only_query_mode: bool = True
 
 
@@ -64,12 +60,7 @@ def get_settings() -> dict:
     help="Couchbase database password",
     callback=validate_required_param,
 )
-@click.option(
-    "--bucket-name",
-    envvar="CB_BUCKET_NAME",
-    help="Couchbase bucket name",
-    callback=validate_required_param,
-)
+
 @click.option(
     "--read-only-query-mode",
     envvar="READ_ONLY_QUERY_MODE",
@@ -90,7 +81,6 @@ def main(
     connection_string,
     username,
     password,
-    bucket_name,
     read_only_query_mode,
     transport,
 ):
@@ -99,7 +89,6 @@ def main(
         "connection_string": connection_string,
         "username": username,
         "password": password,
-        "bucket_name": bucket_name,
         "read_only_query_mode": read_only_query_mode,
     }
     mcp.run(transport=transport)
@@ -114,7 +103,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     connection_string = settings.get("connection_string")
     username = settings.get("username")
     password = settings.get("password")
-    bucket_name = settings.get("bucket_name")
     read_only_query_mode = settings.get("read_only_query_mode")
 
     # Validate configuration
@@ -128,9 +116,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     if not password:
         logger.error("Couchbase database password is not set")
         missing_vars.append("password")
-    if not bucket_name:
-        logger.error("Couchbase bucket name is not set")
-        missing_vars.append("bucket_name")
+
 
     if missing_vars:
         error_msg = f"Missing required configuration: {', '.join(missing_vars)}"
@@ -148,9 +134,9 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         cluster.wait_until_ready(timedelta(seconds=5))
         logger.info("Successfully connected to Couchbase cluster")
 
-        bucket = cluster.bucket(bucket_name)
         yield AppContext(
-            cluster=cluster, bucket=bucket, read_only_query_mode=read_only_query_mode
+            cluster=cluster, 
+            read_only_query_mode=read_only_query_mode
         )
 
     except Exception as e:
@@ -160,140 +146,40 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
 # Initialize MCP server
 mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
+set_mcp(mcp)
 
 
-# Tools
-@mcp.tool()
-def get_scopes_and_collections_in_bucket(ctx: Context) -> dict[str, list[str]]:
-    """Get the names of all scopes and collections in the bucket.
-    Returns a dictionary with scope names as keys and lists of collection names as values.
-    """
-    bucket = ctx.request_context.lifespan_context.bucket
+
+
+def load_config(path="mcp_config.json"):
+
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(SCRIPT_DIR, path)
     try:
-        scopes_collections = {}
-        collection_manager = bucket.collections()
-        scopes = collection_manager.get_all_scopes()
-        for scope in scopes:
-            collection_names = [c.name for c in scope.collections]
-            scopes_collections[scope.name] = collection_names
-        return scopes_collections
-    except Exception as e:
-        logger.error(f"Error getting scopes and collections: {e}")
-        raise
+        with open(file_path, "r") as f:
+            config = json.load(f)
+            return config
+    except FileNotFoundError as e:
+        logger.error(f"Config file not found: {file_path}")
+        raise e
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in config file: {e}")
+        raise e
 
-
-@mcp.tool()
-def get_schema_for_collection(
-    ctx: Context, scope_name: str, collection_name: str
-) -> dict[str, Any]:
-    """Get the schema for a collection in the specified scope.
-    Returns a dictionary with the schema returned by running INFER on the Couchbase collection.
-    """
-    try:
-        query = f"INFER {collection_name}"
-        result = run_sql_plus_plus_query(ctx, scope_name, query)
-        return result
-    except Exception as e:
-        logger.error(f"Error getting schema: {e}")
-        raise
-
-
-@mcp.tool()
-def get_document_by_id(
-    ctx: Context, scope_name: str, collection_name: str, document_id: str
-) -> dict[str, Any]:
-    """Get a document by its ID from the specified scope and collection."""
-    bucket = ctx.request_context.lifespan_context.bucket
-    try:
-        collection = bucket.scope(scope_name).collection(collection_name)
-        result = collection.get(document_id)
-        return result.content_as[dict]
-    except Exception as e:
-        logger.error(f"Error getting document {document_id}: {e}")
-        raise
-
-
-@mcp.tool()
-def upsert_document_by_id(
-    ctx: Context,
-    scope_name: str,
-    collection_name: str,
-    document_id: str,
-    document_content: dict[str, Any],
-) -> bool:
-    """Insert or update a document by its ID.
-    Returns True on success, False on failure."""
-    bucket = ctx.request_context.lifespan_context.bucket
-    try:
-        collection = bucket.scope(scope_name).collection(collection_name)
-        collection.upsert(document_id, document_content)
-        logger.info(f"Successfully upserted document {document_id}")
-        return True
-    except Exception as e:
-        logger.error(f"Error upserting document {document_id}: {e}")
-        return False
-
-
-@mcp.tool()
-def delete_document_by_id(
-    ctx: Context, scope_name: str, collection_name: str, document_id: str
-) -> bool:
-    """Delete a document by its ID.
-    Returns True on success, False on failure."""
-    bucket = ctx.request_context.lifespan_context.bucket
-    try:
-        collection = bucket.scope(scope_name).collection(collection_name)
-        collection.remove(document_id)
-        logger.info(f"Successfully deleted document {document_id}")
-        return True
-    except Exception as e:
-        logger.error(f"Error deleting document {document_id}: {e}")
-        return False
-
-
-@mcp.tool()
-def run_sql_plus_plus_query(
-    ctx: Context, scope_name: str, query: str
-) -> list[dict[str, Any]]:
-    """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
-    bucket = ctx.request_context.lifespan_context.bucket
-    read_only_query_mode = ctx.request_context.lifespan_context.read_only_query_mode
-    logger.info(f"Running SQL++ queries in read-only mode: {read_only_query_mode}")
-
-    try:
-        scope = bucket.scope(scope_name)
-
-        results = []
-        # If read-only mode is enabled, check if the query is a data or structure modification query
-        if read_only_query_mode:
-            data_modification_query = modifies_data(parse_sqlpp(query))
-            structure_modification_query = modifies_structure(parse_sqlpp(query))
-
-            if data_modification_query:
-                logger.error("Data modification query is not allowed in read-only mode")
-                raise ValueError(
-                    "Data modification query is not allowed in read-only mode"
-                )
-            if structure_modification_query:
-                logger.error(
-                    "Structure modification query is not allowed in read-only mode"
-                )
-                raise ValueError(
-                    "Structure modification query is not allowed in read-only mode"
-                )
-
-        # Run the query if it is not a data or structure modification query
-        if not read_only_query_mode or not (
-            data_modification_query or structure_modification_query
-        ):
-            result = scope.query(query)
-            for row in result:
-                results.append(row)
-            return results
-    except Exception as e:
-        logger.error(f"Error running query: {str(e)}", exc_info=True)
-        raise
+def load_tool_modules(tools):
+    for mod_name in tools:
+        try:
+            importlib.import_module(mod_name)
+            logger.info(f"Loaded tool module: {mod_name}")
+        except ModuleNotFoundError as e:
+            logger.warning(f"Could not find tool module '{mod_name}': {e}")
+        except Exception as e:
+            logger.error(f"Error importing tool module '{mod_name}': {e}")
 
 
 if __name__ == "__main__":
+    importlib.import_module("tools") #load default tools
+    config = load_config()
+    tools = config.get("tools", [])
+    load_tool_modules(tools)
     main()
