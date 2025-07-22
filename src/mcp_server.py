@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import Any
 from mcp.server.fastmcp import FastMCP, Context
-from couchbase.cluster import Cluster, Bucket 
+from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
 from couchbase.options import ClusterOptions
 import logging
@@ -26,7 +26,7 @@ class AppContext:
     """Context for the MCP server."""
 
     cluster: Cluster | None = None
-    bucket: Bucket | None = None
+    bucket: Any | None = None
     read_only_query_mode: bool = True
 
 
@@ -43,35 +43,6 @@ def get_settings() -> dict:
     """Get settings from Click context."""
     ctx = click.get_current_context()
     return ctx.obj or {}
-
-
-def validate_connection_config() -> None:
-    """Validate that all required parameters for the MCP server are available when needed."""
-    settings = get_settings()
-    missing_vars = []
-    
-    if not settings.get("connection_string"):
-        missing_vars.append("connection_string")
-    if not settings.get("username"):
-        missing_vars.append("username") 
-    if not settings.get("password"):
-        missing_vars.append("password")
-    if not settings.get("bucket_name"):
-        missing_vars.append("bucket_name")
-    
-    if missing_vars:
-        error_msg = f"Missing required parameters for the MCP server: {', '.join(missing_vars)}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-
-
-def ensure_bucket_connection(ctx: Context) -> Bucket:
-    """Ensure bucket connection is established and return the bucket object."""
-    validate_connection_config()
-    app_context = ctx.request_context.lifespan_context
-    if not app_context.bucket:
-        set_bucket_in_lifespan_context(ctx)
-    return app_context.bucket
 
 
 @click.command()
@@ -133,108 +104,70 @@ def main(
     }
     mcp.run(transport=transport)
 
-def connect_to_couchbase_cluster(connection_string:str, username:str, password:str) -> Cluster | None:
-    """Connect to Couchbase cluster and return the cluster object if successful, None otherwise.
-    If the connection fails, it will raise an exception.
-    """ 
-    
+
+@asynccontextmanager
+async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
+    """Initialize the Couchbase cluster and bucket for the MCP server."""
+    # Get configuration from Click context
+    settings = get_settings()
+
+    connection_string = settings.get("connection_string")
+    username = settings.get("username")
+    password = settings.get("password")
+    bucket_name = settings.get("bucket_name")
+    read_only_query_mode = settings.get("read_only_query_mode")
+
+    # Validate configuration
+    missing_vars = []
+    if not connection_string:
+        logger.error("Couchbase connection string is not set")
+        missing_vars.append("connection_string")
+    if not username:
+        logger.error("Couchbase database user is not set")
+        missing_vars.append("username")
+    if not password:
+        logger.error("Couchbase database password is not set")
+        missing_vars.append("password")
+    if not bucket_name:
+        logger.error("Couchbase bucket name is not set")
+        missing_vars.append("bucket_name")
+
+    if missing_vars:
+        error_msg = f"Missing required configuration: {', '.join(missing_vars)}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    yield AppContext(
+        read_only_query_mode=read_only_query_mode
+    )
+
+
+def get_cluster(ctx: Context) -> Cluster:
+
+    settings = get_settings()
+
+    connection_string = settings.get("connection_string")
+    username = settings.get("username")
+    password = settings.get("password")
+    bucket_name = settings.get("bucket_name")
+    read_only_query_mode = settings.get("read_only_query_mode")
+
     try:
-        logger.info("Connecting to Couchbase cluster...")
+        logger.info("Creating Couchbase cluster connection...")
         auth = PasswordAuthenticator(username, password)
+
         options = ClusterOptions(auth)
         options.apply_profile("wan_development")
 
         cluster = Cluster(connection_string, options)
         cluster.wait_until_ready(timedelta(seconds=5))
-
         logger.info("Successfully connected to Couchbase cluster")
+
         return cluster
+
     except Exception as e:
         logger.error(f"Failed to connect to Couchbase: {e}")
-        raise 
-    
-def connect_to_bucket(cluster:Cluster, bucket_name:str) -> Bucket | None:
-    """Connect to a bucket and return the bucket object if successful, None otherwise.
-    If the operation fails, it will raise an exception.
-    """
-    try:
-        logger.info(f"Connecting to bucket: {bucket_name}")
-        bucket = cluster.bucket(bucket_name)
-        return bucket
-    except Exception as e:
-        logger.error(f"Failed to connect to bucket: {e}")
         raise
-
-def set_cluster_in_lifespan_context(ctx: Context) -> None:
-    """Set the cluster in the lifespan context.
-    If the cluster is not set, it will try to connect to the cluster using the connection string, username, and password.
-    If the connection fails, it will raise an exception.
-    """
-    if not ctx.request_context.lifespan_context.cluster:
-        try:
-            settings = get_settings()
-            connection_string = settings.get("connection_string")
-            username = settings.get("username")
-            password = settings.get("password")
-            cluster = connect_to_couchbase_cluster(connection_string, username, password)
-            ctx.request_context.lifespan_context.cluster = cluster
-        except Exception as e:
-            logger.error(f"Failed to connect to Couchbase: {e} \n Please check your connection string, username, password, and bucket name.")
-            raise
-
-def set_bucket_in_lifespan_context(ctx: Context) -> None:
-    """Set the bucket in the lifespan context.
-    If the bucket is not set, it will try to connect to the bucket using the cluster object in the lifespan context.
-    If the cluster is not set, it will try to connect to the cluster using the connection string, username, and password.
-    If the connection fails, it will raise an exception.
-    """
-    settings = get_settings()
-    bucket_name = settings.get("bucket_name")
-    connection_string = settings.get("connection_string")
-    username = settings.get("username")
-    password = settings.get("password")
-
-    # If the bucket is not set, try to connect to the bucket using the cluster object in the lifespan context
-    app_context = ctx.request_context.lifespan_context
-
-    try:
-        # If the cluster is not set, try to connect to the cluster using the connection string, username, and password
-        if app_context.cluster:
-            cluster = app_context.cluster
-        else:
-            cluster = connect_to_couchbase_cluster(connection_string, username, password)
-            app_context.cluster = cluster
-
-        # Try to connect to the bucket using the cluster object
-        bucket = connect_to_bucket(cluster, bucket_name)
-        app_context.bucket = bucket
-    except Exception as e:
-        logger.error(f"Failed to connect to bucket: {e} \n Please check your bucket name and credentials.")
-        raise 
-
-@asynccontextmanager
-async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
-    """Initialize the MCP server context without establishing database connections."""
-    # Get configuration from Click context
-    settings = get_settings()
-    read_only_query_mode = settings.get("read_only_query_mode", True)
-
-    # Note: We don't validate configuration here to allow tool discovery
-    # Configuration will be validated when tools are actually used
-    logger.info("MCP server initialized in lazy mode for tool discovery.")
-    
-    try:
-        app_context = AppContext(read_only_query_mode=read_only_query_mode)
-        yield app_context
-
-    except Exception as e:
-        logger.error(f"Error in app lifespan: {e}")
-        raise
-    finally:
-        # Close the cluster connection
-        if app_context.cluster:
-            app_context.cluster.close()
-        logger.info("Closing MCP server")
 
 
 # Initialize MCP server
@@ -243,69 +176,13 @@ mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
 
 # Tools
 @mcp.tool()
-def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
-    """Get the server status and configuration without establishing connections.
-    This tool can be used to verify the server is running and check configuration.
-    """
-    settings = get_settings()
-    
-    # Don't expose sensitive information like passwords
-    configuration = {
-        "connection_string": settings.get("connection_string", "Not set"),
-        "username": settings.get("username", "Not set"),
-        "bucket_name": settings.get("bucket_name", "Not set"),
-        "read_only_query_mode": settings.get("read_only_query_mode", True),
-        "password_configured": bool(settings.get("password")),
-    }
-    
-    app_context = ctx.request_context.lifespan_context
-    connection_status = {
-        "cluster_connected": app_context.cluster is not None,
-        "bucket_connected": app_context.bucket is not None,
-    }
-    
-    return {
-        "server_name": MCP_SERVER_NAME,
-        "status": "running",
-        "configuration": configuration,
-        "connections": connection_status,
-    }
-
-
-@mcp.tool()
-def test_connection(ctx: Context) -> dict[str, Any]:
-    """Test the connection to Couchbase cluster and bucket.
-    Returns connection status and basic cluster information.
-    """
-    try:
-        bucket = ensure_bucket_connection(ctx)
-        
-        # Test basic connectivity by getting bucket name
-        bucket_name = bucket.name
-        
-        return {
-            "status": "success",
-            "cluster_connected": True,
-            "bucket_connected": True,
-            "bucket_name": bucket_name,
-            "message": "Successfully connected to Couchbase cluster and bucket",
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "cluster_connected": False,
-            "bucket_connected": False,
-            "error": str(e),
-            "message": "Failed to connect to Couchbase",
-        }
-
-
-@mcp.tool()
 def get_scopes_and_collections_in_bucket(ctx: Context) -> dict[str, list[str]]:
     """Get the names of all scopes and collections in the bucket.
     Returns a dictionary with scope names as keys and lists of collection names as values.
     """
-    bucket = ensure_bucket_connection(ctx)
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
     try:
         scopes_collections = {}
         collection_manager = bucket.collections()
@@ -340,7 +217,9 @@ def get_document_by_id(
     ctx: Context, scope_name: str, collection_name: str, document_id: str
 ) -> dict[str, Any]:
     """Get a document by its ID from the specified scope and collection."""
-    bucket = ensure_bucket_connection(ctx)
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         result = collection.get(document_id)
@@ -360,7 +239,9 @@ def upsert_document_by_id(
 ) -> bool:
     """Insert or update a document by its ID.
     Returns True on success, False on failure."""
-    bucket = ensure_bucket_connection(ctx)
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.upsert(document_id, document_content)
@@ -377,7 +258,9 @@ def delete_document_by_id(
 ) -> bool:
     """Delete a document by its ID.
     Returns True on success, False on failure."""
-    bucket = ensure_bucket_connection(ctx)
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.remove(document_id)
@@ -389,14 +272,76 @@ def delete_document_by_id(
 
 
 @mcp.tool()
+def get_help_config(ctx: Context) -> str:
+    """Help the user to configure the MCP server."""
+    msg = """
+    The user has not configured the server. The server can be configured using environment variables. The following variables are supported:
+
+- `CB_CONNECTION_STRING`: The connection string to the Couchbase cluster
+- `CB_USERNAME`: The username with access to the bucket to use to connect
+- `CB_PASSWORD`: The password for the username to connect
+- `CB_BUCKET_NAME`: The name of the bucket that the server will access
+- `READ_ONLY_QUERY_MODE`: Setting to configure whether SQL++ queries that allow data to be modified are allowed. It is set to True by default.
+
+Until the connection has not been defined properly, the user will not be able to use the server. 
+Ask the user to configure the server before trying to use it. 
+
+If the user doesn't know how to configure the server, the server provides a `run_your_database_help` tool that will help the user to configure the server.
+"""
+    return msg
+
+
+@mcp.tool()
+def run_your_database_help(ctx: Context) -> str:
+    """Help the user to configure the MCP server."""
+    msg = """
+    To run the server, the first thing we need is a valid connection string to the Couchbase cluster. Let's start with that.
+
+    docker run -d --rm -p 8091-8094:8091-8094 -p 11210:11210 couchbase:community
+
+    The connection string is usually in the format:
+
+    `couchbase://docker.internal.host:8091`
+
+    Once the container is running, we need to initialize the bucket.
+
+    # Set minimal memory quotas
+    curl -v http://127.0.0.1:8091/pools/default -d memoryQuota=256 -d indexMemoryQuota=256
+
+    # Configure data, query, and index services to run
+    curl -v http://127.0.0.1:8091/node/controller/setupServices -d services=kv%2Cn1ql%2Cindex
+
+    # Set Admin credentials
+    curl -v http://127.0.0.1:8091/node/controller/setupServices -d services=kv%2Cn1ql%2Cindex
+
+    # Set index storage mode to on-disk
+    curl -v -u Administrator:password -X POST http://127.0.0.1:8091/settings/indexes -d 'storageMode=forestdb'
+
+    # Create a 'default' data bucket 
+    curl -v -u Administrator:password -X POST http://127.0.0.1:8091/pools/default/buckets -d name=default -d bucketType=couchbase -d ramQuotaMB=128
+
+    Once the bucket is created, we can start the server.
+
+    python src/no_conn_server.py --connection-string couchbase://docker.internal.host:8091 --username Administrator --password password --bucket-name default --read-only-query-mode False
+
+    The server will be running on port 8000.
+
+    The user can now use the server to query the database.
+    """
+    return msg
+
+
+@mcp.tool()
 def run_sql_plus_plus_query(
     ctx: Context, scope_name: str, query: str
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
-    bucket = ensure_bucket_connection(ctx)
-    app_context = ctx.request_context.lifespan_context
-    read_only_query_mode = app_context.read_only_query_mode
-    logger.info(f"Running SQL++ queries in read-only mode: {read_only_query_mode}")
+    settings = get_settings()
+    cluster = get_cluster(ctx)
+    bucket = cluster.bucket(settings.get("bucket_name"))
+    read_only_query_mode = ctx.request_context.lifespan_context.read_only_query_mode
+    logger.info(
+        f"Running SQL++ queries in read-only mode: {read_only_query_mode}")
 
     try:
         scope = bucket.scope(scope_name)
@@ -405,10 +350,12 @@ def run_sql_plus_plus_query(
         # If read-only mode is enabled, check if the query is a data or structure modification query
         if read_only_query_mode:
             data_modification_query = modifies_data(parse_sqlpp(query))
-            structure_modification_query = modifies_structure(parse_sqlpp(query))
+            structure_modification_query = modifies_structure(
+                parse_sqlpp(query))
 
             if data_modification_query:
-                logger.error("Data modification query is not allowed in read-only mode")
+                logger.error(
+                    "Data modification query is not allowed in read-only mode")
                 raise ValueError(
                     "Data modification query is not allowed in read-only mode"
                 )
