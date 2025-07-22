@@ -60,26 +60,22 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 @click.option(
     "--connection-string",
     envvar="CB_CONNECTION_STRING",
-    help="Couchbase connection string",
-    callback=validate_required_param,
+    help="Couchbase connection string (required for operations)",
 )
 @click.option(
     "--username",
     envvar="CB_USERNAME",
-    help="Couchbase database user",
-    callback=validate_required_param,
+    help="Couchbase database user (required for operations)",
 )
 @click.option(
     "--password",
     envvar="CB_PASSWORD",
-    help="Couchbase database password",
-    callback=validate_required_param,
+    help="Couchbase database password (required for operations)",
 )
 @click.option(
     "--bucket-name",
     envvar="CB_BUCKET_NAME",
-    help="Couchbase bucket name",
-    callback=validate_required_param,
+    help="Couchbase bucket name (required for operations)",
 )
 @click.option(
     "--read-only-query-mode",
