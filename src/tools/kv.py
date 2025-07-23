@@ -16,7 +16,8 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.kv")
 def get_document_by_id(
     ctx: Context, scope_name: str, collection_name: str, document_id: str
 ) -> dict[str, Any]:
-    """Get a document by its ID from the specified scope and collection."""
+    """Get a document by its ID from the specified scope and collection. 
+    If the document is not found, it will raise an exception."""
     bucket = ensure_bucket_connection(ctx)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)

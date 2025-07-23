@@ -30,7 +30,7 @@ def set_cluster_in_lifespan_context(ctx: Context) -> None:
         cluster = connect_to_couchbase_cluster(connection_string, username, password)
         ctx.request_context.lifespan_context.cluster = cluster
     except Exception as e:
-        logger.error(f"Failed to connect to Couchbase: {e} \n Please check your connection string, username, password, and bucket name.")
+        logger.error(f"Failed to connect to Couchbase: {e} \n Please check your connection string, username and password")
         raise
 
 def set_bucket_in_lifespan_context(ctx: Context) -> None:

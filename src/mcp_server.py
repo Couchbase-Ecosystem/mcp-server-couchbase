@@ -10,7 +10,6 @@ from mcp.server.fastmcp import FastMCP
 
 # Import utilities
 from utils import (
-    validate_required_param, 
     get_settings, 
     AppContext,
     MCP_SERVER_NAME,
@@ -51,7 +50,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         raise
     finally:
         # Close the cluster connection
-        if app_context.cluster:
+        if app_context and app_context.cluster:
             app_context.cluster.close()
         logger.info("Closing MCP server")
 
