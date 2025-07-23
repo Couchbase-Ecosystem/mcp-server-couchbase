@@ -1,4 +1,4 @@
-name: Upload Python Package to TestPyPI and Create GitHub Release
+name: Test PyPI Release
 
 on:
   push:
