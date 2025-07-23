@@ -1,4 +1,4 @@
-name: Test PyPI Release
+name: PyPI Release
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-pypi-publish:
-    name: Build and publish Python distributions to Test PyPI
+  pypi-publish:
+    name: Build and publish Python distributions to PyPI
     runs-on: ubuntu-latest
     permissions:
       id-token: write # Required for trusted publishing
@@ -26,14 +26,12 @@ jobs:
       - name: Build package
         run: uv build
 
-      - name: Publish package to TestPyPI
+      - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
 
       - name: Generate changelog and create release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          prerelease: true
+          prerelease: false
           files: dist/*
