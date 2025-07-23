@@ -67,24 +67,25 @@ Our Ruff configuration includes:
 ```
 mcp-server-couchbase/
 ├── src/
-│   ├── mcp_server.py          # Main MCP server entry point
-│   ├── tools/                 # MCP tool implementations
-│   │   ├── __init__.py        # Tool exports and ALL_TOOLS list
-│   │   ├── server.py          # Server status and connection tools
-│   │   ├── kv.py              # Key-value operations (CRUD)
-│   │   └── query.py           # SQL++ query operations
-│   └── utils/                 # Utility modules
-│       ├── __init__.py        # Utility exports
-│       ├── constants.py       # Project constants
-│       ├── config.py          # Configuration management
-│       ├── connection.py      # Couchbase connection handling
-│       └── context.py         # Application context management
-├── scripts/                   # Development scripts
+│   ├── mcp_server.py         # MCP server entry point
+│   ├── tools/                # MCP tool implementations
+│   │   ├── __init__.py       # Tool exports and ALL_TOOLS list
+│   │   ├── server.py         # Server status and connection tools
+│   │   ├── kv.py             # Key-value operations (CRUD)
+│   │   └── query.py          # SQL++ query operations
+│   └── utils/                # Utility modules
+│       ├── __init__.py       # Utility exports
+│       ├── constants.py      # Project constants
+│       ├── config.py         # Configuration management
+│       ├── connection.py     # Couchbase connection handling
+│       └── context.py        # Application context management
+├── scripts/                  # Development scripts
 │   ├── lint.sh               # Manual linting script
-│   └── fix.sh                # Auto-fix linting issues
+│   └── fix_lint.sh           # Auto-fix linting issues
 ├── .pre-commit-config.yaml   # Pre-commit hook configuration
 ├── pyproject.toml            # Project dependencies and Ruff config
-└── CONTRIBUTING.md           # This file
+├── CONTRIBUTING.md           # This file
+└── README.md                 # Usage
 ```
 
 ## 🛠️ Development Workflow
