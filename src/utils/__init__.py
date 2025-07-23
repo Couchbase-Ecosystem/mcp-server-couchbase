@@ -29,8 +29,6 @@ from .constants import (
 from .context import (
     AppContext,
     ensure_bucket_connection,
-    set_bucket_in_lifespan_context,
-    set_cluster_in_lifespan_context,
 )
 
 # Note: Individual modules create their own hierarchical loggers using:
@@ -46,8 +44,6 @@ __all__ = [
     "connect_to_bucket",
     # Context
     "AppContext",
-    "set_cluster_in_lifespan_context",
-    "set_bucket_in_lifespan_context",
     "ensure_bucket_connection",
     # Constants
     "MCP_SERVER_NAME",

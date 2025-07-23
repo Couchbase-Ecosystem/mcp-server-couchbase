@@ -41,7 +41,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     # Note: We don't validate configuration here to allow tool discovery
     # Configuration will be validated when tools are actually used
     logger.info("MCP server initialized in lazy mode for tool discovery.")
-
+    app_context = None
     try:
         app_context = AppContext(read_only_query_mode=read_only_query_mode)
         yield app_context
