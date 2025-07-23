@@ -44,8 +44,9 @@ def run_sql_plus_plus_query(
         results = []
         # If read-only mode is enabled, check if the query is a data or structure modification query
         if read_only_query_mode:
-            data_modification_query = modifies_data(parse_sqlpp(query))
-            structure_modification_query = modifies_structure(parse_sqlpp(query))
+            parsed_query = parse_sqlpp(query)
+            data_modification_query = modifies_data(parsed_query)
+            structure_modification_query = modifies_structure(parsed_query)
 
             if data_modification_query:
                 logger.error("Data modification query is not allowed in read-only mode")
@@ -61,13 +62,10 @@ def run_sql_plus_plus_query(
                 )
 
         # Run the query if it is not a data or structure modification query
-        if not read_only_query_mode or not (
-            data_modification_query or structure_modification_query
-        ):
-            result = scope.query(query)
-            for row in result:
-                results.append(row)
-            return results
+        result = scope.query(query)
+        for row in result:
+            results.append(row)
+        return results
     except Exception as e:
         logger.error(f"Error running query: {str(e)}", exc_info=True)
         raise
