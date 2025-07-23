@@ -11,7 +11,7 @@ Thank you for your interest in contributing to the Couchbase MCP Server! This gu
 - **Git**: For version control
 - **VS Code** (recommended): With Python extension for the best development experience
 
-### 1. Clone and Setup
+### Clone and Setup
 
 ```bash
 # Clone the repository
@@ -22,7 +22,7 @@ cd mcp-server-couchbase
 uv sync --extra dev
 ```
 
-### 2. Install Development Tools
+### Install Development Tools
 
 ```bash
 # Install pre-commit hooks (runs linting on every commit)
@@ -81,7 +81,7 @@ mcp-server-couchbase/
 │       └── context.py        # Application context management
 ├── scripts/                  # Development scripts
 │   ├── lint.sh               # Manual linting script
-│   └── fix_lint.sh           # Auto-fix linting issues
+│   └── lint_fix.sh           # Auto-fix linting issues
 ├── .pre-commit-config.yaml   # Pre-commit hook configuration
 ├── pyproject.toml            # Project dependencies and Ruff config
 ├── CONTRIBUTING.md           # This file
@@ -128,7 +128,7 @@ When adding new MCP tools:
 3. **Add to ALL_TOOLS** list in `tools/__init__.py`
 4. **Test the tool** with an MCP client
 
-### 3. Code Style Guidelines
+### Code Style Guidelines
 
 - **Line length**: 88 characters (enforced by Ruff)
 - **Import organization**: Use isort-style grouping (standard library, third-party, local)
