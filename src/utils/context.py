@@ -1,12 +1,15 @@
-from dataclasses import dataclass
-from utils.config import get_settings, validate_connection_config
-from utils.connection import connect_to_couchbase_cluster, connect_to_bucket
-from utils.constants import MCP_SERVER_NAME
-from mcp.server.fastmcp import Context
-from couchbase.cluster import Cluster, Bucket
 import logging
+from dataclasses import dataclass
+
+from couchbase.cluster import Bucket, Cluster
+from mcp.server.fastmcp import Context
+
+from utils.config import get_settings, validate_connection_config
+from utils.connection import connect_to_bucket, connect_to_couchbase_cluster
+from utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.context")
+
 
 @dataclass
 class AppContext:
@@ -27,11 +30,18 @@ def set_cluster_in_lifespan_context(ctx: Context) -> None:
         connection_string = settings.get("connection_string")
         username = settings.get("username")
         password = settings.get("password")
-        cluster = connect_to_couchbase_cluster(connection_string, username, password)
+        cluster = connect_to_couchbase_cluster(
+            connection_string,  # type: ignore
+            username,  # type: ignore
+            password,  # type: ignore
+        )
         ctx.request_context.lifespan_context.cluster = cluster
     except Exception as e:
-        logger.error(f"Failed to connect to Couchbase: {e} \n Please check your connection string, username and password")
+        logger.error(
+            f"Failed to connect to Couchbase: {e} \n Please check your connection string, username and password"
+        )
         raise
+
 
 def set_bucket_in_lifespan_context(ctx: Context) -> None:
     """Set the bucket in the lifespan context.
@@ -52,11 +62,13 @@ def set_bucket_in_lifespan_context(ctx: Context) -> None:
         cluster = app_context.cluster
 
         # Try to connect to the bucket using the cluster object
-        bucket = connect_to_bucket(cluster, bucket_name)
+        bucket = connect_to_bucket(cluster, bucket_name)  # type: ignore
         app_context.bucket = bucket
     except Exception as e:
-        logger.error(f"Failed to connect to bucket: {e} \n Please check your bucket name and credentials.")
-        raise 
+        logger.error(
+            f"Failed to connect to bucket: {e} \n Please check your bucket name and credentials."
+        )
+        raise
 
 
 def ensure_bucket_connection(ctx: Context) -> Bucket:

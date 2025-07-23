@@ -28,4 +28,4 @@ EXPOSE 8080
 
 # Run the server using uv
 ENTRYPOINT ["uv", "run", "src/mcp_server.py"]
-CMD ["--transport", "stdio"] 
+CMD ["--transport", "stdio"]

@@ -4,21 +4,24 @@ Tools for server operations.
 This module contains tools for getting the server status, testing the connection, and getting the scopes and collections in the bucket.
 """
 
-from mcp.server.fastmcp import Context
-from typing import Any
 import logging
+from typing import Any
+
+from mcp.server.fastmcp import Context
+
 from utils.config import get_settings
-from utils.context import ensure_bucket_connection
 from utils.constants import MCP_SERVER_NAME
+from utils.context import ensure_bucket_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.server")
+
 
 def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     """Get the server status and configuration without establishing connections.
     This tool can be used to verify the server is running and check configuration.
     """
     settings = get_settings()
-    
+
     # Don't expose sensitive information like passwords
     configuration = {
         "connection_string": settings.get("connection_string", "Not set"),
@@ -27,13 +30,13 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
         "read_only_query_mode": settings.get("read_only_query_mode", True),
         "password_configured": bool(settings.get("password")),
     }
-    
+
     app_context = ctx.request_context.lifespan_context
     connection_status = {
         "cluster_connected": app_context.cluster is not None,
         "bucket_connected": app_context.bucket is not None,
     }
-    
+
     return {
         "server_name": MCP_SERVER_NAME,
         "status": "running",
@@ -48,10 +51,10 @@ def test_connection(ctx: Context) -> dict[str, Any]:
     """
     try:
         bucket = ensure_bucket_connection(ctx)
-        
+
         # Test basic connectivity by getting bucket name
         bucket_name = bucket.name
-        
+
         return {
             "status": "success",
             "cluster_connected": True,

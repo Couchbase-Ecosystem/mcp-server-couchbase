@@ -7,30 +7,30 @@ This module contains utility functions for configuration, connection, and contex
 # Configuration utilities
 from .config import (
     get_settings,
-    validate_required_param,
     validate_connection_config,
+    validate_required_param,
 )
 
-# Connection utilities  
+# Connection utilities
 from .connection import (
-    connect_to_couchbase_cluster,
     connect_to_bucket,
+    connect_to_couchbase_cluster,
+)
+
+# Constants
+from .constants import (
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_READ_ONLY_MODE,
+    DEFAULT_TRANSPORT,
+    MCP_SERVER_NAME,
 )
 
 # Context utilities
 from .context import (
     AppContext,
-    set_cluster_in_lifespan_context,
-    set_bucket_in_lifespan_context,
     ensure_bucket_connection,
-)
-
-# Constants
-from .constants import (
-    MCP_SERVER_NAME,
-    DEFAULT_READ_ONLY_MODE,
-    DEFAULT_TRANSPORT,
-    DEFAULT_LOG_LEVEL,
+    set_bucket_in_lifespan_context,
+    set_cluster_in_lifespan_context,
 )
 
 # Note: Individual modules create their own hierarchical loggers using:
@@ -42,16 +42,16 @@ __all__ = [
     "validate_required_param",
     "validate_connection_config",
     # Connection
-    "connect_to_couchbase_cluster", 
+    "connect_to_couchbase_cluster",
     "connect_to_bucket",
     # Context
     "AppContext",
     "set_cluster_in_lifespan_context",
-    "set_bucket_in_lifespan_context", 
+    "set_bucket_in_lifespan_context",
     "ensure_bucket_connection",
     # Constants
     "MCP_SERVER_NAME",
     "DEFAULT_READ_ONLY_MODE",
     "DEFAULT_TRANSPORT",
     "DEFAULT_LOG_LEVEL",
-] 
+]

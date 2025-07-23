@@ -4,19 +4,21 @@ Tools for querying the Couchbase database.
 This module contains tools for getting the schema for a collection and running SQL++ queries.
 """
 
-from mcp.server.fastmcp import Context
-from typing import Any
 import logging
-from utils.context import ensure_bucket_connection
-from utils.constants import MCP_SERVER_NAME
+from typing import Any
+
 from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
+from mcp.server.fastmcp import Context
+
+from utils.constants import MCP_SERVER_NAME
+from utils.context import ensure_bucket_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
 
 
 def get_schema_for_collection(
     ctx: Context, scope_name: str, collection_name: str
-) -> dict[str, Any]:
+) -> list[dict[str, Any]]:
     """Get the schema for a collection in the specified scope.
     Returns a dictionary with the schema returned by running INFER on the Couchbase collection.
     """
@@ -67,5 +69,5 @@ def run_sql_plus_plus_query(
             results.append(row)
         return results
     except Exception as e:
-        logger.error(f"Error running query: {str(e)}", exc_info=True)
+        logger.error(f"Error running query: {e!s}", exc_info=True)
         raise

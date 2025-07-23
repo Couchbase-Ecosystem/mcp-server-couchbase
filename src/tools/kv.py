@@ -4,11 +4,13 @@ Tools for key-value operations.
 This module contains tools for getting a document by its ID, upserting a document by its ID, and deleting a document by its ID.
 """
 
-from mcp.server.fastmcp import Context
-from typing import Any
 import logging
-from utils.context import ensure_bucket_connection
+from typing import Any
+
+from mcp.server.fastmcp import Context
+
 from utils.constants import MCP_SERVER_NAME
+from utils.context import ensure_bucket_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.kv")
 
@@ -16,7 +18,7 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.kv")
 def get_document_by_id(
     ctx: Context, scope_name: str, collection_name: str, document_id: str
 ) -> dict[str, Any]:
-    """Get a document by its ID from the specified scope and collection. 
+    """Get a document by its ID from the specified scope and collection.
     If the document is not found, it will raise an exception."""
     bucket = ensure_bucket_connection(ctx)
     try:
