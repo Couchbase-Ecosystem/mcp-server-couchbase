@@ -3,23 +3,24 @@ Couchbase MCP Server
 """
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+
 import click
 from mcp.server.fastmcp import FastMCP
 
-# Import utilities
-from utils import (
-    get_settings, 
-    AppContext,
-    MCP_SERVER_NAME,
-    DEFAULT_TRANSPORT,
-    DEFAULT_READ_ONLY_MODE,
-    DEFAULT_LOG_LEVEL,
-)
-
 # Import tools
 from tools import ALL_TOOLS
+
+# Import utilities
+from utils import (
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_READ_ONLY_MODE,
+    DEFAULT_TRANSPORT,
+    MCP_SERVER_NAME,
+    AppContext,
+    get_settings,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -40,7 +41,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     # Note: We don't validate configuration here to allow tool discovery
     # Configuration will be validated when tools are actually used
     logger.info("MCP server initialized in lazy mode for tool discovery.")
-    
+
     try:
         app_context = AppContext(read_only_query_mode=read_only_query_mode)
         yield app_context
@@ -109,14 +110,14 @@ def main(
         "bucket_name": bucket_name,
         "read_only_query_mode": read_only_query_mode,
     }
-    
+
     # Create MCP server inside main()
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
-    
+
     # Register all tools
     for tool in ALL_TOOLS:
         mcp.add_tool(tool)
-    
+
     # Run the server
     mcp.run(transport=transport)
 

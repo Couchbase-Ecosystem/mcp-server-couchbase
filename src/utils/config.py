@@ -1,8 +1,11 @@
-import click
 import logging
+
+import click
+
 from .constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.config")
+
 
 def validate_required_param(
     ctx: click.Context, param: click.Parameter, value: str | None
@@ -24,11 +27,11 @@ def validate_connection_config() -> None:
     settings = get_settings()
     required_params = ["connection_string", "username", "password", "bucket_name"]
     missing_params = []
-    
+
     for param in required_params:
-        if not settings.get(param): 
+        if not settings.get(param):
             missing_params.append(param)
-    
+
     if missing_params:
         error_msg = f"Missing required parameters for the MCP server: {', '.join(missing_params)}"
         logger.error(error_msg)
