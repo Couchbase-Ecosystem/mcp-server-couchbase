@@ -20,7 +20,7 @@ class AppContext:
     read_only_query_mode: bool = True
 
 
-def set_cluster_in_lifespan_context(ctx: Context) -> None:
+def _set_cluster_in_lifespan_context(ctx: Context) -> None:
     """Set the cluster in the lifespan context.
     If the cluster is not set, it will try to connect to the cluster using the connection string, username, and password.
     If the connection fails, it will raise an exception.
@@ -43,7 +43,7 @@ def set_cluster_in_lifespan_context(ctx: Context) -> None:
         raise
 
 
-def set_bucket_in_lifespan_context(ctx: Context) -> None:
+def _set_bucket_in_lifespan_context(ctx: Context) -> None:
     """Set the bucket in the lifespan context.
     If the bucket is not set, it will try to connect to the bucket using the cluster object in the lifespan context.
     If the cluster is not set, it will try to connect to the cluster using the connection string, username, and password.
@@ -58,7 +58,7 @@ def set_bucket_in_lifespan_context(ctx: Context) -> None:
     try:
         # If the cluster is not set, try to connect to the cluster
         if not app_context.cluster:
-            set_cluster_in_lifespan_context(ctx)
+            _set_cluster_in_lifespan_context(ctx)
         cluster = app_context.cluster
 
         # Try to connect to the bucket using the cluster object
@@ -76,5 +76,5 @@ def ensure_bucket_connection(ctx: Context) -> Bucket:
     validate_connection_config()
     app_context = ctx.request_context.lifespan_context
     if not app_context.bucket:
-        set_bucket_in_lifespan_context(ctx)
+        _set_bucket_in_lifespan_context(ctx)
     return app_context.bucket
