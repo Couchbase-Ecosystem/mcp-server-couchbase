@@ -97,6 +97,33 @@ wheels = [
 ]
 
 [[package]]
+name = "couchbase-mcp-server"
+version = "0.3.1rc3"
+source = { virtual = "." }
+dependencies = [
+    { name = "click" },
+    { name = "couchbase" },
+    { name = "lark-sqlpp" },
+    { name = "mcp", extra = ["cli"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pre-commit" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = "==8.2.1" },
+    { name = "couchbase", specifier = "==4.4.0" },
+    { name = "lark-sqlpp", specifier = "==0.0.1" },
+    { name = "mcp", extras = ["cli"], specifier = "==1.6.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
+]
+
+[[package]]
 name = "distlib"
 version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -243,33 +270,6 @@ wheels = [
 cli = [
     { name = "python-dotenv" },
     { name = "typer" },
-]
-
-[[package]]
-name = "mcp-couchbase"
-version = "0.3.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "click" },
-    { name = "couchbase" },
-    { name = "lark-sqlpp" },
-    { name = "mcp", extra = ["cli"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pre-commit" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = "==8.2.1" },
-    { name = "couchbase", specifier = "==4.4.0" },
-    { name = "lark-sqlpp", specifier = "==0.0.1" },
-    { name = "mcp", extras = ["cli"], specifier = "==1.6.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
 ]
 
 [[package]]
