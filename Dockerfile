@@ -8,7 +8,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /build
 
 # Copy dependency files for caching
-COPY pyproject.toml README.md ./
+COPY pyproject.toml ./
 COPY src/ ./src/
 
 # Create virtual environment and install dependencies
@@ -19,18 +19,16 @@ RUN uv venv /opt/venv && \
 FROM python:3.10-slim-bookworm AS runtime
 
 # Create non-root user
-RUN useradd --system --uid 1001 --create-home mcpuser
+RUN useradd --system --uid 1001 mcpuser
 
 WORKDIR /app
 
 # Copy virtual environment and application from builder
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /build/src ./src
-COPY --from=builder /build/pyproject.toml ./
 
 # Set up Python environment
 ENV PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH="/app" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
