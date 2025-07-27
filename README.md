@@ -170,6 +170,7 @@ docker run -i \
 - You are solely responsible for determining whether to use large language models and related technology, and for complying with any license terms, terms of use, and your organization's policies governing your use of the same.
 
 ### Managed MCP Server
+
 The Couchbase MCP server can also be used as a managed server in your agentic applications via [Smithery.ai](https://smithery.ai/server/@Couchbase-Ecosystem/mcp-server-couchbase).
 
 ## Troubleshooting Tips
@@ -183,12 +184,47 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 
 ---
 
+## 👩‍💻 Contributing
+
+We welcome contributions from the community! Whether you want to fix bugs, add features, or improve documentation, your help is appreciated.
+
+### For Developers
+
+If you're interested in contributing code or setting up a development environment:
+
+📖 **See [CONTRIBUTING.md](CONTRIBUTING.md)** for comprehensive developer setup instructions, including:
+
+- Development environment setup with `uv`
+- Code linting and formatting with Ruff
+- Pre-commit hooks installation
+- Project structure overview
+- Development workflow and practices
+
+### Quick Start for Contributors
+
+```bash
+# Clone and setup
+git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
+cd mcp-server-couchbase
+
+# Install with development dependencies
+uv sync --extra dev
+
+# Install pre-commit hooks
+uv run pre-commit install
+
+# Run linting
+./scripts/lint.sh
+```
+
+---
+
 ## 📢 Support Policy
 
-We truly appreciate your interest in this project!  
+We truly appreciate your interest in this project!
 This project is **community-maintained**, which means it's **not officially supported** by our support team.
 
-If you need help, have found a bug, or want to contribute improvements, the best place to do that is right here — by [opening a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues).  
+If you need help, have found a bug, or want to contribute improvements, the best place to do that is right here — by [opening a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues).
 Our support portal is unable to assist with requests related to this project, so we kindly ask that all inquiries stay within GitHub.
 
 Your collaboration helps us all move forward together — thank you!
