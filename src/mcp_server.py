@@ -72,11 +72,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     envvar="CB_PASSWORD",
     help="Couchbase database password (required for operations)",
 )
-@click.option(
-    "--bucket-name",
-    envvar="CB_BUCKET_NAME",
-    help="Couchbase bucket name (required for operations)",
-)
+
 @click.option(
     "--read-only-query-mode",
     envvar="READ_ONLY_QUERY_MODE",
@@ -97,7 +93,6 @@ def main(
     connection_string,
     username,
     password,
-    bucket_name,
     read_only_query_mode,
     transport,
 ):
@@ -107,7 +102,6 @@ def main(
         "connection_string": connection_string,
         "username": username,
         "password": password,
-        "bucket_name": bucket_name,
         "read_only_query_mode": read_only_query_mode,
     }
 
