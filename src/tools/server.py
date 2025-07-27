@@ -57,13 +57,20 @@ def test_connection(ctx: Context, bucket_name: str = None) -> dict[str, Any]:
         if bucket_name is not None:
             try:
                 bucket = ensure_bucket_connection(ctx, bucket_name)
+                bucket_connected = True
+                return {
+                    "status": "success",
+                    "cluster_connected": cluster_connected,
+                    "bucket_connected": bucket_connected,
+                    "message": f"Successfully connected to Couchbase cluster and bucket `{bucket_name}`",
+                }
             except Exception as e:
                 return {
                     "status": "error",
                     "cluster_connected": cluster_connected,
                     "bucket_connected": bucket_connected,
                     "error": str(e),
-                    "message": f"Failed to connect to bucket named {bucket_name}",
+                    "message": f"Failed to connect to bucket named `{bucket_name}`",
                 }
         else:
             return {
