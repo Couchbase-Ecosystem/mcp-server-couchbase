@@ -1,6 +1,6 @@
 [project]
-name = "mcp-couchbase"
-version = "0.3.0"
+name = "couchbase-mcp-server"
+version = "0.3.1rc3"
 description = "Couchbase MCP Server - The Developer Data Platform for Critical Applications in Our AI World"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,3 +25,100 @@ dependencies = [
 Homepage = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase"
 Documentation = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase#readme"
 Issues = "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues"
+
+[project.scripts]
+couchbase-mcp-server = "mcp_server:main"
+
+# Development dependencies
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "pre-commit>=3.0.0",
+]
+
+# Ruff configuration
+[tool.ruff]
+# Set the line length to match Black's default
+line-length = 88
+target-version = "py310"
+
+# Include and exclude patterns
+include = ["src/**/*.py", "*.py"]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+[tool.ruff.lint]
+# Enable specific rule categories
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # Pyflakes
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "I",    # isort
+    "N",    # pep8-naming
+    "C4",   # flake8-comprehensions
+    "PIE",  # flake8-pie
+    "PL",   # Pylint
+    "RUF",  # Ruff-specific rules
+]
+
+# Disable specific rules that might be too strict for your project
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "PLR0913", # Too many arguments
+    "PLR2004", # Magic value used in comparison
+    "N806",   # Variable in function should be lowercase (for SQL++ variables)
+    "RUF022", # __all__ is not sorted
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests can use magic values and have longer names
+"test_*.py" = ["PLR2004", "N802"]
+# Config files can have longer names
+"**/config.py" = ["N802"]
+
+[tool.ruff.lint.isort]
+# Organize imports
+known-first-party = ["utils", "tools"]
+split-on-trailing-comma = true
+
+[tool.ruff.format]
+# Format configuration
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
