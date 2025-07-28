@@ -1,13 +1,10 @@
-"""
-Couchbase MCP Server
-"""
-
+import os
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-
 import click
 from mcp.server.fastmcp import FastMCP
+from utils.config import validate_authentication_method
 
 # Import tools
 from tools import ALL_TOOLS
@@ -73,10 +70,19 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     help="Couchbase database password (required for operations)",
 )
 @click.option(
-    "--bucket-name",
-    envvar="CB_BUCKET_NAME",
-    help="Couchbase bucket name (required for operations)",
+    '--ca-cert-path',
+    envvar="CA_CERT_PATH",
+    type=click.Path(exists=True),
+    default=None,
+    help='Path to Server TLS certificate, required for secure connections.')
+
+@click.option(
+    "--client-cert-path",
+    envvar="CLIENT_CERT_PATH",
+    default=None,
+    help="Path to client.key and client.pem files for mtls client authentication",
 )
+
 @click.option(
     "--read-only-query-mode",
     envvar="READ_ONLY_QUERY_MODE",
@@ -97,9 +103,10 @@ def main(
     connection_string,
     username,
     password,
-    bucket_name,
     read_only_query_mode,
     transport,
+    ca_cert_path,
+    client_cert_path
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -107,10 +114,16 @@ def main(
         "connection_string": connection_string,
         "username": username,
         "password": password,
-        "bucket_name": bucket_name,
         "read_only_query_mode": read_only_query_mode,
+        "ca_cert_path" : ca_cert_path,
+        "client_cert_path" : client_cert_path
     }
 
+    try:
+        validate_authentication_method(ctx.obj)
+    except Exception as e:
+        logger.error(f"Failed to validate auth method params: {e}")
+        raise
     # Create MCP server inside main()
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
 

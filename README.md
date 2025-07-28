@@ -6,11 +6,13 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 
 - Get a list of all the scopes and collections in the specified bucket
 - Get the structure for a collection
-- Get a document by ID from a specified scope and collection
-- Upsert a document by ID to a specified scope and collection
-- Delete a document by ID from a specified scope and collection
-- Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope
+- Get a document by ID from a specified bucket, scope and collection
+- Upsert a document by ID to a specified bucket, scope and collection
+- Delete a document by ID from a specified bucket, scope and collection
+- Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified bucket and scope
   - There is an option in the MCP server, `READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
+- Retreive Index Advisor advice for a query on a specified bucket and scope.
+
 
 ## Prerequisites
 
@@ -30,7 +32,7 @@ git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
 ### Server Configuration for MCP Clients
 
 This is the common configuration for the MCP clients such as Claude Desktop, Cursor, Windsurf Editor.
-
+Using Basic Auth:
 ```json
 {
   "mcpServers": {
@@ -46,7 +48,30 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
         "CB_PASSWORD": "password",
-        "CB_BUCKET_NAME": "bucket_name"
+        "CA_CERT_PATH" : "path/to/ca.crt"
+      }
+    }
+  }
+}
+```
+
+Using mTLS:
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "path/to/cloned/repo/mcp-server-couchbase/",
+        "run",
+        "src/mcp_server.py"
+      ],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CLIENT_CERT_PATH": "path/to/client/cert_and_key/",
+        "CA_CERT_PATH" : "path/to/ca.crt"
       }
     }
   }
@@ -56,9 +81,10 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 The server can be configured using environment variables. The following variables are supported:
 
 - `CB_CONNECTION_STRING`: The connection string to the Couchbase cluster
-- `CB_USERNAME`: The username with access to the bucket to use to connect
-- `CB_PASSWORD`: The password for the username to connect
-- `CB_BUCKET_NAME`: The name of the bucket that the server will access
+- `CB_USERNAME`: The username with access to the bucket to use to connect. Must be set if using Basic Auth and unset if using mTLS.
+- `CB_PASSWORD`: The password for the username to connect. Must be set if using Basic Auth and unset if using mTLS with client certificate.
+- `CLIENT_CERT_PATH`: The path to client certificate (named client.pem) and key (named client.key) for mTLS authentication. Must be set if using mTLS and unset if using Basic Auth with username and password. 
+- `CA_CERT_PATH`: The path to the CA certificate for trusted TLS connection to the server. If not provided, locally trusted certificate store will be used.
 - `READ_ONLY_QUERY_MODE`: Setting to configure whether SQL++ queries that allow data to be modified are allowed. It is set to True by default.
 - `path/to/cloned/repo/mcp-server-couchbase/` should be the path to the cloned repository on your local machine. Don't forget the trailing slash at the end!
 
@@ -138,7 +164,7 @@ There is an option to run the MCP server in [Server-Sent Events (SSE)](https://m
 
 By default, the MCP server will run on port 8080 but this can be configured using the `FASTMCP_PORT` environment variable.
 
-> uv run src/mcp_server.py --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=sse
+> uv run src/mcp_server.py --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --read-only-query-mode=true --transport=sse
 
 The server will be available on http://localhost:8080/sse. This can be used in MCP clients supporting SSE transport mode.
 
@@ -159,7 +185,6 @@ docker run -i \
   -e CB_CONNECTION_STRING='<couchbase_connection_string>' \
   -e CB_USERNAME='<database_user>' \
   -e CB_PASSWORD='<database_password>' \
-  -e CB_BUCKET_NAME='<bucket_name>' \
   -e MCP_TRANSPORT='stdio/sse' \
   -e READ_ONLY_QUERY_MODE="true/false" \
   mcp/couchbase
