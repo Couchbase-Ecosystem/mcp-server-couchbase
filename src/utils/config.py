@@ -1,7 +1,7 @@
 import logging
 
 import click
-
+import os
 from .constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.config")

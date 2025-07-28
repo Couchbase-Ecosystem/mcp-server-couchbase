@@ -97,6 +97,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     default=DEFAULT_TRANSPORT,
     help="Transport mode for the server (stdio or sse)",
 )
+@click.pass_context
 def main(
     ctx,
     connection_string,
@@ -132,9 +133,6 @@ def main(
 
     # Run the server
     mcp.run(transport=transport)
-
-
-
 
 
 if __name__ == "__main__":
