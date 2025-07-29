@@ -15,6 +15,8 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - Delete a document by ID from a specified scope and collection
 - Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope
   - There is an option in the MCP server, `READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
+- Get the status of the MCP server
+- Check the cluster credentials by connecting to the cluster
 
 ## Prerequisites
 
@@ -25,13 +27,44 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 
 ## Configuration
 
-Clone the repository to your local machine.
+The MCP server can be run either from the pre built PyPI package or the source using uv.
+
+### Running from PyPI
+
+We publish a pre built [PyPI package](https://pypi.org/project/couchbase-mcp-server/) for the MCP server.
+
+#### Server Configuration using Pre built Package for MCP Clients
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
+        "CB_BUCKET_NAME": "bucket_name"
+      }
+    }
+  }
+}
+```
+
+> Note: If you have other MCP servers in use in the client, you can add it to the existing `mcpServers` object.
+
+### Running from Source
+
+The MCP server can be run from the source using this repository.
+
+#### Clone the repository to your local machine.
 
 ```bash
 git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
 ```
 
-### Server Configuration for MCP Clients
+#### Server Configuration using Source for MCP Clients
 
 This is the common configuration for the MCP clients such as Claude Desktop, Cursor, Windsurf Editor.
 
@@ -57,18 +90,27 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 }
 ```
 
-The server can be configured using environment variables. The following variables are supported:
-
-- `CB_CONNECTION_STRING`: The connection string to the Couchbase cluster
-- `CB_USERNAME`: The username with access to the bucket to use to connect
-- `CB_PASSWORD`: The password for the username to connect
-- `CB_BUCKET_NAME`: The name of the bucket that the server will access
-- `READ_ONLY_QUERY_MODE`: Setting to configure whether SQL++ queries that allow data to be modified are allowed. It is set to True by default.
-- `path/to/cloned/repo/mcp-server-couchbase/` should be the path to the cloned repository on your local machine. Don't forget the trailing slash at the end!
+> Note: - `path/to/cloned/repo/mcp-server-couchbase/` should be the path to the cloned repository on your local machine. Don't forget the trailing slash at the end!
 
 > Note: If you have other MCP servers in use in the client, you can add it to the existing `mcpServers` object.
 
-### Claude Desktop
+### Additional Configuration for MCP Server
+
+The server can be configured using environment variables or command line arguments. The following variables are supported:
+
+- `CB_CONNECTION_STRING` or `--connection-string`: The connection string to the Couchbase cluster
+- `CB_USERNAME` or `--username`: The username with access to the bucket to use to connect
+- `CB_PASSWORD` or `--password`: The password for the username to connect
+- `CB_BUCKET_NAME` or `--bucket-name`: The name of the bucket that the server will access
+- `READ_ONLY_QUERY_MODE` or `--read-only-query-mode`: Setting to configure whether SQL++ queries that allow data to be modified are allowed. It is set to True by default.
+- `MCP_TRANSPORT` or `--transport`: Setting to configure the transport mode to be used by the MCP server from `stdio`, `streamable-http` and `sse`(deprecated). The default is `stdio`.
+- `FASTMCP_HOST` or `--host`: Setting to configure the host to run the server in the case of `streamable-http` and `sse` transport modes.. The default is 127.0.0.1 (localhost).
+- `FASTMCP_PORT` or `--port`: Setting to configure the port to run the server on in the case of `streamable-http` and `sse` transport modes. The default is 8000.
+
+#### Client Specific Configuration
+
+<details>
+<summary>Claude Desktop</summary>
 
 Follow the steps below to use Couchbase MCP server with Claude Desktop MCP client
 
@@ -77,30 +119,33 @@ Follow the steps below to use Couchbase MCP server with Claude Desktop MCP clien
    - On Mac, the configuration file is located at `~/Library/Application Support/Claude/claude_desktop_config.json`
    - On Windows, the configuration file is located at `%APPDATA%\Claude\claude_desktop_config.json`
 
-   Open the configuration file and add the [configuration](#server-configuration-for-mcp-clients) to the `mcpServers` section.
+   Open the configuration file and add the [configuration](#configuration) to the `mcpServers` section.
 
 2. Restart Claude Desktop to apply the changes.
 
 3. You can now use the server in Claude Desktop to run queries on the Couchbase cluster using natural language and perform CRUD operations on documents.
 
-#### Claude Desktop Logs
+Logs
 
 The logs for Claude Desktop can be found in the following locations:
 
 - MacOS: ~/Library/Logs/Claude
 - Windows: %APPDATA%\Claude\Logs
 
-The logs can be used to diagnose connection issues or other problems with your MCP server configuration. For more details, refer to the [official documentation](https://modelcontextprotocol.io/quickstart/user#getting-logs-from-claude-for-desktop).
+The logs can be used to diagnose connection issues or other problems with your MCP server configuration. For more details, refer to the [official documentation](https://modelcontextprotocol.io/quickstart/user#troubleshooting).
 
-### Cursor
+</details>
+
+<details>
+<summary>Cursor</summary>
 
 Follow steps below to use Couchbase MCP server with Cursor:
 
 1. Install [Cursor](https://cursor.sh/) on your machine.
 
-2. In Cursor, go to Cursor > Cursor Settings > MCP > Add a new global MCP server. Also, checkout the docs on [setting up MCP server configuration](https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers) from Cursor.
+2. In Cursor, go to Cursor > Cursor Settings > MCP > Add a new global MCP server. Also, checkout the docs on [setting up MCP server configuration](https://docs.cursor.com/en/context/mcp#configuring-mcp-servers) from Cursor.
 
-3. Specify the same [configuration](#server-configuration-for-mcp-clients). You may need to add the server configuration under a parent key of mcpServers.
+3. Specify the same [configuration](#configuration). You may need to add the server configuration under a parent key of mcpServers.
 
 4. Save the configuration.
 
@@ -108,21 +153,24 @@ Follow steps below to use Couchbase MCP server with Cursor:
 
 6. You can now use the Couchbase MCP server in Cursor to query your Couchbase cluster using natural language and perform CRUD operations on documents.
 
-For more details about MCP integration with Cursor, refer to the [official Cursor MCP documentation](https://docs.cursor.sh/ai-features/mcp-model-context-protocol).
+For more details about MCP integration with Cursor, refer to the [official Cursor MCP documentation](https://docs.cursor.com/en/context/mcp).
 
-#### Cursor Logs
+Logs
 
 In the bottom panel of Cursor, click on "Output" and select "Cursor MCP" from the dropdown menu to view server logs. This can help diagnose connection issues or other problems with your MCP server configuration.
 
-### Windsurf Editor
+</details>
+
+<details>
+<summary>Windsurf Editor</summary>
 
 Follow the steps below to use the Couchbase MCP server with [Windsurf Editor](https://windsurf.com/).
 
 1. Install [Windsurf Editor](https://windsurf.com/download) on your machine.
 
-2. In Windsurf Editor, navigate to Command Palette > Windsurf MCP Configuration Panel or Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers. For more details on the configuration, please refer to the [official documentation](https://docs.windsurf.com/windsurf/mcp#configuring-mcp).
+2. In Windsurf Editor, navigate to Command Palette > Windsurf MCP Configuration Panel or Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers. For more details on the configuration, please refer to the [official documentation](https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin).
 
-3. Click on Add Server and then Add custom server. On the configuration that opens in the editor, add the Couchbase MCP Server [configuration](#server-configuration-for-mcp-clients) from above.
+3. Click on Add Server and then Add custom server. On the configuration that opens in the editor, add the Couchbase MCP Server [configuration](#configuration) from above.
 
 4. Save the configuration.
 
@@ -130,21 +178,35 @@ Follow the steps below to use the Couchbase MCP server with [Windsurf Editor](ht
 
 6. You can now use the Couchbase MCP server in Windsurf Editor to query your Couchbase cluster using natural language and perform CRUD operations on documents.
 
-For more details about MCP integration with Windsurf Editor, refer to the official [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
+For more details about MCP integration with Windsurf Editor, refer to the official [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/cascade/mcp).
 
-### SSE Server Mode
+</details>
 
-There is an option to run the MCP server in [Server-Sent Events (SSE)](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse) transport mode.
+### Streamable HTTP Transport Mode
 
-> Note: SSE mode has been [deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) by MCP. We are investigating adding support for Streamable HTTP.
+The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode.
 
 #### Usage
 
-By default, the MCP server will run on port 8080 but this can be configured using the `FASTMCP_PORT` environment variable.
+By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
 
-> uv run src/mcp_server.py --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=sse
+> uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=streamable-http
 
-The server will be available on http://localhost:8080/sse. This can be used in MCP clients supporting SSE transport mode.
+The server will be available on http://localhost:8000/mcp. This can be used in MCP clients supporting streamable http transport mode such as Cursor.
+
+### SSE Transport Mode
+
+There is an option to run the MCP server in [Server-Sent Events (SSE)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse) transport mode.
+
+> Note: SSE mode has been [deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) by MCP. We have support for Streamable HTTP.
+
+#### Usage
+
+By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
+
+> uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=sse
+
+The server will be available on http://localhost:8000/sse. This can be used in MCP clients supporting SSE transport mode such as Cursor.
 
 ## Docker Image
 
@@ -164,7 +226,7 @@ docker run -i \
   -e CB_USERNAME='<database_user>' \
   -e CB_PASSWORD='<database_password>' \
   -e CB_BUCKET_NAME='<bucket_name>' \
-  -e MCP_TRANSPORT='stdio/sse' \
+  -e MCP_TRANSPORT='stdio/streamable-http/sse' \
   -e READ_ONLY_QUERY_MODE="true/false" \
   mcp/couchbase
 ```
@@ -181,11 +243,11 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 
 ## Troubleshooting Tips
 
-- Ensure the path to your MCP server repository is correct in the configuration.
+- Ensure the path to your MCP server repository is correct in the configuration if running from source.
 - Verify that your Couchbase connection string, database username, password and bucket name are correct.
 - If using Couchbase Capella, ensure that the cluster is [accessible](https://docs.couchbase.com/cloud/clusters/allow-ip-address.html) from the machine where the MCP server is running.
 - Check that the database user has proper permissions to access the specified bucket.
-- Confirm that the uv package manager is properly installed and accessible. You may need to provide absolute path to uv in the `command` field in the configuration.
+- Confirm that the uv package manager is properly installed and accessible. You may need to provide absolute path to uv/uvx in the `command` field in the configuration.
 - Check the logs for any errors or warnings that may indicate issues with the MCP server. The server logs are under the name, `mcp-server-couchbase.log`.
 
 ---
@@ -193,6 +255,8 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 ## 👩‍💻 Contributing
 
 We welcome contributions from the community! Whether you want to fix bugs, add features, or improve documentation, your help is appreciated.
+
+If you need help, have found a bug, or want to contribute improvements, the best place to do that is right here — by [opening a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues).
 
 ### For Developers
 
@@ -230,7 +294,6 @@ uv run pre-commit install
 We truly appreciate your interest in this project!
 This project is **community-maintained**, which means it's **not officially supported** by our support team.
 
-If you need help, have found a bug, or want to contribute improvements, the best place to do that is right here — by [opening a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues).
 Our support portal is unable to assist with requests related to this project, so we kindly ask that all inquiries stay within GitHub.
 
 Your collaboration helps us all move forward together — thank you!
