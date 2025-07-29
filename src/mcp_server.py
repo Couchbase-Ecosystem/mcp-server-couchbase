@@ -14,10 +14,14 @@ from tools import ALL_TOOLS
 
 # Import utilities
 from utils import (
+    ALLOWED_TRANSPORTS,
+    DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
+    DEFAULT_PORT,
     DEFAULT_READ_ONLY_MODE,
     DEFAULT_TRANSPORT,
     MCP_SERVER_NAME,
+    NETWORK_TRANSPORTS,
     AppContext,
     get_settings,
 )
@@ -87,9 +91,21 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 @click.option(
     "--transport",
     envvar="MCP_TRANSPORT",
-    type=click.Choice(["stdio", "sse"]),
+    type=click.Choice(ALLOWED_TRANSPORTS),
     default=DEFAULT_TRANSPORT,
-    help="Transport mode for the server (stdio or sse)",
+    help="Transport mode for the server (stdio, streamable-http or sse)",
+)
+@click.option(
+    "--host",
+    envvar="FASTMCP_HOST",
+    default=DEFAULT_HOST,
+    help="Host to run the server on (default: 127.0.0.1)",
+)
+@click.option(
+    "--port",
+    envvar="FASTMCP_PORT",
+    default=DEFAULT_PORT,
+    help="Port to run the server on (default: 8080)",
 )
 @click.pass_context
 def main(
@@ -100,6 +116,8 @@ def main(
     bucket_name,
     read_only_query_mode,
     transport,
+    host,
+    port,
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -109,10 +127,15 @@ def main(
         "password": password,
         "bucket_name": bucket_name,
         "read_only_query_mode": read_only_query_mode,
+        "transport": transport,
+        "host": host,
+        "port": port,
     }
 
-    # Create MCP server inside main()
-    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
+    # If the transport is network based, we need to pass the host and port to the MCP server
+    config = {"host": host, "port": port} if transport in NETWORK_TRANSPORTS else {}
+
+    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
 
     # Register all tools
     for tool in ALL_TOOLS:
