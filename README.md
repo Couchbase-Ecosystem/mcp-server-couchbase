@@ -96,16 +96,18 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 
 ### Additional Configuration for MCP Server
 
-The server can be configured using environment variables or command line arguments. The following variables are supported:
+The server can be configured using environment variables or command line arguments:
 
-- `CB_CONNECTION_STRING` or `--connection-string`: The connection string to the Couchbase cluster
-- `CB_USERNAME` or `--username`: The username with access to the bucket to use to connect
-- `CB_PASSWORD` or `--password`: The password for the username to connect
-- `CB_BUCKET_NAME` or `--bucket-name`: The name of the bucket that the server will access
-- `READ_ONLY_QUERY_MODE` or `--read-only-query-mode`: Setting to configure whether SQL++ queries that allow data to be modified are allowed. It is set to True by default.
-- `MCP_TRANSPORT` or `--transport`: Setting to configure the transport mode to be used by the MCP server from `stdio`, `streamable-http` and `sse`(deprecated). The default is `stdio`.
-- `FASTMCP_HOST` or `--host`: Setting to configure the host to run the server in the case of `streamable-http` and `sse` transport modes.. The default is 127.0.0.1 (localhost).
-- `FASTMCP_PORT` or `--port`: Setting to configure the port to run the server on in the case of `streamable-http` and `sse` transport modes. The default is 8000.
+| Environment Variable   | CLI Argument             | Description                                       | Default      |
+| ---------------------- | ------------------------ | ------------------------------------------------- | ------------ |
+| `CB_CONNECTION_STRING` | `--connection-string`    | Connection string to the Couchbase cluster        | **Required** |
+| `CB_USERNAME`          | `--username`             | Username with bucket access                       | **Required** |
+| `CB_PASSWORD`          | `--password`             | Password for authentication                       | **Required** |
+| `CB_BUCKET_NAME`       | `--bucket-name`          | Name of the bucket to access                      | **Required** |
+| `READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries                 | `true`       |
+| `MCP_TRANSPORT`        | `--transport`            | Transport mode: `stdio`, `streamable-http`, `sse` | `stdio`      |
+| `FASTMCP_HOST`         | `--host`                 | Host for HTTP/SSE transport modes                 | `127.0.0.1`  |
+| `FASTMCP_PORT`         | `--port`                 | Port for HTTP/SSE transport modes                 | `8000`       |
 
 #### Client Specific Configuration
 
@@ -143,7 +145,7 @@ Follow steps below to use Couchbase MCP server with Cursor:
 
 1. Install [Cursor](https://cursor.sh/) on your machine.
 
-2. In Cursor, go to Cursor > Cursor Settings > MCP > Add a new global MCP server. Also, checkout the docs on [setting up MCP server configuration](https://docs.cursor.com/en/context/mcp#configuring-mcp-servers) from Cursor.
+2. In Cursor, go to Cursor > Cursor Settings > Tools & Integrations > MCP Tools. Also, checkout the docs on [setting up MCP server configuration](https://docs.cursor.com/en/context/mcp#configuring-mcp-servers) from Cursor.
 
 3. Specify the same [configuration](#configuration). You may need to add the server configuration under a parent key of mcpServers.
 
