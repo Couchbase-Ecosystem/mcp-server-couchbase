@@ -20,7 +20,7 @@ def get_schema_for_collection(
     ctx: Context, scope_name: str, collection_name: str
 ) -> dict[str, Any]:
     """Get the schema for a collection in the specified scope.
-    Returns a dictionary with the schema returned by running INFER on the Couchbase collection.
+    Returns a dictionary with the collection name and the schema returned by running INFER query on the Couchbase collection.
     """
     schema = {"collection_name": collection_name, "schema": []}
     try:

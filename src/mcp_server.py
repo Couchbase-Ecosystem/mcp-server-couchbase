@@ -105,7 +105,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     "--port",
     envvar="FASTMCP_PORT",
     default=DEFAULT_PORT,
-    help="Port to run the server on (default: 8080)",
+    help="Port to run the server on (default: 8000)",
 )
 @click.pass_context
 def main(
