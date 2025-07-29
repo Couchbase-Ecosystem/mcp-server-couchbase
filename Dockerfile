@@ -44,7 +44,7 @@ ENV READ_ONLY_QUERY_MODE="true" \
     FASTMCP_PORT="8000"
 
 # Expose default port for SSE mode
-EXPOSE 8080
+EXPOSE 8000
 
 # Use python directly instead of uv run to avoid runtime dependency resolution
 ENTRYPOINT ["python", "src/mcp_server.py"]
