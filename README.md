@@ -90,7 +90,7 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 }
 ```
 
-> Note: - `path/to/cloned/repo/mcp-server-couchbase/` should be the path to the cloned repository on your local machine. Don't forget the trailing slash at the end!
+> Note: `path/to/cloned/repo/mcp-server-couchbase/` should be the path to the cloned repository on your local machine. Don't forget the trailing slash at the end!
 
 > Note: If you have other MCP servers in use in the client, you can add it to the existing `mcpServers` object.
 
@@ -192,7 +192,9 @@ The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/s
 
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
 
-> uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=streamable-http
+```bash
+uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=streamable-http
+```
 
 The server will be available on http://localhost:8000/mcp. This can be used in MCP clients supporting streamable http transport mode such as Cursor.
 
@@ -206,7 +208,9 @@ There is an option to run the MCP server in [Server-Sent Events (SSE)](https://m
 
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
 
-> uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=sse
+```bash
+ uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=sse
+```
 
 The server will be available on http://localhost:8000/sse. This can be used in MCP clients supporting SSE transport mode such as Cursor.
 
