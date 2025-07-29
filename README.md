@@ -2,6 +2,10 @@
 
 An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase that allows LLMs to directly interact with Couchbase clusters.
 
+<a href="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase/badge" alt="Couchbase Server MCP server" />
+</a>
+
 ## Features
 
 - Get a list of all the scopes and collections in the specified bucket
