@@ -19,10 +19,14 @@ from .connection import (
 
 # Constants
 from .constants import (
+    ALLOWED_TRANSPORTS,
+    DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
+    DEFAULT_PORT,
     DEFAULT_READ_ONLY_MODE,
     DEFAULT_TRANSPORT,
     MCP_SERVER_NAME,
+    NETWORK_TRANSPORTS,
 )
 
 # Context utilities
@@ -50,4 +54,8 @@ __all__ = [
     "DEFAULT_READ_ONLY_MODE",
     "DEFAULT_TRANSPORT",
     "DEFAULT_LOG_LEVEL",
+    "DEFAULT_HOST",
+    "DEFAULT_PORT",
+    "ALLOWED_TRANSPORTS",
+    "NETWORK_TRANSPORTS",
 ]
