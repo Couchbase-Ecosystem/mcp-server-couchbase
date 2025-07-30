@@ -184,11 +184,11 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 
 </details>
 
-### Streamable HTTP Transport Mode
+## Streamable HTTP Transport Mode
 
-The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode.
+The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode which allows multiple clients to connect to the same server instance via HTTP.
 
-#### Usage
+### Usage
 
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
 
@@ -198,7 +198,7 @@ uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --u
 
 The server will be available on http://localhost:8000/mcp. This can be used in MCP clients supporting streamable http transport mode such as Cursor.
 
-#### MCP Client Configuration
+### MCP Client Configuration
 
 ```json
 {
@@ -210,13 +210,13 @@ The server will be available on http://localhost:8000/mcp. This can be used in M
 }
 ```
 
-### SSE Transport Mode
+## SSE Transport Mode (Deprecated)
 
 There is an option to run the MCP server in [Server-Sent Events (SSE)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse) transport mode.
 
-> Note: SSE mode has been [deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) by MCP. We have support for Streamable HTTP.
+> Note: SSE mode has been [deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) by MCP. We have support for [Streamable HTTP](#streamable-http-transport-mode).
 
-#### Usage
+### Usage
 
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
 
@@ -226,7 +226,7 @@ By default, the MCP server will run on port 8000 but this can be configured usin
 
 The server will be available on http://localhost:8000/sse. This can be used in MCP clients supporting SSE transport mode such as Cursor.
 
-#### MCP Client Configuration
+### MCP Client Configuration
 
 ```json
 {
@@ -243,6 +243,8 @@ The server will be available on http://localhost:8000/sse. This can be used in M
 The MCP server can also be built and run as a Docker container. Prebuilt images can be found on [DockerHub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase).
 
 Alternatively, we are part of the [Docker MCP Catalog](https://hub.docker.com/mcp/server/couchbase/overview).
+
+### Building Image
 
 ```bash
 docker build -t mcp/couchbase .
@@ -275,13 +277,13 @@ docker run -i \
         "--rm",
         "-i",
         "-e",
-        "CB_CONNECTION_STRING=<couchbase_connection_string>",
+        "CB_CONNECTION_STRING='<couchbase_connection_string>'",
         "-e",
-        "CB_USERNAME=<database_user>",
+        "CB_USERNAME='<database_user>'",
         "-e",
-        "CB_PASSWORD=<database_password>",
+        "CB_PASSWORD='<database_password>'",
         "-e",
-        "CB_BUCKET_NAME=<bucket_name>",
+        "CB_BUCKET_NAME='<bucket_name>'",
         "mcp/couchbase"
       ]
     }
