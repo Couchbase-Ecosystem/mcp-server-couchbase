@@ -198,6 +198,18 @@ uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --u
 
 The server will be available on http://localhost:8000/mcp. This can be used in MCP clients supporting streamable http transport mode such as Cursor.
 
+#### MCP Client Configuration
+
+```json
+{
+  "mcpServers": {
+    "couchbase-streamable-http-mode": {
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
 ### SSE Transport Mode
 
 There is an option to run the MCP server in [Server-Sent Events (SSE)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse) transport mode.
@@ -214,9 +226,23 @@ By default, the MCP server will run on port 8000 but this can be configured usin
 
 The server will be available on http://localhost:8000/sse. This can be used in MCP clients supporting SSE transport mode such as Cursor.
 
+#### MCP Client Configuration
+
+```json
+{
+  "mcpServers": {
+    "couchbase-sse-mode": {
+      "url": "http://localhost:8000/sse"
+    }
+  }
+}
+```
+
 ## Docker Image
 
 The MCP server can also be built and run as a Docker container. Prebuilt images can be found on [DockerHub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase).
+
+Alternatively, we are part of the [Docker MCP Catalog](https://hub.docker.com/mcp/server/couchbase/overview).
 
 ```bash
 docker build -t mcp/couchbase .
@@ -235,6 +261,32 @@ docker run -i \
   -e MCP_TRANSPORT='stdio/streamable-http/sse' \
   -e READ_ONLY_QUERY_MODE="true/false" \
   mcp/couchbase
+```
+
+#### MCP Client Configuration
+
+```json
+{
+  "mcpServers": {
+    "docker-cb": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "CB_CONNECTION_STRING=<couchbase_connection_string>",
+        "-e",
+        "CB_USERNAME=<database_user>",
+        "-e",
+        "CB_PASSWORD=<database_password>",
+        "-e",
+        "CB_BUCKET_NAME=<bucket_name>",
+        "mcp/couchbase"
+      ]
+    }
+  }
+}
 ```
 
 ### Risks Associated with LLMs
