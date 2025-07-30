@@ -116,7 +116,7 @@ The server can be configured using environment variables or command line argumen
 
 Follow the steps below to use Couchbase MCP server with Claude Desktop MCP client
 
-1. The MCP server can now be added to Claude Desktop by editing the configuration file. More detailed instructions can be found on the [MCP quickstart guide](https://modelcontextprotocol.io/quickstart/user).
+1. The MCP server can now be added to Claude Desktop by editing the configuration file. More detailed instructions can be found on the [MCP quickstart guide](https://modelcontextprotocol.io/quickstart/user). 
 
    - On Mac, the configuration file is located at `~/Library/Application Support/Claude/claude_desktop_config.json`
    - On Windows, the configuration file is located at `%APPDATA%\Claude\claude_desktop_config.json`
@@ -186,7 +186,8 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 
 ### Streamable HTTP Transport Mode
 
-The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode.
+The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode. [Check](https://modelcontextprotocol.io/clients) if your MCP client supports streamable-http transport before attempting to connect to MCP server in this mode. 
+> Note: This mode does not include authorization support.
 
 #### Usage
 
@@ -227,16 +228,20 @@ docker build -t mcp/couchbase .
 The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Configuration section](#server-configuration-for-mcp-clients)
 
 ```bash
+
 docker run -i \
-  -e CB_CONNECTION_STRING='<couchbase_connection_string>' \
-  -e CB_USERNAME='<database_user>' \
-  -e CB_PASSWORD='<database_password>' \
-  -e CB_BUCKET_NAME='<bucket_name>' \
-  -e MCP_TRANSPORT='stdio/streamable-http/sse' \
-  -e READ_ONLY_QUERY_MODE="true/false" \
+  --network none \
+  -e CB_CONNECTION_STRING=<couchbase_connection_string> \
+  -e CB_USERNAME=<cluster/database user> \
+  -e CB_PASSWORD=<cluster/database passowrd> \
+  -e CB_BUCKET_NAME=<bucket name> \
+  -e MCP_TRANSPORT=<stdio/streamable-http/sse> \
+  -e READ_ONLY_QUERY_MODE=<true/false> \
+  -e FASTMCP_PORT":9001 \
   mcp/couchbase
 ```
-
+1. The "couchbase_connection_string" value will depend on whether couchbase server is running on the same host machine as MCP server, within docker container or remote. If your couchbase server is running on your host machine, your connection string would likely be of the form "couchbase://host.docker.internal". for details refer to [docker documentation](https://docs.docker.com/desktop/features/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host)
+2. The choice of network value will depend on your environment. For details, refer to [network drivers in docker](https://docs.docker.com/engine/network/drivers/)
 ### Risks Associated with LLMs
 
 - The use of large language models and similar technology involves risks, including the potential for inaccurate or harmful outputs.
@@ -255,6 +260,7 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 - Check that the database user has proper permissions to access the specified bucket.
 - Confirm that the uv package manager is properly installed and accessible. You may need to provide absolute path to uv/uvx in the `command` field in the configuration.
 - Check the logs for any errors or warnings that may indicate issues with the MCP server. The server logs are under the name, `mcp-server-couchbase.log`.
+- If you are observing issues running your MCP server from source after updating your your local MCP server project, try running ["uv -sync"](`https://docs.astral.sh/uv/getting-started/features/#scripts) 
 
 ---
 
@@ -298,7 +304,7 @@ uv run pre-commit install
 ## 📢 Support Policy
 
 We truly appreciate your interest in this project!
-This project is **community-maintained**, which means it's **not officially supported** by our support team.
+This project is **couchbase community-maintained**, which means it's **not officially supported** by our support team. However, our engineers are actively monitoring and maintaining this repo and will try to resolve issues on a best-effort basis.
 
 Our support portal is unable to assist with requests related to this project, so we kindly ask that all inquiries stay within GitHub.
 
