@@ -230,7 +230,7 @@ The MCP server can be run with the environment variables being used to configure
 
 ```bash
 
-docker run -i \
+docker run --rm -i \
   -e CB_CONNECTION_STRING=<couchbase_connection_string> \
   -e CB_USERNAME=<database user> \
   -e CB_PASSWORD=<database_password> \
@@ -242,7 +242,7 @@ docker run -i \
 ```
 
 1. The `couchbase_connection_string` value will depend on whether couchbase server is running on the same host machine as MCP server, within docker container or remote. If your couchbase server is running on your host machine, your connection string would likely be of the form `couchbase://host.docker.internal`. For details refer to the [docker documentation](https://docs.docker.com/desktop/features/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host).
-2. The choice of network value will depend on your environment. For details, refer to [network drivers in docker](https://docs.docker.com/engine/network/drivers/).
+2. There is an option, `--network=<your_network>` to specify the networking for the container. The choice of network value will depend on your environment. The default is `bridge`. For details, refer to [network drivers in docker](https://docs.docker.com/engine/network/drivers/).
 
 ### Risks Associated with LLMs
 
@@ -262,7 +262,7 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 - Check that the database user has proper permissions to access the specified bucket.
 - Confirm that the uv package manager is properly installed and accessible. You may need to provide absolute path to uv/uvx in the `command` field in the configuration.
 - Check the logs for any errors or warnings that may indicate issues with the MCP server. The server logs are under the name, `mcp-server-couchbase.log`.
-- If you are observing issues running your MCP server from source after updating your your local MCP server project, try running [`uv -sync`](`https://docs.astral.sh/uv/getting-started/features/#scripts) to update the dependencies.
+- If you are observing issues running your MCP server from source after updating your local MCP server repository, try running [`uv sync`](https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment) to update the dependencies.
 
 ---
 
