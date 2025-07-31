@@ -257,9 +257,26 @@ docker build -t mcp/couchbase .
 
 The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Configuration section](#server-configuration-for-mcp-clients).
 
+#### Indepdendent Docker Container
+
+```bash
+docker run --rm -i \
+  -e CB_CONNECTION_STRING='<couchbase_connection_string>' \
+  -e CB_USERNAME='<database_user>' \
+  -e CB_PASSWORD='<database_password>' \
+  -e CB_BUCKET_NAME='<bucket_name>' \
+  -e MCP_TRANSPORT='<stdio|streamable-http|sse>' \
+  -e READ_ONLY_QUERY_MODE=<true|false> \
+  -e FASTMCP_PORT=9001 \
+  -p 9001:9001 \
+  mcp/couchbase
+```
+
+The `FASTMCP_PORT` environment variable is only applicable in the case of HTTP transport modes like streamable-http and sse.
+
 #### MCP Client Configuration
 
-````json
+```json
 {
   "mcpServers": {
     "docker-cb": {
@@ -281,6 +298,7 @@ The MCP server can be run with the environment variables being used to configure
     }
   }
 }
+```
 
 Notes
 
@@ -342,7 +360,7 @@ uv run pre-commit install
 
 # Run linting
 ./scripts/lint.sh
-````
+```
 
 ---
 
