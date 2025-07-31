@@ -4,11 +4,9 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/) [![PyPI version](https://badge.fury.io/py/couchbase-mcp-server.svg)](https://pypi.org/project/couchbase-mcp-server/) [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/13fce476-0e74-4b1e-ab82-1df2a3204809)[![smithery badge](https://smithery.ai/badge/@Couchbase-Ecosystem/mcp-server-couchbase)](https://smithery.ai/server/@Couchbase-Ecosystem/mcp-server-couchbase)
 
-<p align="center">
 <a href="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase">
-  <img width="250" height="130" src="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase/badge" alt="Couchbase Server MCP server" />
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase/badge" alt="Couchbase Server MCP server" />
 </a>
-</p>
 
 ## Features
 
@@ -261,7 +259,7 @@ docker build -t mcp/couchbase .
 
 The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Configuration section](#server-configuration-for-mcp-clients).
 
-#### Indepdendent Docker Container
+#### Independent Docker Container
 
 ```bash
 docker run --rm -i \
