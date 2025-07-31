@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase that allows LLMs to directly interact with Couchbase clusters.
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/) [![PyPI version](https://badge.fury.io/py/couchbase-mcp-server.svg)](https://pypi.org/project/couchbase-mcp-server/) [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/13fce476-0e74-4b1e-ab82-1df2a3204809)[![smithery badge](https://smithery.ai/badge/@Couchbase-Ecosystem/mcp-server-couchbase)](https://smithery.ai/server/@Couchbase-Ecosystem/mcp-server-couchbase)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/) [![PyPI version](https://badge.fury.io/py/couchbase-mcp-server.svg)](https://pypi.org/project/couchbase-mcp-server/) [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/13fce476-0e74-4b1e-ab82-1df2a3204809) [![smithery badge](https://smithery.ai/badge/@Couchbase-Ecosystem/mcp-server-couchbase)](https://smithery.ai/server/@Couchbase-Ecosystem/mcp-server-couchbase)
 
 <a href="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase/badge" alt="Couchbase Server MCP server" />
@@ -267,8 +267,8 @@ docker run --rm -i \
   -e CB_USERNAME='<database_user>' \
   -e CB_PASSWORD='<database_password>' \
   -e CB_BUCKET_NAME='<bucket_name>' \
-  -e MCP_TRANSPORT='<stdio|streamable-http|sse>' \
-  -e READ_ONLY_QUERY_MODE=<true|false> \
+  -e MCP_TRANSPORT='streamable-http|sse|stdio' \
+  -e READ_ONLY_QUERY_MODE='true|false' \
   -e FASTMCP_PORT=9001 \
   -p 9001:9001 \
   mcp/couchbase
@@ -277,6 +277,8 @@ docker run --rm -i \
 The `FASTMCP_PORT` environment variable is only applicable in the case of HTTP transport modes like streamable-http and sse.
 
 #### MCP Client Configuration
+
+The Docker image can be used in `stdio` transport mode wiht the following configuration.
 
 ```json
 {
@@ -288,13 +290,13 @@ The `FASTMCP_PORT` environment variable is only applicable in the case of HTTP t
         "--rm",
         "-i",
         "-e",
-        "CB_CONNECTION_STRING='<couchbase_connection_string>'",
+        "CB_CONNECTION_STRING=<couchbase_connection_string>",
         "-e",
-        "CB_USERNAME='<database_user>'",
+        "CB_USERNAME=<database_user>",
         "-e",
-        "CB_PASSWORD='<database_password>'",
+        "CB_PASSWORD=<database_password>",
         "-e",
-        "CB_BUCKET_NAME='<bucket_name>'",
+        "CB_BUCKET_NAME=<bucket_name>",
         "mcp/couchbase"
       ]
     }
