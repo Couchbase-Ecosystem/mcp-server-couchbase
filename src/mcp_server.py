@@ -97,13 +97,13 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 )
 @click.option(
     "--host",
-    envvar="FASTMCP_HOST",
+    envvar="MCP_HOST",
     default=DEFAULT_HOST,
     help="Host to run the server on (default: 127.0.0.1)",
 )
 @click.option(
     "--port",
-    envvar="FASTMCP_PORT",
+    envvar="MCP_PORT",
     default=DEFAULT_PORT,
     help="Port to run the server on (default: 8000)",
 )

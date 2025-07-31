@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase that allows LLMs to directly interact with Couchbase clusters.
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/) [![PyPI version](https://badge.fury.io/py/couchbase-mcp-server.svg)](https://pypi.org/project/couchbase-mcp-server/) [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/13fce476-0e74-4b1e-ab82-1df2a3204809) [![smithery badge](https://smithery.ai/badge/@Couchbase-Ecosystem/mcp-server-couchbase)](https://smithery.ai/server/@Couchbase-Ecosystem/mcp-server-couchbase)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/) [![PyPI version](https://badge.fury.io/py/couchbase-mcp-server.svg)](https://pypi.org/project/couchbase-mcp-server/) [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/13fce476-0e74-4b1e-ab82-1df2a3204809)
 
 <a href="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase/badge" alt="Couchbase Server MCP server" />
@@ -108,8 +108,8 @@ The server can be configured using environment variables or command line argumen
 | `CB_BUCKET_NAME`       | `--bucket-name`          | Name of the bucket to access                      | **Required** |
 | `READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries                 | `true`       |
 | `MCP_TRANSPORT`        | `--transport`            | Transport mode: `stdio`, `streamable-http`, `sse` | `stdio`      |
-| `FASTMCP_HOST`         | `--host`                 | Host for HTTP/SSE transport modes                 | `127.0.0.1`  |
-| `FASTMCP_PORT`         | `--port`                 | Port for HTTP/SSE transport modes                 | `8000`       |
+| `MCP_HOST`             | `--host`                 | Host for HTTP/SSE transport modes                 | `127.0.0.1`  |
+| `MCP_PORT`             | `--port`                 | Port for HTTP/SSE transport modes                 | `8000`       |
 
 #### Client Specific Configuration
 
@@ -195,7 +195,7 @@ Check if your [MCP client](https://modelcontextprotocol.io/clients) supports str
 
 ### Usage
 
-By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
+By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `MCP_PORT` environment variable.
 
 ```bash
 uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=streamable-http
@@ -223,7 +223,7 @@ There is an option to run the MCP server in [Server-Sent Events (SSE)](https://m
 
 ### Usage
 
-By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
+By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `MCP_PORT` environment variable.
 
 ```bash
  uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=sse
@@ -269,12 +269,12 @@ docker run --rm -i \
   -e CB_BUCKET_NAME='<bucket_name>' \
   -e MCP_TRANSPORT='<streamable-http|sse|stdio>' \
   -e READ_ONLY_QUERY_MODE='<true|false>' \
-  -e FASTMCP_PORT=9001 \
+  -e MCP_PORT=9001 \
   -p 9001:9001 \
   mcp/couchbase
 ```
 
-The `FASTMCP_PORT` environment variable is only applicable in the case of HTTP transport modes like streamable-http and sse.
+The `MCP_PORT` environment variable is only applicable in the case of HTTP transport modes like streamable-http and sse.
 
 #### MCP Client Configuration
 
