@@ -111,6 +111,12 @@ The server can be configured using environment variables or command line argumen
 | `MCP_HOST`             | `--host`                 | Host for HTTP/SSE transport modes                 | `127.0.0.1`  |
 | `MCP_PORT`             | `--port`                 | Port for HTTP/SSE transport modes                 | `8000`       |
 
+You can also check the version of the server using:
+
+```bash
+uvx couchbase-mcp-server --version
+```
+
 #### Client Specific Configuration
 
 <details>

@@ -107,6 +107,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     default=DEFAULT_PORT,
     help="Port to run the server on (default: 8000)",
 )
+@click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
 def main(
     ctx,
