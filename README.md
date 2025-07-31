@@ -267,8 +267,8 @@ docker run --rm -i \
   -e CB_USERNAME='<database_user>' \
   -e CB_PASSWORD='<database_password>' \
   -e CB_BUCKET_NAME='<bucket_name>' \
-  -e MCP_TRANSPORT='streamable-http|sse|stdio' \
-  -e READ_ONLY_QUERY_MODE='true|false' \
+  -e MCP_TRANSPORT='<streamable-http|sse|stdio>' \
+  -e READ_ONLY_QUERY_MODE='<true|false>' \
   -e FASTMCP_PORT=9001 \
   -p 9001:9001 \
   mcp/couchbase
@@ -278,7 +278,7 @@ The `FASTMCP_PORT` environment variable is only applicable in the case of HTTP t
 
 #### MCP Client Configuration
 
-The Docker image can be used in `stdio` transport mode wiht the following configuration.
+The Docker image can be used in `stdio` transport mode with the following configuration.
 
 ```json
 {
