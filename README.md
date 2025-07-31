@@ -2,6 +2,8 @@
 
 An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase that allows LLMs to directly interact with Couchbase clusters.
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/) [![PyPI version](https://badge.fury.io/py/couchbase-mcp-server.svg)](https://pypi.org/project/couchbase-mcp-server/) [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/13fce476-0e74-4b1e-ab82-1df2a3204809) [![smithery badge](https://smithery.ai/badge/@Couchbase-Ecosystem/mcp-server-couchbase)](https://smithery.ai/server/@Couchbase-Ecosystem/mcp-server-couchbase)
+
 <a href="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase/badge" alt="Couchbase Server MCP server" />
 </a>
@@ -184,13 +186,14 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 
 </details>
 
-### Streamable HTTP Transport Mode
+## Streamable HTTP Transport Mode
 
-The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode. [Check](https://modelcontextprotocol.io/clients) if your MCP client supports streamable-http transport before attempting to connect to MCP server in this mode.
+The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode which allows multiple clients to connect to the same server instance via HTTP.
+Check if your [MCP client](https://modelcontextprotocol.io/clients) supports streamable-http transport before attempting to connect to MCP server in this mode.
 
 > Note: This mode does not include authorization support.
 
-#### Usage
+### Usage
 
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
 
@@ -200,13 +203,25 @@ uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --u
 
 The server will be available on http://localhost:8000/mcp. This can be used in MCP clients supporting streamable http transport mode such as Cursor.
 
-### SSE Transport Mode
+### MCP Client Configuration
+
+```json
+{
+  "mcpServers": {
+    "couchbase-streamable-http": {
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+## SSE Transport Mode (Deprecated)
 
 There is an option to run the MCP server in [Server-Sent Events (SSE)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse) transport mode.
 
-> Note: SSE mode has been [deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) by MCP. We have support for Streamable HTTP.
+> Note: SSE mode has been [deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) by MCP. We have support for [Streamable HTTP](#streamable-http-transport-mode).
 
-#### Usage
+### Usage
 
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
 
@@ -216,9 +231,25 @@ By default, the MCP server will run on port 8000 but this can be configured usin
 
 The server will be available on http://localhost:8000/sse. This can be used in MCP clients supporting SSE transport mode such as Cursor.
 
+### MCP Client Configuration
+
+```json
+{
+  "mcpServers": {
+    "couchbase-sse": {
+      "url": "http://localhost:8000/sse"
+    }
+  }
+}
+```
+
 ## Docker Image
 
 The MCP server can also be built and run as a Docker container. Prebuilt images can be found on [DockerHub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase).
+
+Alternatively, we are part of the [Docker MCP Catalog](https://hub.docker.com/mcp/server/couchbase/overview).
+
+### Building Image
 
 ```bash
 docker build -t mcp/couchbase .
@@ -228,17 +259,49 @@ docker build -t mcp/couchbase .
 
 The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Configuration section](#server-configuration-for-mcp-clients).
 
-```bash
+#### Independent Docker Container
 
+```bash
 docker run --rm -i \
-  -e CB_CONNECTION_STRING=<couchbase_connection_string> \
-  -e CB_USERNAME=<database_user> \
-  -e CB_PASSWORD=<database_password> \
-  -e CB_BUCKET_NAME=<bucket_name> \
-  -e MCP_TRANSPORT=<stdio|streamable-http|sse> \
-  -e READ_ONLY_QUERY_MODE=<true|false> \
+  -e CB_CONNECTION_STRING='<couchbase_connection_string>' \
+  -e CB_USERNAME='<database_user>' \
+  -e CB_PASSWORD='<database_password>' \
+  -e CB_BUCKET_NAME='<bucket_name>' \
+  -e MCP_TRANSPORT='<streamable-http|sse|stdio>' \
+  -e READ_ONLY_QUERY_MODE='<true|false>' \
   -e FASTMCP_PORT=9001 \
+  -p 9001:9001 \
   mcp/couchbase
+```
+
+The `FASTMCP_PORT` environment variable is only applicable in the case of HTTP transport modes like streamable-http and sse.
+
+#### MCP Client Configuration
+
+The Docker image can be used in `stdio` transport mode with the following configuration.
+
+```json
+{
+  "mcpServers": {
+    "couchbase-mcp-docker": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "CB_CONNECTION_STRING=<couchbase_connection_string>",
+        "-e",
+        "CB_USERNAME=<database_user>",
+        "-e",
+        "CB_PASSWORD=<database_password>",
+        "-e",
+        "CB_BUCKET_NAME=<bucket_name>",
+        "mcp/couchbase"
+      ]
+    }
+  }
+}
 ```
 
 Notes
@@ -264,7 +327,7 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 - Check that the database user has proper permissions to access the specified bucket.
 - Confirm that the uv package manager is properly installed and accessible. You may need to provide absolute path to uv/uvx in the `command` field in the configuration.
 - Check the logs for any errors or warnings that may indicate issues with the MCP server. The server logs are under the name, `mcp-server-couchbase.log`.
-- If you are observing issues running your MCP server from source after updating your local MCP server repository, try running [`uv sync`](https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment) to update the dependencies.
+- If you are observing issues running your MCP server from source after updating your local MCP server repository, try running `uv sync` to update the [dependencies](https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment).
 
 ---
 
