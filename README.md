@@ -186,7 +186,9 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 
 ### Streamable HTTP Transport Mode
 
-The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode.
+The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode. [Check](https://modelcontextprotocol.io/clients) if your MCP client supports streamable-http transport before attempting to connect to MCP server in this mode.
+
+> Note: This mode does not include authorization support.
 
 #### Usage
 
@@ -224,18 +226,25 @@ docker build -t mcp/couchbase .
 
 ### Running
 
-The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Configuration section](#server-configuration-for-mcp-clients)
+The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Configuration section](#server-configuration-for-mcp-clients).
 
 ```bash
-docker run -i \
-  -e CB_CONNECTION_STRING='<couchbase_connection_string>' \
-  -e CB_USERNAME='<database_user>' \
-  -e CB_PASSWORD='<database_password>' \
-  -e CB_BUCKET_NAME='<bucket_name>' \
-  -e MCP_TRANSPORT='stdio/streamable-http/sse' \
-  -e READ_ONLY_QUERY_MODE="true/false" \
+
+docker run --rm -i \
+  -e CB_CONNECTION_STRING=<couchbase_connection_string> \
+  -e CB_USERNAME=<database_user> \
+  -e CB_PASSWORD=<database_password> \
+  -e CB_BUCKET_NAME=<bucket_name> \
+  -e MCP_TRANSPORT=<stdio|streamable-http|sse> \
+  -e READ_ONLY_QUERY_MODE=<true|false> \
+  -e FASTMCP_PORT=9001 \
   mcp/couchbase
 ```
+
+Notes
+
+- The `couchbase_connection_string` value depends on whether the Couchbase server is running on the same host machine, in another Docker container, or on a remote host. If your Couchbase server is running on your host machine, your connection string would likely be of the form `couchbase://host.docker.internal`. For details refer to the [docker documentation](https://docs.docker.com/desktop/features/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host).
+- You can specify the container's networking using the `--network=<your_network>` option. The network you choose depends on your environment; the default is `bridge`. For details, refer to [network drivers in docker](https://docs.docker.com/engine/network/drivers/).
 
 ### Risks Associated with LLMs
 
@@ -255,6 +264,7 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 - Check that the database user has proper permissions to access the specified bucket.
 - Confirm that the uv package manager is properly installed and accessible. You may need to provide absolute path to uv/uvx in the `command` field in the configuration.
 - Check the logs for any errors or warnings that may indicate issues with the MCP server. The server logs are under the name, `mcp-server-couchbase.log`.
+- If you are observing issues running your MCP server from source after updating your local MCP server repository, try running [`uv sync`](https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment) to update the dependencies.
 
 ---
 
@@ -298,7 +308,7 @@ uv run pre-commit install
 ## 📢 Support Policy
 
 We truly appreciate your interest in this project!
-This project is **community-maintained**, which means it's **not officially supported** by our support team.
+This project is **Couchbase community-maintained**, which means it's **not officially supported** by our support team. However, our engineers are actively monitoring and maintaining this repo and will try to resolve issues on a best-effort basis.
 
 Our support portal is unable to assist with requests related to this project, so we kindly ask that all inquiries stay within GitHub.
 
