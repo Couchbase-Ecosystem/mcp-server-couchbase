@@ -232,17 +232,19 @@ The MCP server can be run with the environment variables being used to configure
 
 docker run --rm -i \
   -e CB_CONNECTION_STRING=<couchbase_connection_string> \
-  -e CB_USERNAME=<database user> \
+  -e CB_USERNAME=<database_user> \
   -e CB_PASSWORD=<database_password> \
-  -e CB_BUCKET_NAME=<bucket name> \
-  -e MCP_TRANSPORT=<stdio/streamable-http/sse> \
-  -e READ_ONLY_QUERY_MODE=<true/false> \
+  -e CB_BUCKET_NAME=<bucket_name> \
+  -e MCP_TRANSPORT=<stdio|streamable-http|sse> \
+  -e READ_ONLY_QUERY_MODE=<true|false> \
   -e FASTMCP_PORT=9001 \
   mcp/couchbase
 ```
 
-1. The `couchbase_connection_string` value will depend on whether couchbase server is running on the same host machine as MCP server, within docker container or remote. If your couchbase server is running on your host machine, your connection string would likely be of the form `couchbase://host.docker.internal`. For details refer to the [docker documentation](https://docs.docker.com/desktop/features/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host).
-2. There is an option, `--network=<your_network>` to specify the networking for the container. The choice of network value will depend on your environment. The default is `bridge`. For details, refer to [network drivers in docker](https://docs.docker.com/engine/network/drivers/).
+Notes
+
+- The `couchbase_connection_string` value depends on whether the Couchbase server is running on the same host machine, in another Docker container, or on a remote host. If your Couchbase server is running on your host machine, your connection string would likely be of the form `couchbase://host.docker.internal`. For details refer to the [docker documentation](https://docs.docker.com/desktop/features/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host).
+- You can specify the container's networking using the `--network=<your_network>` option. The network you choose depends on your environment; the default is `bridge`. For details, refer to [network drivers in docker](https://docs.docker.com/engine/network/drivers/).
 
 ### Risks Associated with LLMs
 
