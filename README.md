@@ -206,7 +206,7 @@ The server will be available on http://localhost:8000/mcp. This can be used in M
 ```json
 {
   "mcpServers": {
-    "couchbase-streamable-http-mode": {
+    "couchbase-streamable-http": {
       "url": "http://localhost:8000/mcp"
     }
   }
@@ -234,7 +234,7 @@ The server will be available on http://localhost:8000/sse. This can be used in M
 ```json
 {
   "mcpServers": {
-    "couchbase-sse-mode": {
+    "couchbase-sse": {
       "url": "http://localhost:8000/sse"
     }
   }
@@ -279,7 +279,7 @@ The `FASTMCP_PORT` environment variable is only applicable in the case of HTTP t
 ```json
 {
   "mcpServers": {
-    "docker-cb": {
+    "couchbase-mcp-docker": {
       "command": "docker",
       "args": [
         "run",
