@@ -13,7 +13,7 @@ COPY src/ ./src/
 
 # Create virtual environment and install dependencies
 RUN uv venv /opt/venv && \
-    uv pip install --python /opt/venv/bin/python -e .
+    uv pip install --python /opt/venv/bin/python .
 
 # Runtime stage - use Python image with same version as builder
 FROM python:3.10-slim-bookworm AS runtime
@@ -36,7 +36,6 @@ WORKDIR /app
 
 # Copy virtual environment and application from builder
 COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /build/src ./src
 
 # Set up Python environment
 ENV PATH="/opt/venv/bin:$PATH" \
@@ -49,14 +48,13 @@ RUN chown -R mcpuser:mcpuser /app /opt/venv
 # Switch to non-root user
 USER mcpuser
 
-# Environment variables with defaults
+# Environment variables with stdio defaults (override for network mode)
 ENV CB_MCP_READ_ONLY_QUERY_MODE="true" \
     CB_MCP_TRANSPORT="stdio" \
     CB_MCP_PORT="8000"
 
-# Expose default port for SSE mode
+# Expose default port for HTTP/SSE mode
 EXPOSE 8000
 
-# Use python directly instead of uv run to avoid runtime dependency resolution
-ENTRYPOINT ["python", "src/mcp_server.py"]
-CMD ["--transport", "stdio"]
+# Use the installed console script
+ENTRYPOINT ["couchbase-mcp-server"]
