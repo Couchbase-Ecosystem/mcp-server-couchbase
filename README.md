@@ -100,16 +100,16 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 
 The server can be configured using environment variables or command line arguments:
 
-| Environment Variable   | CLI Argument             | Description                                | Default      |
-| ---------------------- | ------------------------ | ------------------------------------------ | ------------ |
-| `CB_CONNECTION_STRING` | `--connection-string`    | Connection string to the Couchbase cluster | **Required** |
-| `CB_USERNAME`          | `--username`             | Username with bucket access                | **Required** |
-| `CB_PASSWORD`          | `--password`             | Password for authentication                | **Required** |
-| `CB_BUCKET_NAME`       | `--bucket-name`          | Name of the bucket to access               | **Required** |
-| `READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries          | `true`       |
-| `CB_MCP_TRANSPORT`     | `--transport`            | Transport mode: `stdio`, `http`, `sse`     | `stdio`      |
-| `CB_MCP_HOST`          | `--host`                 | Host for HTTP/SSE transport modes          | `127.0.0.1`  |
-| `CB_MCP_PORT`          | `--port`                 | Port for HTTP/SSE transport modes          | `8000`       |
+| Environment Variable          | CLI Argument             | Description                                | Default      |
+| ----------------------------- | ------------------------ | ------------------------------------------ | ------------ |
+| `CB_CONNECTION_STRING`        | `--connection-string`    | Connection string to the Couchbase cluster | **Required** |
+| `CB_USERNAME`                 | `--username`             | Username with bucket access                | **Required** |
+| `CB_PASSWORD`                 | `--password`             | Password for authentication                | **Required** |
+| `CB_BUCKET_NAME`              | `--bucket-name`          | Name of the bucket to access               | **Required** |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries          | `true`       |
+| `CB_MCP_TRANSPORT`            | `--transport`            | Transport mode: `stdio`, `http`, `sse`     | `stdio`      |
+| `CB_MCP_HOST`                 | `--host`                 | Host for HTTP/SSE transport modes          | `127.0.0.1`  |
+| `CB_MCP_PORT`                 | `--port`                 | Port for HTTP/SSE transport modes          | `8000`       |
 
 You can also check the version of the server using:
 
@@ -195,7 +195,7 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 ## Streamable HTTP Transport Mode
 
 The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode which allows multiple clients to connect to the same server instance via HTTP.
-Check if your [MCP client](https://modelcontextprotocol.io/clients) supports streamable-http transport before attempting to connect to MCP server in this mode.
+Check if your [MCP client](https://modelcontextprotocol.io/clients) supports streamable http transport before attempting to connect to MCP server in this mode.
 
 > Note: This mode does not include authorization support.
 
@@ -280,7 +280,7 @@ docker run --rm -i \
   mcp/couchbase
 ```
 
-The `CB_MCP_PORT` environment variable is only applicable in the case of HTTP transport modes like streamable-http and sse.
+The `CB_MCP_PORT` environment variable is only applicable in the case of HTTP transport modes like http and sse.
 
 #### MCP Client Configuration
 
