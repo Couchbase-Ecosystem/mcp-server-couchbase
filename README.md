@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase that allows LLMs to directly interact with Couchbase clusters.
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/) [![PyPI version](https://badge.fury.io/py/couchbase-mcp-server.svg)](https://pypi.org/project/couchbase-mcp-server/) [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/13fce476-0e74-4b1e-ab82-1df2a3204809) [![smithery badge](https://smithery.ai/badge/@Couchbase-Ecosystem/mcp-server-couchbase)](https://smithery.ai/server/@Couchbase-Ecosystem/mcp-server-couchbase)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/) [![PyPI version](https://badge.fury.io/py/couchbase-mcp-server.svg)](https://pypi.org/project/couchbase-mcp-server/) [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/13fce476-0e74-4b1e-ab82-1df2a3204809)
 
 <a href="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase/badge" alt="Couchbase Server MCP server" />
@@ -16,7 +16,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - Upsert a document by ID to a specified scope and collection
 - Delete a document by ID from a specified scope and collection
 - Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope
-  - There is an option in the MCP server, `READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
+  - There is an option in the MCP server, `CB_MCP_READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
 - Get the status of the MCP server
 - Check the cluster credentials by connecting to the cluster
 
@@ -100,16 +100,22 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 
 The server can be configured using environment variables or command line arguments:
 
-| Environment Variable   | CLI Argument             | Description                                       | Default      |
-| ---------------------- | ------------------------ | ------------------------------------------------- | ------------ |
-| `CB_CONNECTION_STRING` | `--connection-string`    | Connection string to the Couchbase cluster        | **Required** |
-| `CB_USERNAME`          | `--username`             | Username with bucket access                       | **Required** |
-| `CB_PASSWORD`          | `--password`             | Password for authentication                       | **Required** |
-| `CB_BUCKET_NAME`       | `--bucket-name`          | Name of the bucket to access                      | **Required** |
-| `READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries                 | `true`       |
-| `MCP_TRANSPORT`        | `--transport`            | Transport mode: `stdio`, `streamable-http`, `sse` | `stdio`      |
-| `FASTMCP_HOST`         | `--host`                 | Host for HTTP/SSE transport modes                 | `127.0.0.1`  |
-| `FASTMCP_PORT`         | `--port`                 | Port for HTTP/SSE transport modes                 | `8000`       |
+| Environment Variable          | CLI Argument             | Description                                | Default      |
+| ----------------------------- | ------------------------ | ------------------------------------------ | ------------ |
+| `CB_CONNECTION_STRING`        | `--connection-string`    | Connection string to the Couchbase cluster | **Required** |
+| `CB_USERNAME`                 | `--username`             | Username with bucket access                | **Required** |
+| `CB_PASSWORD`                 | `--password`             | Password for authentication                | **Required** |
+| `CB_BUCKET_NAME`              | `--bucket-name`          | Name of the bucket to access               | **Required** |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries          | `true`       |
+| `CB_MCP_TRANSPORT`            | `--transport`            | Transport mode: `stdio`, `http`, `sse`     | `stdio`      |
+| `CB_MCP_HOST`                 | `--host`                 | Host for HTTP/SSE transport modes          | `127.0.0.1`  |
+| `CB_MCP_PORT`                 | `--port`                 | Port for HTTP/SSE transport modes          | `8000`       |
+
+You can also check the version of the server using:
+
+```bash
+uvx couchbase-mcp-server --version
+```
 
 #### Client Specific Configuration
 
@@ -189,13 +195,13 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 ## Streamable HTTP Transport Mode
 
 The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode which allows multiple clients to connect to the same server instance via HTTP.
-Check if your [MCP client](https://modelcontextprotocol.io/clients) supports streamable-http transport before attempting to connect to MCP server in this mode.
+Check if your [MCP client](https://modelcontextprotocol.io/clients) supports streamable http transport before attempting to connect to MCP server in this mode.
 
 > Note: This mode does not include authorization support.
 
 ### Usage
 
-By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
+By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `CB_MCP_PORT` environment variable.
 
 ```bash
 uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=streamable-http
@@ -208,14 +214,14 @@ The server will be available on http://localhost:8000/mcp. This can be used in M
 ```json
 {
   "mcpServers": {
-    "couchbase-streamable-http": {
+    "couchbase-http": {
       "url": "http://localhost:8000/mcp"
     }
   }
 }
 ```
 
-## SSE Transport Mode (Deprecated)
+## SSE Transport Mode
 
 There is an option to run the MCP server in [Server-Sent Events (SSE)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse) transport mode.
 
@@ -223,7 +229,7 @@ There is an option to run the MCP server in [Server-Sent Events (SSE)](https://m
 
 ### Usage
 
-By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `FASTMCP_PORT` environment variable.
+By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `CB_MCP_PORT` environment variable.
 
 ```bash
  uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=sse
@@ -267,14 +273,14 @@ docker run --rm -i \
   -e CB_USERNAME='<database_user>' \
   -e CB_PASSWORD='<database_password>' \
   -e CB_BUCKET_NAME='<bucket_name>' \
-  -e MCP_TRANSPORT='<streamable-http|sse|stdio>' \
-  -e READ_ONLY_QUERY_MODE='<true|false>' \
-  -e FASTMCP_PORT=9001 \
+  -e CB_MCP_TRANSPORT='<http|sse|stdio>' \
+  -e CB_MCP_READ_ONLY_QUERY_MODE='<true|false>' \
+  -e CB_MCP_PORT=9001 \
   -p 9001:9001 \
   mcp/couchbase
 ```
 
-The `FASTMCP_PORT` environment variable is only applicable in the case of HTTP transport modes like streamable-http and sse.
+The `CB_MCP_PORT` environment variable is only applicable in the case of HTTP transport modes like http and sse.
 
 #### MCP Client Configuration
 

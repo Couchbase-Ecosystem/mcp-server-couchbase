@@ -39,9 +39,9 @@ RUN chown -R mcpuser:mcpuser /app /opt/venv
 USER mcpuser
 
 # Environment variables with defaults
-ENV READ_ONLY_QUERY_MODE="true" \
-    MCP_TRANSPORT="stdio" \
-    FASTMCP_PORT="8000"
+ENV CB_MCP_READ_ONLY_QUERY_MODE="true" \
+    CB_MCP_TRANSPORT="stdio" \
+    CB_MCP_PORT="8000"
 
 # Expose default port for SSE mode
 EXPOSE 8000
