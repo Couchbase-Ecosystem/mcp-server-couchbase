@@ -36,7 +36,6 @@ WORKDIR /app
 
 # Copy virtual environment and application from builder
 COPY --from=builder /opt/venv /opt/venv
-# COPY --from=builder /build/src ./src
 
 # Set up Python environment
 ENV PATH="/opt/venv/bin:$PATH" \
