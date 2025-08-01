@@ -16,7 +16,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - Upsert a document by ID to a specified scope and collection
 - Delete a document by ID from a specified scope and collection
 - Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope
-  - There is an option in the MCP server, `READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
+  - There is an option in the MCP server, `CB_MCP_READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
 - Get the status of the MCP server
 - Check the cluster credentials by connecting to the cluster
 
@@ -100,16 +100,16 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 
 The server can be configured using environment variables or command line arguments:
 
-| Environment Variable   | CLI Argument             | Description                                       | Default      |
-| ---------------------- | ------------------------ | ------------------------------------------------- | ------------ |
-| `CB_CONNECTION_STRING` | `--connection-string`    | Connection string to the Couchbase cluster        | **Required** |
-| `CB_USERNAME`          | `--username`             | Username with bucket access                       | **Required** |
-| `CB_PASSWORD`          | `--password`             | Password for authentication                       | **Required** |
-| `CB_BUCKET_NAME`       | `--bucket-name`          | Name of the bucket to access                      | **Required** |
-| `READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries                 | `true`       |
-| `MCP_TRANSPORT`        | `--transport`            | Transport mode: `stdio`, `streamable-http`, `sse` | `stdio`      |
-| `MCP_HOST`             | `--host`                 | Host for HTTP/SSE transport modes                 | `127.0.0.1`  |
-| `MCP_PORT`             | `--port`                 | Port for HTTP/SSE transport modes                 | `8000`       |
+| Environment Variable   | CLI Argument             | Description                                | Default      |
+| ---------------------- | ------------------------ | ------------------------------------------ | ------------ |
+| `CB_CONNECTION_STRING` | `--connection-string`    | Connection string to the Couchbase cluster | **Required** |
+| `CB_USERNAME`          | `--username`             | Username with bucket access                | **Required** |
+| `CB_PASSWORD`          | `--password`             | Password for authentication                | **Required** |
+| `CB_BUCKET_NAME`       | `--bucket-name`          | Name of the bucket to access               | **Required** |
+| `READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries          | `true`       |
+| `CB_MCP_TRANSPORT`     | `--transport`            | Transport mode: `stdio`, `http`, `sse`     | `stdio`      |
+| `CB_MCP_HOST`          | `--host`                 | Host for HTTP/SSE transport modes          | `127.0.0.1`  |
+| `CB_MCP_PORT`          | `--port`                 | Port for HTTP/SSE transport modes          | `8000`       |
 
 You can also check the version of the server using:
 
@@ -201,7 +201,7 @@ Check if your [MCP client](https://modelcontextprotocol.io/clients) supports str
 
 ### Usage
 
-By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `MCP_PORT` environment variable.
+By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `CB_MCP_PORT` environment variable.
 
 ```bash
 uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=streamable-http
@@ -214,14 +214,14 @@ The server will be available on http://localhost:8000/mcp. This can be used in M
 ```json
 {
   "mcpServers": {
-    "couchbase-streamable-http": {
+    "couchbase-http": {
       "url": "http://localhost:8000/mcp"
     }
   }
 }
 ```
 
-## SSE Transport Mode (Deprecated)
+## SSE Transport Mode
 
 There is an option to run the MCP server in [Server-Sent Events (SSE)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse) transport mode.
 
@@ -229,7 +229,7 @@ There is an option to run the MCP server in [Server-Sent Events (SSE)](https://m
 
 ### Usage
 
-By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `MCP_PORT` environment variable.
+By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `CB_MCP_PORT` environment variable.
 
 ```bash
  uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=sse
@@ -273,14 +273,14 @@ docker run --rm -i \
   -e CB_USERNAME='<database_user>' \
   -e CB_PASSWORD='<database_password>' \
   -e CB_BUCKET_NAME='<bucket_name>' \
-  -e MCP_TRANSPORT='<streamable-http|sse|stdio>' \
-  -e READ_ONLY_QUERY_MODE='<true|false>' \
-  -e MCP_PORT=9001 \
+  -e CB_MCP_TRANSPORT='<http|sse|stdio>' \
+  -e CB_MCP_READ_ONLY_QUERY_MODE='<true|false>' \
+  -e CB_MCP_PORT=9001 \
   -p 9001:9001 \
   mcp/couchbase
 ```
 
-The `MCP_PORT` environment variable is only applicable in the case of HTTP transport modes like streamable-http and sse.
+The `CB_MCP_PORT` environment variable is only applicable in the case of HTTP transport modes like streamable-http and sse.
 
 #### MCP Client Configuration
 
