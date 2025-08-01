@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Get git information
 GIT_COMMIT=$(git rev-parse HEAD)

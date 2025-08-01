@@ -288,10 +288,10 @@ This script automatically:
 
 ```bash
 # View git commit hash in image
-docker inspect mcp/couchbase:latest | jq -r '.[0].Config.Labels["org.opencontainers.image.revision"]'
+docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase:latest
 
 # View all metadata labels
-docker inspect mcp/couchbase:latest | jq '.[0].Config.Labels'
+docker inspect --format='{{json .Config.Labels}}' mcp/couchbase:latest
 ```
 
 </details>
