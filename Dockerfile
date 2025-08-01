@@ -49,14 +49,14 @@ RUN chown -R mcpuser:mcpuser /app /opt/venv
 # Switch to non-root user
 USER mcpuser
 
-# Environment variables with defaults
+# Environment variables with stdio defaults (override for network mode)
 ENV CB_MCP_READ_ONLY_QUERY_MODE="true" \
     CB_MCP_TRANSPORT="stdio" \
     CB_MCP_PORT="8000"
 
-# Expose default port for SSE mode
+# Expose default port for HTTP/SSE mode
 EXPOSE 8000
 
 # Use python directly instead of uv run to avoid runtime dependency resolution
 ENTRYPOINT ["python", "src/mcp_server.py"]
-CMD ["--transport", "stdio"]
+CMD []
