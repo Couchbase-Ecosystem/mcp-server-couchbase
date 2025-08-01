@@ -43,6 +43,10 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
 
+      - name: Set build timestamp
+        id: timestamp
+        run: echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -51,6 +55,9 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_COMMIT_HASH=${{ github.sha }}
+            BUILD_DATE=${{ steps.timestamp.outputs.BUILD_DATE }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -261,6 +261,41 @@ Alternatively, we are part of the [Docker MCP Catalog](https://hub.docker.com/mc
 docker build -t mcp/couchbase .
 ```
 
+<details>
+<summary>Building with Arguments</summary>
+If you want to build with the build arguments for commit hash and the build time, you can build using:
+
+```bash
+docker build --build-arg GIT_COMMIT_HASH=$(git rev-parse HEAD) \
+  --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+  -t mcp/couchbase .
+```
+
+**Alternatively, use the provided build script:**
+
+```bash
+./build.sh
+```
+
+This script automatically:
+
+- Generates git commit hash and build timestamp
+- Creates multiple useful tags (`latest`, `<short-commit>`)
+- Shows build information and results
+- Uses the same arguments as CI/CD builds
+
+**Verify image labels:**
+
+```bash
+# View git commit hash in image
+docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase:latest
+
+# View all metadata labels
+docker inspect --format='{{json .Config.Labels}}' mcp/couchbase:latest
+```
+
+</details>
+
 ### Running
 
 The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Configuration section](#server-configuration-for-mcp-clients).

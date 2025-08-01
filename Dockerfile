@@ -18,6 +18,17 @@ RUN uv venv /opt/venv && \
 # Runtime stage - use Python image with same version as builder
 FROM python:3.10-slim-bookworm AS runtime
 
+# Accept build arguments for labels
+ARG GIT_COMMIT_HASH="unknown"
+ARG BUILD_DATE="unknown"
+
+# Add metadata labels
+LABEL org.opencontainers.image.revision="${GIT_COMMIT_HASH}" \
+    org.opencontainers.image.created="${BUILD_DATE}" \
+    org.opencontainers.image.title="MCP Server Couchbase" \
+    org.opencontainers.image.description="Model Context Protocol server for Couchbase" \
+    org.opencontainers.image.source="https://github.com/couchbaselabs/mcp-server-couchbase"
+
 # Create non-root user
 RUN useradd --system --uid 1001 mcpuser
 
