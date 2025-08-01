@@ -22,6 +22,7 @@ from utils import (
     DEFAULT_TRANSPORT,
     MCP_SERVER_NAME,
     NETWORK_TRANSPORTS,
+    NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
     get_settings,
 )
@@ -83,27 +84,33 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 )
 @click.option(
     "--read-only-query-mode",
-    envvar="READ_ONLY_QUERY_MODE",
+    envvar=[
+        "CB_MCP_READ_ONLY_QUERY_MODE",
+        "READ_ONLY_QUERY_MODE",  # Deprecated
+    ],
     type=bool,
     default=DEFAULT_READ_ONLY_MODE,
     help="Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
 )
 @click.option(
     "--transport",
-    envvar="MCP_TRANSPORT",
+    envvar=[
+        "CB_MCP_TRANSPORT",
+        "MCP_TRANSPORT",  # Deprecated
+    ],
     type=click.Choice(ALLOWED_TRANSPORTS),
     default=DEFAULT_TRANSPORT,
-    help="Transport mode for the server (stdio, streamable-http or sse)",
+    help="Transport mode for the server (stdio, http or sse). Default is stdio",
 )
 @click.option(
     "--host",
-    envvar="MCP_HOST",
+    envvar="CB_MCP_HOST",
     default=DEFAULT_HOST,
     help="Host to run the server on (default: 127.0.0.1)",
 )
 @click.option(
     "--port",
-    envvar="MCP_PORT",
+    envvar="CB_MCP_PORT",
     default=DEFAULT_PORT,
     help="Port to run the server on (default: 8000)",
 )
@@ -133,8 +140,19 @@ def main(
         "port": port,
     }
 
+    # Map user-friendly transport names to SDK transport names
+    sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
+
     # If the transport is network based, we need to pass the host and port to the MCP server
-    config = {"host": host, "port": port} if transport in NETWORK_TRANSPORTS else {}
+    config = (
+        {
+            "host": host,
+            "port": port,
+            "transport": sdk_transport,
+        }
+        if transport in NETWORK_TRANSPORTS
+        else {}
+    )
 
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
 
@@ -143,7 +161,7 @@ def main(
         mcp.add_tool(tool)
 
     # Run the server
-    mcp.run(transport=transport)
+    mcp.run(transport=sdk_transport)  # type: ignore
 
 
 if __name__ == "__main__":

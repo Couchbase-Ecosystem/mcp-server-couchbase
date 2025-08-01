@@ -27,6 +27,7 @@ from .constants import (
     DEFAULT_TRANSPORT,
     MCP_SERVER_NAME,
     NETWORK_TRANSPORTS,
+    NETWORK_TRANSPORTS_SDK_MAPPING,
 )
 
 # Context utilities
@@ -58,4 +59,5 @@ __all__ = [
     "DEFAULT_PORT",
     "ALLOWED_TRANSPORTS",
     "NETWORK_TRANSPORTS",
+    "NETWORK_TRANSPORTS_SDK_MAPPING",
 ]
