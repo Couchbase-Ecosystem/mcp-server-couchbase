@@ -204,7 +204,13 @@ Check if your [MCP client](https://modelcontextprotocol.io/clients) supports str
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `CB_MCP_PORT` environment variable.
 
 ```bash
-uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=streamable-http
+uvx couchbase-mcp-server \
+  --connection-string='<couchbase_connection_string>' \
+  --username='<database_username>' \
+  --password='<database_password>' \
+  --bucket-name='<couchbase_bucket_to_use>' \
+  --read-only-query-mode=true \
+  --transport=http
 ```
 
 The server will be available on http://localhost:8000/mcp. This can be used in MCP clients supporting streamable http transport mode such as Cursor.
@@ -232,7 +238,13 @@ There is an option to run the MCP server in [Server-Sent Events (SSE)](https://m
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `CB_MCP_PORT` environment variable.
 
 ```bash
- uvx couchbase-mcp-server --connection-string='<couchbase_connection_string>' --username='<database_username>' --password='<database_password>' --bucket-name='<couchbase_bucket_to_use>' --read-only-query-mode=true --transport=sse
+ uvx couchbase-mcp-server \
+  --connection-string='<couchbase_connection_string>' \
+  --username='<database_username>' \
+  --password='<database_password>' \
+  --bucket-name='<couchbase_bucket_to_use>' \
+  --read-only-query-mode=true \
+  --transport=sse
 ```
 
 The server will be available on http://localhost:8000/sse. This can be used in MCP clients supporting SSE transport mode such as Cursor.
@@ -366,8 +378,8 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 - Verify that your Couchbase connection string, database username, password and bucket name are correct.
 - If using Couchbase Capella, ensure that the cluster is [accessible](https://docs.couchbase.com/cloud/clusters/allow-ip-address.html) from the machine where the MCP server is running.
 - Check that the database user has proper permissions to access the specified bucket.
-- Confirm that the uv package manager is properly installed and accessible. You may need to provide absolute path to uv/uvx in the `command` field in the configuration.
-- Check the logs for any errors or warnings that may indicate issues with the MCP server. The server logs are under the name, `mcp-server-couchbase.log`.
+- Confirm that the `uv` package manager is properly installed and accessible. You may need to provide absolute path to `uv`/`uvx` in the `command` field in the configuration.
+- Check the logs for any errors or warnings that may indicate issues with the MCP server. The location of the logs depend on your MCP client.
 - If you are observing issues running your MCP server from source after updating your local MCP server repository, try running `uv sync` to update the [dependencies](https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment).
 
 ---
