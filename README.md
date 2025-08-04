@@ -238,7 +238,7 @@ There is an option to run the MCP server in [Server-Sent Events (SSE)](https://m
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `CB_MCP_PORT` environment variable.
 
 ```bash
- uvx couchbase-mcp-server \
+uvx couchbase-mcp-server \
   --connection-string='<couchbase_connection_string>' \
   --username='<database_username>' \
   --password='<database_password>' \
