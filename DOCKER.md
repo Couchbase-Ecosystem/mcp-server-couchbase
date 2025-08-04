@@ -39,6 +39,7 @@ Add the configuration specified below to the MCP configuration in your MCP clien
       "command": "docker",
       "args": [
         "run",
+        "--rm",
         "-i",
         "-e",
         "CB_CONNECTION_STRING=<couchbase_connection_string>",
@@ -59,13 +60,13 @@ Add the configuration specified below to the MCP configuration in your MCP clien
 
 The detailed explanation for the environment variables can be found on the [Github Repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase?tab=readme-ov-file#additional-configuration-for-mcp-server).
 
-| Variable                      | Description                         | Default     |
-| ----------------------------- | ----------------------------------- | ----------- |
-| `CB_CONNECTION_STRING`        | Couchbase cluster connection string | Required    |
-| `CB_USERNAME`                 | Database username                   | Required    |
-| `CB_PASSWORD`                 | Database password                   | Required    |
-| `CB_BUCKET_NAME`              | Bucket name to access               | Required    |
-| `CB_MCP_READ_ONLY_QUERY_MODE` | Allow only read queries             | `true`      |
-| `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)     | `stdio`     |
-| `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)        | `127.0.0.1` |
-| `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)        | `8000`      |
+| Variable                      | Description                                 | Default      |
+| ----------------------------- | ------------------------------------------- | ------------ |
+| `CB_CONNECTION_STRING`        | Couchbase Connection string                 | **Required** |
+| `CB_USERNAME`                 | Database username                           | **Required** |
+| `CB_PASSWORD`                 | Database password                           | **Required** |
+| `CB_BUCKET_NAME`              | Bucket to access                            | **Required** |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | Prevent data modification queries via SQL++ | `true`       |
+| `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)             | `stdio`      |
+| `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                | `127.0.0.1`  |
+| `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                | `8000`       |
