@@ -8,7 +8,6 @@ This module contains utility functions for configuration, connection, and contex
 from .config import (
     get_settings,
     validate_connection_config,
-    validate_required_param,
 )
 
 # Connection utilities
@@ -33,7 +32,7 @@ from .constants import (
 # Context utilities
 from .context import (
     AppContext,
-    ensure_bucket_connection,
+    get_cluster_connection,
 )
 
 # Note: Individual modules create their own hierarchical loggers using:
@@ -42,14 +41,13 @@ from .context import (
 __all__ = [
     # Config
     "get_settings",
-    "validate_required_param",
     "validate_connection_config",
     # Connection
     "connect_to_couchbase_cluster",
     "connect_to_bucket",
     # Context
     "AppContext",
-    "ensure_bucket_connection",
+    "get_cluster_connection",
     # Constants
     "MCP_SERVER_NAME",
     "DEFAULT_READ_ONLY_MODE",

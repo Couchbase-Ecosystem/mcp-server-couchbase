@@ -7,15 +7,6 @@ from .constants import MCP_SERVER_NAME
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.config")
 
 
-def validate_required_param(
-    ctx: click.Context, param: click.Parameter, value: str | None
-) -> str:
-    """Validate that a required parameter is not empty."""
-    if not value or value.strip() == "":
-        raise click.BadParameter(f"{param.name} cannot be empty")
-    return value
-
-
 def get_settings() -> dict:
     """Get settings from Click context."""
     ctx = click.get_current_context()
@@ -23,9 +14,9 @@ def get_settings() -> dict:
 
 
 def validate_connection_config() -> None:
-    """Validate that all required parameters for the MCP server are available when needed."""
+    """Validate that required cluster parameters for the MCP server are available."""
     settings = get_settings()
-    required_params = ["connection_string", "username", "password", "bucket_name"]
+    required_params = ["connection_string", "username", "password"]
     missing_params = []
 
     for param in required_params:
