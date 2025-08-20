@@ -7,7 +7,6 @@ This module contains utility functions for configuration, connection, and contex
 # Configuration utilities
 from .config import (
     get_settings,
-    validate_connection_config,
 )
 
 # Connection utilities
@@ -41,7 +40,6 @@ from .context import (
 __all__ = [
     # Config
     "get_settings",
-    "validate_connection_config",
     # Connection
     "connect_to_couchbase_cluster",
     "connect_to_bucket",
