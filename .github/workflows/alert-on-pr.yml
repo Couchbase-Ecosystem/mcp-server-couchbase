@@ -26,14 +26,26 @@ jobs:
 
       - name: Parse context from yaml/couchbase.yaml and send Slack alert
         env:
-          SLACK_WEBHOOK: ${{ secrets.DA_SLACK_WEBHOOK_URL}}
+          SLACK_WEBHOOK: ${{ secrets.DA_SLACK_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          import yaml, requests, os
-          with open('yaml/couchbase.yaml') as f:
-              context = yaml.safe_load(f)
-          pr_title = os.environ.get('GITHUB_HEAD_REF', '')
-          pr_url = os.environ.get('GITHUB_SERVER_URL', '') + '/' + os.environ.get('GITHUB_REPOSITORY', '') + '/pull/' + os.environ.get('GITHUB_REF_NAME', '')
-          message = f"PR Alert!\nTitle: {pr_title}\nURL: {pr_url}\nContext: {context}"
+          import requests, os
+          repo = os.environ.get('GITHUB_REPOSITORY')
+          pr_number = os.environ.get('GITHUB_REF').split('/')[-1]
+          token = os.environ.get('GITHUB_TOKEN')
+          api_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
+          headers = {'Authorization': f'token {token}', 'Accept': 'application/vnd.github.v3+json'}
+          pr_resp = requests.get(api_url, headers=headers)
+          branch_name = os.environ.get('GITHUB_HEAD_REF', '')
+          if pr_resp.status_code == 200:
+              pr_data = pr_resp.json()
+              pr_title = pr_data.get('title', '')
+              pr_body = pr_data.get('body', '')
+              pr_user = pr_data.get('user', {}).get('login', '')
+              pr_url = pr_data.get('html_url', '')
+              message = f"PR Alert!\nTitle: {pr_title}\nBranch: {branch_name}\nAuthor: {pr_user}\nURL: {pr_url}\nDescription: {pr_body}"
+          else:
+              message = f"PR Alert!\nUnable to fetch PR details."
           webhook = os.environ['SLACK_WEBHOOK']
           requests.post(webhook, json={"text": message})
         shell: python
