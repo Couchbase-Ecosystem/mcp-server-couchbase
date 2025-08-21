@@ -1,0 +1,36 @@
+name: Alert on PR Changes
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML and requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml requests
+
+      - name: Parse context from yaml/couchbase.yaml and send Slack alert
+        env:
+          SLACK_WEBHOOK: ${{ secrets.DA_SLACK_WEBHOOK_URL}}
+        run: |
+          import yaml, requests, os
+          with open('yaml/couchbase.yaml') as f:
+              context = yaml.safe_load(f)
+          pr_title = os.environ.get('GITHUB_HEAD_REF', '')
+          pr_url = os.environ.get('GITHUB_SERVER_URL', '') + '/' + os.environ.get('GITHUB_REPOSITORY', '') + '/pull/' + os.environ.get('GITHUB_REF_NAME', '')
+          message = f"PR Alert!\nTitle: {pr_title}\nURL: {pr_url}\nContext: {context}"
+          webhook = os.environ['SLACK_WEBHOOK']
+          requests.post(webhook, json={"text": message})
+        shell: python
