@@ -17,28 +17,18 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
 
 
 def get_schema_for_collection(
-<<<<<<< HEAD
-    ctx: Context, bucket_name: str, scope_name: str, collection_name: str
-) -> list[dict[str, Any]]:
-=======
     ctx: Context, scope_name: str, collection_name: str
 ) -> dict[str, Any]:
->>>>>>> upstream/main
     """Get the schema for a collection in the specified scope.
     Returns a dictionary with the collection name and the schema returned by running INFER query on the Couchbase collection.
     """
     schema = {"collection_name": collection_name, "schema": []}
     try:
         query = f"INFER {collection_name}"
-<<<<<<< HEAD
-        result = run_sql_plus_plus_query(ctx, bucket_name, scope_name, query)
-        return result
-=======
         result = run_sql_plus_plus_query(ctx, scope_name, query)
         # Result is a list of list of schemas. We convert it to a list of schemas.
         if result:
             schema["schema"] = result[0]
->>>>>>> upstream/main
     except Exception as e:
         logger.error(f"Error getting schema: {e}")
         raise

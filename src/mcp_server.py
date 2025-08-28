@@ -129,13 +129,10 @@ def main(
     password,
     read_only_query_mode,
     transport,
-<<<<<<< HEAD
     ca_cert_path,
-    client_cert_path
-=======
+    client_cert_path,
     host,
     port,
->>>>>>> main
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -144,23 +141,18 @@ def main(
         "username": username,
         "password": password,
         "read_only_query_mode": read_only_query_mode,
-<<<<<<< HEAD
         "ca_cert_path" : ca_cert_path,
-        "client_cert_path" : client_cert_path
-    }
+        "client_cert_path" : client_cert_path,
+        "transport": transport,
+        "host": host,
+        "port": port,
+        }
 
     try:
         validate_authentication_method(ctx.obj)
     except Exception as e:
         logger.error(f"Failed to validate auth method params: {e}")
         raise
-    # Create MCP server inside main()
-    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
-=======
-        "transport": transport,
-        "host": host,
-        "port": port,
-    }
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
@@ -177,7 +169,6 @@ def main(
     )
 
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
->>>>>>> main
 
     # Register all tools
     for tool in ALL_TOOLS:
