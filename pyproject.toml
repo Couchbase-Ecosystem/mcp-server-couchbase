@@ -1,6 +1,6 @@
 [project]
 name = "couchbase-mcp-server"
-version = "0.3.1rc3"
+version = "0.4.0"
 description = "Couchbase MCP Server - The Developer Data Platform for Critical Applications in Our AI World"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -18,7 +18,7 @@ dependencies = [
     "click==8.2.1",
     "couchbase==4.4.0",
     "lark-sqlpp==0.0.1",
-    "mcp[cli]==1.6.0",
+    "mcp[cli]==1.12.0",
 ]
 
 [project.urls]
@@ -32,8 +32,8 @@ couchbase-mcp-server = "mcp_server:main"
 # Development dependencies
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.8.0",
-    "pre-commit>=3.0.0",
+    "ruff==0.12.5",
+    "pre-commit==4.2.0",
 ]
 
 # Ruff configuration
@@ -122,3 +122,6 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.uv]
+package = true

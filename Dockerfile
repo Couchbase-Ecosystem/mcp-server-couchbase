@@ -1,31 +1,60 @@
-FROM python:3.10-slim
+# Build stage - use official uv image with Python 3.10
+FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim AS builder
+
+# Set uv configuration
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+WORKDIR /build
+
+# Copy dependency files for caching
+COPY pyproject.toml ./
+COPY src/ ./src/
+
+# Create virtual environment and install dependencies
+RUN uv venv /opt/venv && \
+    uv pip install --python /opt/venv/bin/python .
+
+# Runtime stage - use Python image with same version as builder
+FROM python:3.10-slim-bookworm AS runtime
+
+# Accept build arguments for labels
+ARG GIT_COMMIT_HASH="unknown"
+ARG BUILD_DATE="unknown"
+
+# Add metadata labels
+LABEL org.opencontainers.image.revision="${GIT_COMMIT_HASH}" \
+    org.opencontainers.image.created="${BUILD_DATE}" \
+    org.opencontainers.image.title="MCP Server Couchbase" \
+    org.opencontainers.image.description="Model Context Protocol server for Couchbase" \
+    org.opencontainers.image.source="https://github.com/couchbaselabs/mcp-server-couchbase"
+
+# Create non-root user
+RUN useradd --system --uid 1001 mcpuser
 
 WORKDIR /app
 
-# Install build dependencies and uv
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh
+# Copy virtual environment and application from builder
+COPY --from=builder /opt/venv /opt/venv
 
-# Add uv to PATH
-ENV PATH="/root/.local/bin:${PATH}"
+# Set up Python environment
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Copy application files
-COPY src/ /app/src/
-COPY pyproject.toml README.md ./
+# Change ownership to non-root user
+RUN chown -R mcpuser:mcpuser /app /opt/venv
 
-# Install dependencies
-RUN uv pip install --system -e .
+# Switch to non-root user
+USER mcpuser
 
-# Environment variables with defaults
-ENV READ_ONLY_QUERY_MODE="true"
-ENV MCP_TRANSPORT="stdio"
-ENV FASTMCP_PORT="8080"
+# Environment variables with stdio defaults (override for network mode)
+ENV CB_MCP_READ_ONLY_QUERY_MODE="true" \
+    CB_MCP_TRANSPORT="stdio" \
+    CB_MCP_PORT="8000"
 
-# Expose default port for SSE mode (runtime port can be mapped using -p flag)
-EXPOSE 8080
+# Expose default port for HTTP/SSE mode
+EXPOSE 8000
 
-# Run the server using uv
-ENTRYPOINT ["uv", "run", "src/mcp_server.py"]
-CMD ["--transport", "stdio"]
+# Use the installed console script
+ENTRYPOINT ["couchbase-mcp-server"]

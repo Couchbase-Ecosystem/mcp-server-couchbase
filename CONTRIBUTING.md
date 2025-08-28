@@ -84,7 +84,7 @@ mcp-server-couchbase/
 │   └── lint_fix.sh           # Auto-fix linting issues
 ├── .pre-commit-config.yaml   # Pre-commit hook configuration
 ├── pyproject.toml            # Project dependencies and Ruff config
-├── CONTRIBUTING.md           # This file
+├── CONTRIBUTING.md           # Contribution Guide
 └── README.md                 # Usage
 ```
 
