@@ -87,6 +87,7 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
         "CB_PASSWORD": "password",
+        "CB_BUCKET_NAME": "bucket_name"
       }
     }
   }

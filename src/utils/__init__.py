@@ -13,6 +13,7 @@ from .config import (
 
 # Connection utilities
 from .connection import (
+    connect_to_bucket,
     connect_to_couchbase_cluster,
 )
 
@@ -32,7 +33,6 @@ from .constants import (
 # Context utilities
 from .context import (
     AppContext,
-    ensure_cluster_connection,
     ensure_bucket_connection,
 )
 
@@ -46,9 +46,9 @@ __all__ = [
     "validate_connection_config",
     # Connection
     "connect_to_couchbase_cluster",
+    "connect_to_bucket",
     # Context
     "AppContext",
-    "ensure_cluster_connection",
     "ensure_bucket_connection",
     # Constants
     "MCP_SERVER_NAME",

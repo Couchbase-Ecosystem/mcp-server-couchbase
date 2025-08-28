@@ -10,20 +10,17 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from utils.constants import MCP_SERVER_NAME
-from utils.context import ensure_cluster_connection, ensure_bucket_connection
+from utils.context import ensure_bucket_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.kv")
 
 
 def get_document_by_id(
-    ctx: Context, bucket_name: str, scope_name: str, collection_name: str, document_id: str
+    ctx: Context, scope_name: str, collection_name: str, document_id: str
 ) -> dict[str, Any]:
-    """Get a document by its ID from the specified bucket, scope and collection."""
-    try:
-        bucket = ensure_bucket_connection(ctx, bucket_name)
-    except Exception as e:
-        logger.error(f"Error accessing bucket: {e}")
-        raise ValueError("Tool does not have access to bucket, or bucket does not exist.") from e
+    """Get a document by its ID from the specified scope and collection.
+    If the document is not found, it will raise an exception."""
+    bucket = ensure_bucket_connection(ctx)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         result = collection.get(document_id)
@@ -35,19 +32,14 @@ def get_document_by_id(
 
 def upsert_document_by_id(
     ctx: Context,
-    bucket_name: str,
     scope_name: str,
     collection_name: str,
     document_id: str,
     document_content: dict[str, Any],
 ) -> bool:
-    """Insert or update a document in a bucket, scope and collection by its ID.
+    """Insert or update a document by its ID.
     Returns True on success, False on failure."""
-    try:
-        bucket = ensure_bucket_connection(ctx, bucket_name)
-    except Exception as e:
-        logger.error(f"Error accessing bucket: {e}")
-        raise ValueError("Tool does not have access to bucket, or bucket does not exist.") from e
+    bucket = ensure_bucket_connection(ctx)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.upsert(document_id, document_content)
@@ -59,15 +51,11 @@ def upsert_document_by_id(
 
 
 def delete_document_by_id(
-    ctx: Context, bucket_name: str, scope_name: str, collection_name: str, document_id: str
+    ctx: Context, scope_name: str, collection_name: str, document_id: str
 ) -> bool:
-    """Delete a document in a bucket, scope and collection by its ID.
+    """Delete a document by its ID.
     Returns True on success, False on failure."""
-    try:
-        bucket = ensure_bucket_connection(ctx, bucket_name)
-    except Exception as e:
-        logger.error(f"Error accessing bucket: {e}")
-        raise ValueError("Tool does not have access to bucket, or bucket does not exist.") from e
+    bucket = ensure_bucket_connection(ctx)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.remove(document_id)

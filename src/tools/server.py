@@ -11,7 +11,7 @@ from mcp.server.fastmcp import Context
 
 from utils.config import get_settings
 from utils.constants import MCP_SERVER_NAME
-from utils.context import ensure_cluster_connection, ensure_bucket_connection
+from utils.context import ensure_bucket_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.server")
 
@@ -45,102 +45,39 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     }
 
 
-<<<<<<< HEAD
-def test_connection(ctx: Context, bucket_name: str = None) -> dict[str, Any]:
-    """Test the connection to Couchbase cluster and optionally a specified bucket.
-=======
 def test_cluster_connection(ctx: Context) -> dict[str, Any]:
     """Test the connection to Couchbase cluster and bucket.
     This tool verifies the connection to the Couchbase cluster and bucket by establishing the connection if it is not already established.
->>>>>>> upstream/main
     Returns connection status and basic cluster information.
     """
-    cluster_connected = False
-    bucket_connected = False
     try:
-        cluster = ensure_cluster_connection(ctx)
-        cluster_connected = True
-        if bucket_name is not None:
-            try:
-                bucket = ensure_bucket_connection(ctx, bucket_name)
-                bucket_connected = True
-                return {
-                    "status": "success",
-                    "cluster_connected": cluster_connected,
-                    "bucket_connected": bucket_connected,
-                    "message": f"Successfully connected to Couchbase cluster and bucket `{bucket_name}`",
-                }
-            except Exception as e:
-                return {
-                    "status": "error",
-                    "cluster_connected": cluster_connected,
-                    "bucket_connected": bucket_connected,
-                    "error": str(e),
-                    "message": f"Failed to connect to bucket named `{bucket_name}`",
-                }
-        else:
-            return {
-                "status": "success",
-                "cluster_connected": cluster_connected,
-                "message": "Successfully connected to Couchbase cluster",
-            }
+        bucket = ensure_bucket_connection(ctx)
+
+        # Test basic connectivity by getting bucket name
+        bucket_name = bucket.name
+
+        return {
+            "status": "success",
+            "cluster_connected": True,
+            "bucket_connected": True,
+            "bucket_name": bucket_name,
+            "message": "Successfully connected to Couchbase cluster and bucket",
+        }
     except Exception as e:
         return {
             "status": "error",
-            "cluster_connected": cluster_connected,
+            "cluster_connected": False,
+            "bucket_connected": False,
             "error": str(e),
             "message": "Failed to connect to Couchbase",
         }
 
 
-def get_list_of_buckets_with_settings(
-    ctx: Context
-) -> list[dict[str, Any]]:
-    """Get the list of buckets from the Couchbase cluster, including their bucket settings and additional statistics.
-    Returns a list of comprehensive bucket information objects including settings.
-    """
-    
-    result = []
-    
-    try:
-        cluster = ensure_cluster_connection(ctx)
-        bucket_manager = cluster.buckets()
-        buckets = bucket_manager.get_all_buckets()
-        
-        for bucket_settings in buckets:
-            # Convert BucketSettings object to dictionary using available attributes
-            bucket_dict = {"bucket_name": bucket_settings.name}
-            
-            # Add basic bucket settings with safe access
-            for attr in ["bucket_type", "ram_quota", "num_replicas", "replica_indexes", 
-                        "flush_enabled", "max_expiry", "compression_mode", 
-                        "minimum_durability_level", "storage_backend", "eviction_policy", 
-                        "conflict_resolution", "history_retention_collection_default",
-                        "history_retention_bytes", "history_retention_duration"]:
-                if hasattr(bucket_settings, attr):
-                    value = getattr(bucket_settings, attr)
-                    # If the value has a .value attribute (enum), use that
-                    if hasattr(value, 'value'):
-                        bucket_dict[attr] = value.value
-                    else:
-                        bucket_dict[attr] = value
-            
-            result.append(bucket_dict)
-        
-        return result
-    except Exception as e:
-        logger.error(f"Error getting bucket information: {e}")
-        raise 
-    
-def get_scopes_and_collections_in_bucket(ctx: Context, bucket_name: str) -> dict[str, list[str]]:
-    """Get the names of all scopes and collections for a specified bucket.
+def get_scopes_and_collections_in_bucket(ctx: Context) -> dict[str, list[str]]:
+    """Get the names of all scopes and collections in the bucket.
     Returns a dictionary with scope names as keys and lists of collection names as values.
     """
-    try:
-        bucket = ensure_bucket_connection(ctx, bucket_name)
-    except Exception as e:
-        logger.error(f"Error accessing bucket: {e}")
-        raise ValueError("Tool does not have access to bucket, or bucket does not exist.") from e
+    bucket = ensure_bucket_connection(ctx)
     try:
         scopes_collections = {}
         collection_manager = bucket.collections()
