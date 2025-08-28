@@ -15,7 +15,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - Get a list of all the buckets in the cluster
 - Get a list of all the scopes and collections in the specified bucket
 - Get a list of all the scopes in the specified bucket
-- Get a list of all the collections in a specified scope and bucket
+- Get a list of all the collections in a specified scope and bucket. Note that this tool requires the cluster to have Query services.
 - Get the structure for a collection
 - Get a document by ID from a specified scope and collection
 - Upsert a document by ID to a specified scope and collection
@@ -51,7 +51,8 @@ We publish a pre built [PyPI package](https://pypi.org/project/couchbase-mcp-ser
       "env": {
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
-        "CB_PASSWORD": "password"
+        "CB_PASSWORD": "password",
+        "CB_BUCKET_NAME": "bucket_name"
       }
     }
   }
@@ -88,7 +89,8 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
       "env": {
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
-        "CB_PASSWORD": "password"
+        "CB_PASSWORD": "password",
+        "CB_BUCKET_NAME": "bucket_name"
       }
     }
   }
@@ -103,15 +105,16 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 
 The server can be configured using environment variables or command line arguments:
 
-| Environment Variable          | CLI Argument             | Description                                | Default      |
-| ----------------------------- | ------------------------ | ------------------------------------------ | ------------ |
-| `CB_CONNECTION_STRING`        | `--connection-string`    | Connection string to the Couchbase cluster | **Required** |
-| `CB_USERNAME`                 | `--username`             | Username with access to required buckets   | **Required** |
-| `CB_PASSWORD`                 | `--password`             | Password for authentication                | **Required** |
-| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries          | `true`       |
-| `CB_MCP_TRANSPORT`            | `--transport`            | Transport mode: `stdio`, `http`, `sse`     | `stdio`      |
-| `CB_MCP_HOST`                 | `--host`                 | Host for HTTP/SSE transport modes          | `127.0.0.1`  |
-| `CB_MCP_PORT`                 | `--port`                 | Port for HTTP/SSE transport modes          | `8000`       |
+| Environment Variable          | CLI Argument             | Description                                            | Default      |
+| ----------------------------- | ------------------------ | ------------------------------------------------------ | ------------ |
+| `CB_CONNECTION_STRING`        | `--connection-string`    | Connection string to the Couchbase cluster             | **Required** |
+| `CB_USERNAME`                 | `--username`             | Username with access to required buckets               | **Required** |
+| `CB_PASSWORD`                 | `--password`             | Password for authentication                            | **Required** |
+| `CB_BUCKET_NAME`              | `--bucket-name`          | Default bucket name when not it is not passed to tools | Not set      |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries                      | `true`       |
+| `CB_MCP_TRANSPORT`            | `--transport`            | Transport mode: `stdio`, `http`, `sse`                 | `stdio`      |
+| `CB_MCP_HOST`                 | `--host`                 | Host for HTTP/SSE transport modes                      | `127.0.0.1`  |
+| `CB_MCP_PORT`                 | `--port`                 | Port for HTTP/SSE transport modes                      | `8000`       |
 
 You can also check the version of the server using:
 
@@ -210,6 +213,7 @@ uvx couchbase-mcp-server \
   --connection-string='<couchbase_connection_string>' \
   --username='<database_username>' \
   --password='<database_password>' \
+  --bucket-name='<bucket_name>' \
   --read-only-query-mode=true \
   --transport=http
 ```
@@ -243,6 +247,7 @@ uvx couchbase-mcp-server \
   --connection-string='<couchbase_connection_string>' \
   --username='<database_username>' \
   --password='<database_password>' \
+  --bucket-name='<bucket_name>' \
   --read-only-query-mode=true \
   --transport=sse
 ```
@@ -319,6 +324,7 @@ docker run --rm -i \
   -e CB_CONNECTION_STRING='<couchbase_connection_string>' \
   -e CB_USERNAME='<database_user>' \
   -e CB_PASSWORD='<database_password>' \
+  -e CB_BUCKET_NAME='<bucket_name>' \
   -e CB_MCP_TRANSPORT='<http|sse|stdio>' \
   -e CB_MCP_READ_ONLY_QUERY_MODE='<true|false>' \
   -e CB_MCP_PORT=9001 \
@@ -347,6 +353,8 @@ The Docker image can be used in `stdio` transport mode with the following config
         "CB_USERNAME=<database_user>",
         "-e",
         "CB_PASSWORD=<database_password>",
+        "-e",
+        "CB_BUCKET_NAME=<bucket_name>",
         "mcp/couchbase"
       ]
     }
