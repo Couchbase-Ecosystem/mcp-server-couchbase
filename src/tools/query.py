@@ -85,7 +85,7 @@ def run_sql_plus_plus_query(
 
 # Don't expose this function to the MCP server until we have a use case
 def run_cluster_query(ctx: Context, query: str, **kwargs: Any) -> list[dict[str, Any]]:
-    """Run a query on the cluster objectand return the results as a list of JSON objects."""
+    """Run a query on the cluster object and return the results as a list of JSON objects."""
 
     cluster = get_cluster_connection(ctx)
     results = []
