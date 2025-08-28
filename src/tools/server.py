@@ -9,7 +9,7 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
-from utils.config import get_settings
+from utils.config import get_settings, resolve_bucket_name
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
@@ -107,9 +107,10 @@ def get_buckets_in_cluster(ctx: Context) -> list[str]:
     return buckets
 
 
-def get_scopes_in_bucket(ctx: Context, bucket_name: str) -> list[str]:
+def get_scopes_in_bucket(ctx: Context, bucket_name: str | None = None) -> list[str]:
     """Get the names of all scopes in the given bucket."""
     cluster = get_cluster_connection(ctx)
+    bucket_name = resolve_bucket_name(bucket_name)
     bucket = connect_to_bucket(cluster, bucket_name)
     try:
         scopes = bucket.collections().get_all_scopes()
@@ -120,9 +121,10 @@ def get_scopes_in_bucket(ctx: Context, bucket_name: str) -> list[str]:
 
 
 def get_collections_in_scope(
-    ctx: Context, bucket_name: str, scope_name: str
+    ctx: Context, scope_name: str, bucket_name: str | None = None
 ) -> list[str]:
     """Get the names of all collections in the given scope and bucket."""
+    bucket_name = resolve_bucket_name(bucket_name)
     scopes_and_collections = get_scopes_and_collections_in_bucket(ctx, bucket_name)
     if scope_name not in scopes_and_collections:
         logger.error(f"Scope {scope_name} not found in bucket {bucket_name}")
