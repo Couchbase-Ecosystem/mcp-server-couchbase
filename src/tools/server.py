@@ -27,6 +27,7 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     configuration = {
         "connection_string": settings.get("connection_string", "Not set"),
         "username": settings.get("username", "Not set"),
+        "bucket_name": settings.get("bucket_name", "Not set"),
         "read_only_query_mode": settings.get("read_only_query_mode", True),
         "password_configured": bool(settings.get("password")),
     }
@@ -49,11 +50,13 @@ def test_cluster_connection(
 ) -> dict[str, Any]:
     """Test the connection to Couchbase cluster and optionally to a bucket.
     This tool verifies the connection to the Couchbase cluster and bucket by establishing the connection if it is not already established.
+    If bucket name is not provided, it will not try to connect to the bucket specified in the MCP serversettings.
     Returns connection status and basic cluster information.
     """
     try:
         cluster = get_cluster_connection(ctx)
-        bucket = connect_to_bucket(cluster, bucket_name) if bucket_name else None
+        bucket_name = resolve_bucket_name(bucket_name)
+        bucket = connect_to_bucket(cluster, bucket_name)
 
         return {
             "status": "success",
