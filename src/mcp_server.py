@@ -89,6 +89,11 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 )
 
 @click.option(
+    "--bucket-name",
+    envvar="CB_BUCKET_NAME",
+    help="Couchbase bucket name (required for operations)",
+)
+@click.option(
     "--read-only-query-mode",
     envvar=[
         "CB_MCP_READ_ONLY_QUERY_MODE",
@@ -127,6 +132,7 @@ def main(
     connection_string,
     username,
     password,
+    bucket_name,
     read_only_query_mode,
     transport,
     ca_cert_path,
@@ -140,6 +146,7 @@ def main(
         "connection_string": connection_string,
         "username": username,
         "password": password,
+        "bucket_name": bucket_name,
         "read_only_query_mode": read_only_query_mode,
         "ca_cert_path" : ca_cert_path,
         "client_cert_path" : client_cert_path,

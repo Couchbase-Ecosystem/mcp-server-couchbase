@@ -24,7 +24,7 @@ def get_settings() -> dict:
 def validate_connection_config() -> None:
     """Validate that all required parameters for the MCP server are available when needed."""
     settings = get_settings()
-    required_params = ["connection_string"]
+    required_params = ["connection_string", "bucket_name"]
     missing_params = []
 
     for param in required_params:

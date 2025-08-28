@@ -15,7 +15,6 @@ from .kv import (
 from .query import (
     get_schema_for_collection,
     run_sql_plus_plus_query,
-    advise_index_for_sql_plus_plus_query,
 )
 
 # Server tools
@@ -35,7 +34,6 @@ ALL_TOOLS = [
     delete_document_by_id,
     get_schema_for_collection,
     run_sql_plus_plus_query,
-    advise_index_for_sql_plus_plus_query,
 ]
 
 __all__ = [
@@ -48,7 +46,6 @@ __all__ = [
     "delete_document_by_id",
     "get_schema_for_collection",
     "run_sql_plus_plus_query",
-    "advise_index_for_sql_plus_plus_query",
     # Convenience
     "ALL_TOOLS",
 ]

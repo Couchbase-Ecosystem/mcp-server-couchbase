@@ -11,7 +11,7 @@ from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 from mcp.server.fastmcp import Context
 
 from utils.constants import MCP_SERVER_NAME
-from utils.context import ensure_cluster_connection, ensure_bucket_connection
+from utils.context import ensure_bucket_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
 
@@ -34,41 +34,12 @@ def get_schema_for_collection(
         raise
     return schema
 
-def advise_index_for_sql_plus_plus_query(
-    ctx: Context, bucket_name: str, scope_name: str, query: str
-) -> dict[str, Any]:
-    """Get an index recommendation from the SQL++ index advisor for a specified query on a specified bucket and scope.
-    Returns a dictionary with the query advised on, as well as:
-    1. an array of the current indexes used and their status (or a string indicating no existing indexes available)
-    2. an array of recommended indexes and/or covering indexes with reasoning (or a string indicating no possible index improvements)
-    """
-    response = {}
-
-    try:
-        advise_query = f"ADVISE {query}"
-        result = run_sql_plus_plus_query(ctx, bucket_name, scope_name, advise_query)
-
-        if result and (advice := result[0].get("advice")):
-            if (advice is not None):
-                advise_info = advice.get("adviseinfo")
-                if ( advise_info is not None):
-                    response["current_indexes"] = advise_info.get("current_indexes", "No current indexes")
-                    response["recommended_indexes"] = advise_info.get("recommended_indexes","No index recommendations available")
-                    response["query"]=result[0].get("query","Query statement unavailable")
-        return response
-    except Exception as e:
-        logger.error(f"Error running Advise on query: {e}")
-        raise ValueError(f"Unable to run ADVISE on: {query} for keyspace {bucket_name}.{scope_name}") from e
 
 def run_sql_plus_plus_query(
-    ctx: Context, bucket_name: str, scope_name: str, query: str
+    ctx: Context, scope_name: str, query: str
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
-    try:
-        bucket = ensure_bucket_connection(ctx, bucket_name)
-    except Exception as e:
-        logger.error(f"Error accessing bucket: {e}")
-        raise ValueError("Tool does not have access to bucket, or bucket does not exist.") from e
+    bucket = ensure_bucket_connection(ctx)
     app_context = ctx.request_context.lifespan_context
     read_only_query_mode = app_context.read_only_query_mode
     logger.info(f"Running SQL++ queries in read-only mode: {read_only_query_mode}")

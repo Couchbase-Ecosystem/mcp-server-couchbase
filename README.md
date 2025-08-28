@@ -88,6 +88,7 @@ Using Basic Auth:
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
         "CB_PASSWORD": "password",
+        "CB_BUCKET_NAME": "bucket_name",
         "CA_CERT_PATH" : "path/to/ca.crt"
       }
     }
@@ -111,7 +112,8 @@ Using mTLS:
       "env": {
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CLIENT_CERT_PATH": "path/to/client/cert_and_key/",
-        "CA_CERT_PATH" : "path/to/ca.crt"
+        "CA_CERT_PATH" : "path/to/ca.crt",
+        "CB_BUCKET_NAME": "bucket_name"
       }
     }
   }
