@@ -17,8 +17,8 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.server")
 
 
 def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
-    """Get the server status and configuration without establishing connections.
-    This tool can be used to verify the server is running and check configuration.
+    """Get the server status and configuration without establishing connection.
+    This tool can be used to verify if the server is running and check the configuration.
     """
     settings = get_settings()
 
@@ -45,8 +45,14 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     }
 
 
+<<<<<<< HEAD
 def test_connection(ctx: Context, bucket_name: str = None) -> dict[str, Any]:
     """Test the connection to Couchbase cluster and optionally a specified bucket.
+=======
+def test_cluster_connection(ctx: Context) -> dict[str, Any]:
+    """Test the connection to Couchbase cluster and bucket.
+    This tool verifies the connection to the Couchbase cluster and bucket by establishing the connection if it is not already established.
+>>>>>>> upstream/main
     Returns connection status and basic cluster information.
     """
     cluster_connected = False
