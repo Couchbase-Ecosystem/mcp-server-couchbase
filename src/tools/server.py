@@ -9,6 +9,7 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
+from tools.query import run_cluster_query
 from utils.config import get_settings, resolve_bucket_name
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
@@ -128,8 +129,11 @@ def get_collections_in_scope(
 ) -> list[str]:
     """Get the names of all collections in the given scope and bucket."""
     bucket_name = resolve_bucket_name(bucket_name)
-    scopes_and_collections = get_scopes_and_collections_in_bucket(ctx, bucket_name)
-    if scope_name not in scopes_and_collections:
-        logger.error(f"Scope {scope_name} not found in bucket {bucket_name}")
-        raise ValueError(f"Scope {scope_name} not found in bucket {bucket_name}")
-    return scopes_and_collections[scope_name]
+
+    if scope_name == "":
+        raise ValueError("Scope name is required")
+
+    # Get the collections in the scope using system:all_keyspaces collection
+    query = "SELECT DISTINCT(name) as collection_name FROM system:all_keyspaces where `bucket`=$bucket and `scope`=$scope"
+    results = run_cluster_query(ctx, query, bucket=bucket_name, scope=scope_name)
+    return [result["collection_name"] for result in results]
