@@ -51,7 +51,7 @@ def test_cluster_connection(
 ) -> dict[str, Any]:
     """Test the connection to Couchbase cluster and optionally to a bucket.
     This tool verifies the connection to the Couchbase cluster and bucket by establishing the connection if it is not already established.
-    If bucket name is not provided, it will not try to connect to the bucket specified in the MCP serversettings.
+    If bucket name is not provided, it will not try to connect to the bucket specified in the MCP server settings.
     Returns connection status and basic cluster information.
     """
     try:
@@ -63,15 +63,15 @@ def test_cluster_connection(
             "status": "success",
             "cluster_connected": cluster.connected,
             "bucket_connected": bucket is not None,
-            "bucket_name": bucket.name if bucket else None,
+            "bucket_name": bucket_name,
             "message": "Successfully connected to Couchbase cluster",
         }
     except Exception as e:
         return {
             "status": "error",
-            "cluster_connected": False,
+            "cluster_connected": cluster.connected,
             "bucket_connected": False,
-            "bucket_name": None,
+            "bucket_name": bucket_name,
             "error": str(e),
             "message": "Failed to connect to Couchbase",
         }
@@ -130,7 +130,7 @@ def get_collections_in_scope(
     """Get the names of all collections in the given scope and bucket."""
     bucket_name = resolve_bucket_name(bucket_name)
 
-    if scope_name == "":
+    if not scope_name:
         raise ValueError("Scope name is required")
 
     # Get the collections in the scope using system:all_keyspaces collection

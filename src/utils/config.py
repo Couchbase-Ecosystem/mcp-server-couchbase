@@ -28,6 +28,6 @@ def resolve_bucket_name(passed_bucket_name: str | None = None) -> str:
     # If not, check if bucket name is provided in the settings.
     # If not, raise an error.
     bucket_name = passed_bucket_name or get_bucket_name_from_settings()
-    if not bucket_name or bucket_name == "":
+    if not bucket_name:
         raise ValueError("Bucket name is required")
     return bucket_name
