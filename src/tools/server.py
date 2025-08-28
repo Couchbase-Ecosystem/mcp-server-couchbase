@@ -69,7 +69,7 @@ def test_cluster_connection(
     except Exception as e:
         return {
             "status": "error",
-            "cluster_connected": cluster.connected,
+            "cluster_connected": False,
             "bucket_connected": False,
             "bucket_name": bucket_name,
             "error": str(e),
