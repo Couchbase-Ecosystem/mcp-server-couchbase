@@ -47,6 +47,13 @@ jobs:
               message = f"PR Alert!\nTitle: {pr_title}\nBranch: {branch_name}\nAuthor: {pr_user}\nURL: {pr_url}\nDescription: {pr_body}"
           else:
               message = f"PR Alert!\nUnable to fetch PR details.\nStatus Code: {pr_resp.status_code}\nResponse: {pr_resp.text}"
-          webhook = os.environ['SLACK_WEBHOOK']
-          requests.post(webhook, json={"text": message})
+          webhook = os.environ.get('SLACK_WEBHOOK', '').strip()
+          if webhook and webhook.startswith(("http://", "https://")):
+              try:
+                  resp = requests.post(webhook, json={"text": message}, timeout=15)
+                  resp.raise_for_status()
+              except Exception as e:
+                  print(f"Slack notification failed: {e}")
+          else:
+              print("SLACK_WEBHOOK missing or invalid; skipping Slack notification.")
         shell: python
