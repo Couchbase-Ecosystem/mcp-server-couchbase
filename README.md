@@ -22,6 +22,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - Get the status of the MCP server
 - Check the cluster credentials by connecting to the cluster
 
+
 ## Prerequisites
 
 - Python 3.10 or higher.
@@ -71,7 +72,7 @@ git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
 #### Server Configuration using Source for MCP Clients
 
 This is the common configuration for the MCP clients such as Claude Desktop, Cursor, Windsurf Editor.
-
+Using Basic Auth:
 ```json
 {
   "mcpServers": {
@@ -87,6 +88,31 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
         "CB_PASSWORD": "password",
+        "CB_BUCKET_NAME": "bucket_name",
+        "CA_CERT_PATH" : "path/to/ca.crt"
+      }
+    }
+  }
+}
+```
+
+Using mTLS:
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "path/to/cloned/repo/mcp-server-couchbase/",
+        "run",
+        "src/mcp_server.py"
+      ],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CLIENT_CERT_PATH": "path/to/client/cert_and_key/",
+        "CA_CERT_PATH" : "path/to/ca.crt",
         "CB_BUCKET_NAME": "bucket_name"
       }
     }
@@ -105,13 +131,18 @@ The server can be configured using environment variables or command line argumen
 | Environment Variable          | CLI Argument             | Description                                | Default      |
 | ----------------------------- | ------------------------ | ------------------------------------------ | ------------ |
 | `CB_CONNECTION_STRING`        | `--connection-string`    | Connection string to the Couchbase cluster | **Required** |
-| `CB_USERNAME`                 | `--username`             | Username with bucket access                | **Required** |
-| `CB_PASSWORD`                 | `--password`             | Password for authentication                | **Required** |
+| `CB_USERNAME`                 | `--username`             | Username with bucket access                | **Required (or client cert)** |
+| `CB_PASSWORD`                 | `--password`             | Password for authentication                | **Required(or client cert)** |
+| `CLIENT_CERT_PATH`            | `--client-cert-path`     | Path to client.pem/client.key folder       | **Required(or user/pass)** |
+| `CA_CERT_PATH`                | `--ca-cert-path`         | Path to CA certificate for TLS connection  | `None`       |
 | `CB_BUCKET_NAME`              | `--bucket-name`          | Name of the bucket to access               | **Required** |
 | `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries          | `true`       |
 | `CB_MCP_TRANSPORT`            | `--transport`            | Transport mode: `stdio`, `http`, `sse`     | `stdio`      |
 | `CB_MCP_HOST`                 | `--host`                 | Host for HTTP/SSE transport modes          | `127.0.0.1`  |
 | `CB_MCP_PORT`                 | `--port`                 | Port for HTTP/SSE transport modes          | `8000`       |
+
+
+
 
 You can also check the version of the server using:
 

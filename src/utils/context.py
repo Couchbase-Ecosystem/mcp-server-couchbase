@@ -30,10 +30,14 @@ def _set_cluster_in_lifespan_context(ctx: Context) -> None:
         connection_string = settings.get("connection_string")
         username = settings.get("username")
         password = settings.get("password")
+        ca_cert_path = settings.get("ca_cert_path")
+        client_cert_path = settings.get("client_cert_path")
         cluster = connect_to_couchbase_cluster(
             connection_string,  # type: ignore
             username,  # type: ignore
             password,  # type: ignore
+            ca_cert_path,  # type: ignore
+            client_cert_path  # type: ignore
         )
         ctx.request_context.lifespan_context.cluster = cluster
     except Exception as e:

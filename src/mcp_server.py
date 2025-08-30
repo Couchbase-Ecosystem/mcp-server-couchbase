@@ -1,13 +1,10 @@
-"""
-Couchbase MCP Server
-"""
-
+import os
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-
 import click
 from mcp.server.fastmcp import FastMCP
+from utils.config import validate_authentication_method
 
 # Import tools
 from tools import ALL_TOOLS
@@ -78,6 +75,20 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     help="Couchbase database password (required for operations)",
 )
 @click.option(
+    '--ca-cert-path',
+    envvar="CA_CERT_PATH",
+    type=click.Path(exists=True),
+    default=None,
+    help='Path to Server TLS certificate, required for secure connections.')
+
+@click.option(
+    "--client-cert-path",
+    envvar="CLIENT_CERT_PATH",
+    default=None,
+    help="Path to client.key and client.pem files for mtls client authentication",
+)
+
+@click.option(
     "--bucket-name",
     envvar="CB_BUCKET_NAME",
     help="Couchbase bucket name (required for operations)",
@@ -124,6 +135,8 @@ def main(
     bucket_name,
     read_only_query_mode,
     transport,
+    ca_cert_path,
+    client_cert_path,
     host,
     port,
 ):
@@ -135,10 +148,18 @@ def main(
         "password": password,
         "bucket_name": bucket_name,
         "read_only_query_mode": read_only_query_mode,
+        "ca_cert_path" : ca_cert_path,
+        "client_cert_path" : client_cert_path,
         "transport": transport,
         "host": host,
         "port": port,
-    }
+        }
+
+    try:
+        validate_authentication_method(ctx.obj)
+    except Exception as e:
+        logger.error(f"Failed to validate auth method params: {e}")
+        raise
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
