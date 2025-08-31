@@ -10,7 +10,6 @@ from typing import Any
 from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 from mcp.server.fastmcp import Context
 
-from utils.config import resolve_bucket_name
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
@@ -19,7 +18,7 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
 
 
 def get_schema_for_collection(
-    ctx: Context, scope_name: str, collection_name: str, bucket_name: str | None = None
+    ctx: Context, bucket_name: str, scope_name: str, collection_name: str
 ) -> dict[str, Any]:
     """Get the schema for a collection in the specified scope.
     Returns a dictionary with the collection name and the schema returned by running INFER query on the Couchbase collection.
@@ -27,7 +26,7 @@ def get_schema_for_collection(
     schema = {"collection_name": collection_name, "schema": []}
     try:
         query = f"INFER `{collection_name}`"
-        result = run_sql_plus_plus_query(ctx, scope_name, query, bucket_name)
+        result = run_sql_plus_plus_query(ctx, bucket_name, scope_name, query)
         # Result is a list of list of schemas. We convert it to a list of schemas.
         if result:
             schema["schema"] = result[0]
@@ -38,13 +37,12 @@ def get_schema_for_collection(
 
 
 def run_sql_plus_plus_query(
-    ctx: Context, scope_name: str, query: str, bucket_name: str | None = None
+    ctx: Context, bucket_name: str, scope_name: str, query: str
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
     cluster = get_cluster_connection(ctx)
-    resolved_bucket_name = resolve_bucket_name(bucket_name)
 
-    bucket = connect_to_bucket(cluster, resolved_bucket_name)
+    bucket = connect_to_bucket(cluster, bucket_name)
 
     app_context = ctx.request_context.lifespan_context
     read_only_query_mode = app_context.read_only_query_mode

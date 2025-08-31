@@ -10,7 +10,7 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from tools.query import run_cluster_query
-from utils.config import get_settings, resolve_bucket_name
+from utils.config import get_settings
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
@@ -28,7 +28,6 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     configuration = {
         "connection_string": settings.get("connection_string", "Not set"),
         "username": settings.get("username", "Not set"),
-        "bucket_name": settings.get("bucket_name", "Not set"),
         "read_only_query_mode": settings.get("read_only_query_mode", True),
         "password_configured": bool(settings.get("password")),
     }
@@ -56,14 +55,14 @@ def test_cluster_connection(
     """
     try:
         cluster = get_cluster_connection(ctx)
-        resolved_bucket_name = resolve_bucket_name(bucket_name)
-        bucket = connect_to_bucket(cluster, resolved_bucket_name)
+        if bucket_name:
+            bucket = connect_to_bucket(cluster, bucket_name)
 
         return {
             "status": "success",
             "cluster_connected": cluster.connected,
             "bucket_connected": bucket is not None,
-            "bucket_name": resolved_bucket_name,
+            "bucket_name": bucket_name,
             "message": "Successfully connected to Couchbase cluster",
         }
     except Exception as e:
@@ -71,7 +70,7 @@ def test_cluster_connection(
             "status": "error",
             "cluster_connected": False,
             "bucket_connected": False,
-            "bucket_name": resolved_bucket_name,
+            "bucket_name": bucket_name,
             "error": str(e),
             "message": "Failed to connect to Couchbase",
         }
@@ -111,31 +110,26 @@ def get_buckets_in_cluster(ctx: Context) -> list[str]:
     return buckets
 
 
-def get_scopes_in_bucket(ctx: Context, bucket_name: str | None = None) -> list[str]:
+def get_scopes_in_bucket(ctx: Context, bucket_name: str) -> list[str]:
     """Get the names of all scopes in the given bucket."""
     cluster = get_cluster_connection(ctx)
-    resolved_bucket_name = resolve_bucket_name(bucket_name)
-    bucket = connect_to_bucket(cluster, resolved_bucket_name)
+    bucket = connect_to_bucket(cluster, bucket_name)
     try:
         scopes = bucket.collections().get_all_scopes()
         return [scope.name for scope in scopes]
     except Exception as e:
-        logger.error(f"Error getting scopes in the bucket {resolved_bucket_name}: {e}")
+        logger.error(f"Error getting scopes in the bucket {bucket_name}: {e}")
         raise
 
 
 def get_collections_in_scope(
-    ctx: Context, scope_name: str, bucket_name: str | None = None
+    ctx: Context, bucket_name: str, scope_name: str
 ) -> list[str]:
     """Get the names of all collections in the given scope and bucket."""
-    resolved_bucket_name = resolve_bucket_name(bucket_name)
-
-    if not scope_name:
-        raise ValueError("Scope name is required")
 
     # Get the collections in the scope using system:all_keyspaces collection
-    query = "SELECT DISTINCT(name) as collection_name FROM system:all_keyspaces where `bucket`=$bucket and `scope`=$scope"
+    query = "SELECT DISTINCT(name) as collection_name FROM system:all_keyspaces where `bucket`=$bucket_name and `scope`=$scope_name"
     results = run_cluster_query(
-        ctx, query, bucket=resolved_bucket_name, scope=scope_name
+        ctx, query, bucket_name=bucket_name, scope_name=scope_name
     )
     return [result["collection_name"] for result in results]

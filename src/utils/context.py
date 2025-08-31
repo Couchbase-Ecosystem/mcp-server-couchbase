@@ -16,7 +16,6 @@ class AppContext:
     """Context for the MCP server."""
 
     cluster: Cluster | None = None
-    bucket_name: str | None = None
     read_only_query_mode: bool = True
 
 
