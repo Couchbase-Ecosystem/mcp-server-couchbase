@@ -55,6 +55,7 @@ def test_cluster_connection(
     """
     try:
         cluster = get_cluster_connection(ctx)
+        bucket = None
         if bucket_name:
             bucket = connect_to_bucket(cluster, bucket_name)
 
@@ -72,7 +73,7 @@ def test_cluster_connection(
             "bucket_connected": False,
             "bucket_name": bucket_name,
             "error": str(e),
-            "message": "Failed to connect to Couchbase",
+            "message": "Failed to connect to Couchbase cluster",
         }
 
 
