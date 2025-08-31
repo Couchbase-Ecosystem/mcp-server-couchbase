@@ -111,8 +111,6 @@ The server can be configured using environment variables or command line argumen
 | `CB_MCP_HOST`                 | `--host`                 | Host for HTTP/SSE transport modes          | `127.0.0.1`  |
 | `CB_MCP_PORT`                 | `--port`                 | Port for HTTP/SSE transport modes          | `8000`       |
 
-> Note: If you do not use the database credentials limited to the single bucket you specify in the MCP server configuration, the MCP server could access other buckets that are accessible with the same credentials.
-
 You can also check the version of the server using:
 
 ```bash
