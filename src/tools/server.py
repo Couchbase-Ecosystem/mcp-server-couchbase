@@ -56,14 +56,14 @@ def test_cluster_connection(
     """
     try:
         cluster = get_cluster_connection(ctx)
-        bucket_name = resolve_bucket_name(bucket_name)
-        bucket = connect_to_bucket(cluster, bucket_name)
+        resolved_bucket_name = resolve_bucket_name(bucket_name)
+        bucket = connect_to_bucket(cluster, resolved_bucket_name)
 
         return {
             "status": "success",
             "cluster_connected": cluster.connected,
             "bucket_connected": bucket is not None,
-            "bucket_name": bucket_name,
+            "bucket_name": resolved_bucket_name,
             "message": "Successfully connected to Couchbase cluster",
         }
     except Exception as e:
@@ -71,7 +71,7 @@ def test_cluster_connection(
             "status": "error",
             "cluster_connected": False,
             "bucket_connected": False,
-            "bucket_name": bucket_name,
+            "bucket_name": resolved_bucket_name,
             "error": str(e),
             "message": "Failed to connect to Couchbase",
         }
@@ -114,13 +114,13 @@ def get_buckets_in_cluster(ctx: Context) -> list[str]:
 def get_scopes_in_bucket(ctx: Context, bucket_name: str | None = None) -> list[str]:
     """Get the names of all scopes in the given bucket."""
     cluster = get_cluster_connection(ctx)
-    bucket_name = resolve_bucket_name(bucket_name)
-    bucket = connect_to_bucket(cluster, bucket_name)
+    resolved_bucket_name = resolve_bucket_name(bucket_name)
+    bucket = connect_to_bucket(cluster, resolved_bucket_name)
     try:
         scopes = bucket.collections().get_all_scopes()
         return [scope.name for scope in scopes]
     except Exception as e:
-        logger.error(f"Error getting scopes and collections: {e}")
+        logger.error(f"Error getting scopes in the bucket {resolved_bucket_name}: {e}")
         raise
 
 
@@ -128,12 +128,14 @@ def get_collections_in_scope(
     ctx: Context, scope_name: str, bucket_name: str | None = None
 ) -> list[str]:
     """Get the names of all collections in the given scope and bucket."""
-    bucket_name = resolve_bucket_name(bucket_name)
+    resolved_bucket_name = resolve_bucket_name(bucket_name)
 
     if not scope_name:
         raise ValueError("Scope name is required")
 
     # Get the collections in the scope using system:all_keyspaces collection
     query = "SELECT DISTINCT(name) as collection_name FROM system:all_keyspaces where `bucket`=$bucket and `scope`=$scope"
-    results = run_cluster_query(ctx, query, bucket=bucket_name, scope=scope_name)
+    results = run_cluster_query(
+        ctx, query, bucket=resolved_bucket_name, scope=scope_name
+    )
     return [result["collection_name"] for result in results]

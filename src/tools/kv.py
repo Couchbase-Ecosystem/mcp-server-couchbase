@@ -28,8 +28,8 @@ def get_document_by_id(
     If the document is not found, it will raise an exception."""
 
     cluster = get_cluster_connection(ctx)
-    bucket_name = resolve_bucket_name(bucket_name)
-    bucket = connect_to_bucket(cluster, bucket_name)
+    resolved_bucket_name = resolve_bucket_name(bucket_name)
+    bucket = connect_to_bucket(cluster, resolved_bucket_name)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         result = collection.get(document_id)
@@ -50,8 +50,8 @@ def upsert_document_by_id(
     """Insert or update a document by its ID.
     Returns True on success, False on failure."""
     cluster = get_cluster_connection(ctx)
-    bucket_name = resolve_bucket_name(bucket_name)
-    bucket = connect_to_bucket(cluster, bucket_name)
+    resolved_bucket_name = resolve_bucket_name(bucket_name)
+    bucket = connect_to_bucket(cluster, resolved_bucket_name)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.upsert(document_id, document_content)
@@ -72,8 +72,8 @@ def delete_document_by_id(
     """Delete a document by its ID.
     Returns True on success, False on failure."""
     cluster = get_cluster_connection(ctx)
-    bucket_name = resolve_bucket_name(bucket_name)
-    bucket = connect_to_bucket(cluster, bucket_name)
+    resolved_bucket_name = resolve_bucket_name(bucket_name)
+    bucket = connect_to_bucket(cluster, resolved_bucket_name)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
         collection.remove(document_id)

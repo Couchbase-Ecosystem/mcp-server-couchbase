@@ -26,7 +26,7 @@ def get_schema_for_collection(
     """
     schema = {"collection_name": collection_name, "schema": []}
     try:
-        query = f"INFER {collection_name}"
+        query = f"INFER `{collection_name}`"
         result = run_sql_plus_plus_query(ctx, scope_name, query, bucket_name)
         # Result is a list of list of schemas. We convert it to a list of schemas.
         if result:
@@ -42,9 +42,9 @@ def run_sql_plus_plus_query(
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
     cluster = get_cluster_connection(ctx)
-    bucket_name = resolve_bucket_name(bucket_name)
+    resolved_bucket_name = resolve_bucket_name(bucket_name)
 
-    bucket = connect_to_bucket(cluster, bucket_name)
+    bucket = connect_to_bucket(cluster, resolved_bucket_name)
 
     app_context = ctx.request_context.lifespan_context
     read_only_query_mode = app_context.read_only_query_mode
