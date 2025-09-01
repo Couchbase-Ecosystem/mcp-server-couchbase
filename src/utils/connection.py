@@ -38,7 +38,6 @@ def connect_to_bucket(cluster: Cluster, bucket_name: str) -> Bucket:
     If the operation fails, it will raise an exception.
     """
     try:
-        logger.info(f"Connecting to bucket: {bucket_name}")
         bucket = cluster.bucket(bucket_name)
         return bucket
     except Exception as e:
