@@ -40,6 +40,8 @@ We publish a pre built [PyPI package](https://pypi.org/project/couchbase-mcp-ser
 
 #### Server Configuration using Pre built Package for MCP Clients
 
+#### Basic Authentication
+
 ```json
 {
   "mcpServers": {
@@ -49,7 +51,28 @@ We publish a pre built [PyPI package](https://pypi.org/project/couchbase-mcp-ser
       "env": {
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
-        "CB_PASSWORD": "password"
+        "CB_PASSWORD": "password",
+        "CB_CA_CERT_PATH": "/path/to/ca-certificate.crt"
+      }
+    }
+  }
+}
+```
+
+or
+
+#### mTLS
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CB_CLIENT_CERT_PATH": "username",
+        "CB_CA_CERT_PATH": "/path/to/ca-certificate.crt"
       }
     }
   }
@@ -100,16 +123,22 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 ### Additional Configuration for MCP Server
 
 The server can be configured using environment variables or command line arguments:
+| Environment Variable | CLI Argument | Description | Default |
+|--------------------------------|--------------------------|---------------------------------------------------------------------------------------------|------------------------------------------|
+| `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster | **Required** |
+| `CB_USERNAME` | `--username` | Username with access to required buckets | **Required (or Client Certificate)** |
+| `CB_PASSWORD` | `--password` | Password for authentication | **Required (or Client Certificate)** |
+| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate (client.pem and client.key) files for mTLS | **Required (or Username and Password)** |
+| `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS | |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries | `true` |
+| `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
+| `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
+| `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
 
-| Environment Variable          | CLI Argument             | Description                                | Default      |
-| ----------------------------- | ------------------------ | ------------------------------------------ | ------------ |
-| `CB_CONNECTION_STRING`        | `--connection-string`    | Connection string to the Couchbase cluster | **Required** |
-| `CB_USERNAME`                 | `--username`             | Username with access to required buckets   | **Required** |
-| `CB_PASSWORD`                 | `--password`             | Password for authentication                | **Required** |
-| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries          | `true`       |
-| `CB_MCP_TRANSPORT`            | `--transport`            | Transport mode: `stdio`, `http`, `sse`     | `stdio`      |
-| `CB_MCP_HOST`                 | `--host`                 | Host for HTTP/SSE transport modes          | `127.0.0.1`  |
-| `CB_MCP_PORT`                 | `--port`                 | Port for HTTP/SSE transport modes          | `8000`       |
+> Note: For authentication, you need either the Username and Password or the Client Certificate path. Optionally, you can specify the CA root certificate path that will be used to validate the server certificates.
+> If both the Client Certificate path and the username and password are specified, the client certificates will be used for authentication.
+
+> For the client certificate based authentication, the certificates are expected to be named `client.pem` and `client.key` in the provided certificate path.
 
 You can also check the version of the server using:
 

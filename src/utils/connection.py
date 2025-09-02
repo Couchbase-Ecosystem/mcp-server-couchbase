@@ -1,7 +1,8 @@
 import logging
+import os
 from datetime import timedelta
 
-from couchbase.auth import PasswordAuthenticator
+from couchbase.auth import CertificateAuthenticator, PasswordAuthenticator
 from couchbase.cluster import Bucket, Cluster
 from couchbase.options import ClusterOptions
 
@@ -11,15 +12,40 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.connection")
 
 
 def connect_to_couchbase_cluster(
-    connection_string: str, username: str, password: str
+    connection_string: str,
+    username: str,
+    password: str,
+    ca_cert_path: str | None = None,
+    client_cert_path: str | None = None,
 ) -> Cluster:
     """Connect to Couchbase cluster and return the cluster object if successful.
+    The connection can be established using the client certificate or the username and password. Optionally, the CA root certificate path can also be provided.
+    If the client certificate is provided, the username and password are not used. The client certificate path should contain the client.pem and client.key files.
+    If the username and password are provided, the client certificate is not used.
+    If both the client certificate and the username and password are provided, the client certificate is used for authentication.
     If the connection fails, it will raise an exception.
     """
 
     try:
         logger.info("Connecting to Couchbase cluster...")
-        auth = PasswordAuthenticator(username, password)
+        if client_cert_path:
+            logger.info("Connecting to Couchbase cluster with client certificate...")
+            cert_path = os.path.join(client_cert_path, "client.pem")
+            key_path = os.path.join(client_cert_path, "client.key")
+
+            if not os.path.exists(cert_path) or not os.path.exists(key_path):
+                raise FileNotFoundError(
+                    f"Client certificate files not found at {client_cert_path}. Expected files: client.pem and client.key"
+                )
+
+            auth = CertificateAuthenticator(
+                cert_path=cert_path,
+                key_path=key_path,
+                trust_store_path=ca_cert_path,
+            )
+        else:
+            logger.info("Connecting to Couchbase cluster with password...")
+            auth = PasswordAuthenticator(username, password, cert_path=ca_cert_path)
         options = ClusterOptions(auth)
         options.apply_profile("wan_development")
 
