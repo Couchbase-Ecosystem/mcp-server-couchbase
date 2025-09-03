@@ -87,7 +87,13 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     "--client-cert-path",
     envvar="CB_CLIENT_CERT_PATH",
     default=None,
-    help="Path to the client certificate files (client.pem and client.key) used for mTLS authentication.",
+    help="Path to the client certificate file used for mTLS authentication.",
+)
+@click.option(
+    "--client-key-path",
+    envvar="CB_CLIENT_KEY_PATH",
+    default=None,
+    help="Path to the client certificate key file used for mTLS authentication.",
 )
 @click.option(
     "--read-only-query-mode",
@@ -130,6 +136,7 @@ def main(
     password,
     ca_cert_path,
     client_cert_path,
+    client_key_path,
     read_only_query_mode,
     transport,
     host,
@@ -143,6 +150,7 @@ def main(
         "password": password,
         "ca_cert_path": ca_cert_path,
         "client_cert_path": client_cert_path,
+        "client_key_path": client_key_path,
         "read_only_query_mode": read_only_query_mode,
         "transport": transport,
         "host": host,
@@ -157,8 +165,6 @@ def main(
         {
             "host": host,
             "port": port,
-            "ca_cert_path": ca_cert_path,
-            "client_cert_path": client_cert_path,
             "transport": sdk_transport,
         }
         if transport in NETWORK_TRANSPORTS

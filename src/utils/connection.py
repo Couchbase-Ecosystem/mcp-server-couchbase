@@ -17,30 +17,30 @@ def connect_to_couchbase_cluster(
     password: str,
     ca_cert_path: str | None = None,
     client_cert_path: str | None = None,
+    client_key_path: str | None = None,
 ) -> Cluster:
     """Connect to Couchbase cluster and return the cluster object if successful.
-    The connection can be established using the client certificate or the username and password. Optionally, the CA root certificate path can also be provided.
-    If the client certificate is provided, the username and password are not used. The client certificate path should contain the client.pem and client.key files.
-    If the username and password are provided, the client certificate is not used.
-    If both the client certificate and the username and password are provided, the client certificate is used for authentication.
+    The connection can be established using the client certificate and key or the username and password. Optionally, the CA root certificate path can also be provided.
+    Either of the path to the client certificate and key or the username and password should be provided.
+    If the client certificate and key are provided, the username and password are not used.
+    If both the client certificate and key and the username and password are provided, the client certificate is used for authentication.
     If the connection fails, it will raise an exception.
     """
 
     try:
         logger.info("Connecting to Couchbase cluster...")
-        if client_cert_path:
+        if client_cert_path and client_key_path:
             logger.info("Connecting to Couchbase cluster with client certificate...")
-            cert_path = os.path.join(client_cert_path, "client.pem")
-            key_path = os.path.join(client_cert_path, "client.key")
-
-            if not os.path.exists(cert_path) or not os.path.exists(key_path):
+            if not os.path.exists(client_cert_path) or not os.path.exists(
+                client_key_path
+            ):
                 raise FileNotFoundError(
-                    f"Client certificate files not found at {client_cert_path}. Expected files: client.pem and client.key"
+                    f"Client certificate files not found at {os.path.basename(client_cert_path)} or {os.path.basename(client_key_path)}."
                 )
 
             auth = CertificateAuthenticator(
-                cert_path=cert_path,
-                key_path=key_path,
+                cert_path=client_cert_path,
+                key_path=client_key_path,
                 trust_store_path=ca_cert_path,
             )
         else:

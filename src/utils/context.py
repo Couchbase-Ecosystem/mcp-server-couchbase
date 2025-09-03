@@ -31,6 +31,7 @@ def _set_cluster_in_lifespan_context(ctx: Context) -> None:
         password = settings.get("password")
         ca_cert_path = settings.get("ca_cert_path")
         client_cert_path = settings.get("client_cert_path")
+        client_key_path = settings.get("client_key_path")
 
         cluster = connect_to_couchbase_cluster(
             connection_string,  # type: ignore
@@ -38,6 +39,7 @@ def _set_cluster_in_lifespan_context(ctx: Context) -> None:
             password,  # type: ignore
             ca_cert_path,
             client_cert_path,
+            client_key_path,
         )
         ctx.request_context.lifespan_context.cluster = cluster
     except Exception as e:
@@ -45,7 +47,7 @@ def _set_cluster_in_lifespan_context(ctx: Context) -> None:
             "Failed to connect to Couchbase: %s\n"
             "Verify connection string, and either:\n"
             "- Username/password are correct, or\n"
-            "- Client certs exist (client.pem, client.key) and match server mapping.\n"
+            "- Client certificate and key exist and match server mapping.\n"
             "If using self-signed or custom CA, set CB_CA_CERT_PATH to the CA file.",
             e,
         )
