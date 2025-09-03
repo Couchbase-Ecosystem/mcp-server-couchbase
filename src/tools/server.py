@@ -30,6 +30,9 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
         "username": settings.get("username", "Not set"),
         "read_only_query_mode": settings.get("read_only_query_mode", True),
         "password_configured": bool(settings.get("password")),
+        "ca_cert_path_configured": bool(settings.get("ca_cert_path")),
+        "client_cert_path_configured": bool(settings.get("client_cert_path")),
+        "client_key_path_configured": bool(settings.get("client_key_path")),
     }
 
     app_context = ctx.request_context.lifespan_context

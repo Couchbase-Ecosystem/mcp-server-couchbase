@@ -78,6 +78,24 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     help="Couchbase database password (required for operations)",
 )
 @click.option(
+    "--ca-cert-path",
+    envvar="CB_CA_CERT_PATH",
+    default=None,
+    help="Path to the server trust store (CA certificate) file. The certificate at this path is used to verify the server certificate during the authentication process.",
+)
+@click.option(
+    "--client-cert-path",
+    envvar="CB_CLIENT_CERT_PATH",
+    default=None,
+    help="Path to the client certificate file used for mTLS authentication.",
+)
+@click.option(
+    "--client-key-path",
+    envvar="CB_CLIENT_KEY_PATH",
+    default=None,
+    help="Path to the client certificate key file used for mTLS authentication.",
+)
+@click.option(
     "--read-only-query-mode",
     envvar=[
         "CB_MCP_READ_ONLY_QUERY_MODE",
@@ -116,6 +134,9 @@ def main(
     connection_string,
     username,
     password,
+    ca_cert_path,
+    client_cert_path,
+    client_key_path,
     read_only_query_mode,
     transport,
     host,
@@ -127,6 +148,9 @@ def main(
         "connection_string": connection_string,
         "username": username,
         "password": password,
+        "ca_cert_path": ca_cert_path,
+        "client_cert_path": client_cert_path,
+        "client_key_path": client_key_path,
         "read_only_query_mode": read_only_query_mode,
         "transport": transport,
         "host": host,
