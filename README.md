@@ -51,8 +51,7 @@ We publish a pre built [PyPI package](https://pypi.org/project/couchbase-mcp-ser
       "env": {
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
-        "CB_PASSWORD": "password",
-        "CB_CA_CERT_PATH": "/path/to/ca-certificate.crt"
+        "CB_PASSWORD": "password"
       }
     }
   }
@@ -72,8 +71,7 @@ or
       "env": {
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
-        "CB_CLIENT_KEY_PATH": "/path/to/client.key",
-        "CB_CA_CERT_PATH": "/path/to/ca-certificate.crt"
+        "CB_CLIENT_KEY_PATH": "/path/to/client.key"
       }
     }
   }
@@ -100,7 +98,7 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 {
   "mcpServers": {
     "couchbase": {
-      "command": "uv",
+      "command": "path/to/bin/uv",
       "args": [
         "--directory",
         "path/to/cloned/repo/mcp-server-couchbase/",
@@ -127,11 +125,11 @@ The server can be configured using environment variables or command line argumen
 | Environment Variable | CLI Argument | Description | Default |
 |--------------------------------|--------------------------|---------------------------------------------------------------------------------------------|------------------------------------------|
 | `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster | **Required** |
-| `CB_USERNAME` | `--username` | Username with access to required buckets for basic authentication | **Required (or Client Certificate and Key)** |
-| `CB_PASSWORD` | `--password` | Password for basic authentication | **Required (or Client Certificate and Key)** |
-| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate file for mTLS authentication| **Required (or Username and Password)** |
-| `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to the client key file for mTLS authentication| **Required (or Username and Password)** |
-| `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS | |
+| `CB_USERNAME` | `--username` | Username with access to required buckets for basic authentication | **Required (or Client Certificate and Key needed for mTLS)** |
+| `CB_PASSWORD` | `--password` | Password for basic authentication | **Required (or Client Certificate and Key needed for mTLS)** |
+| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
+| `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to the client key file for mTLS authentication| **Required is using mTLS (or Username and Password)** |
+| `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. This will not be required if you are connecting to Capella | |
 | `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries | `true` |
 | `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
