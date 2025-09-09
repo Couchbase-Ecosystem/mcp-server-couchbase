@@ -10,7 +10,10 @@ Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/mai
 
 ## Features
 
+- Get a list of all the buckets in the cluster
 - Get a list of all the scopes and collections in the specified bucket
+- Get a list of all the scopes in the specified bucket
+- Get a list of all the collections in a specified scope and bucket. Note that this tool requires the cluster to have Query service.
 - Get the structure for a collection
 - Get a document by ID from a specified scope and collection
 - Upsert a document by ID to a specified scope and collection
@@ -47,8 +50,6 @@ Add the configuration specified below to the MCP configuration in your MCP clien
         "CB_USERNAME=<database_username>",
         "-e",
         "CB_PASSWORD=<database_password>",
-        "-e",
-        "CB_BUCKET_NAME=<bucket_name>",
         "couchbaseecosystem/mcp-server-couchbase:latest"
       ]
     }
@@ -60,13 +61,15 @@ Add the configuration specified below to the MCP configuration in your MCP clien
 
 The detailed explanation for the environment variables can be found on the [Github Repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase?tab=readme-ov-file#additional-configuration-for-mcp-server).
 
-| Variable                      | Description                                 | Default      |
-| ----------------------------- | ------------------------------------------- | ------------ |
-| `CB_CONNECTION_STRING`        | Couchbase Connection string                 | **Required** |
-| `CB_USERNAME`                 | Database username                           | **Required** |
-| `CB_PASSWORD`                 | Database password                           | **Required** |
-| `CB_BUCKET_NAME`              | Bucket to access                            | **Required** |
-| `CB_MCP_READ_ONLY_QUERY_MODE` | Prevent data modification queries via SQL++ | `true`       |
-| `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)             | `stdio`      |
-| `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                | `127.0.0.1`  |
-| `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                | `8000`       |
+| Variable                      | Description                                                                                               | Default                                                        |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `CB_CONNECTION_STRING`        | Couchbase Connection string                                                                               | **Required**                                                   |
+| `CB_USERNAME`                 | Database username                                                                                         | **Required (or Client Certificate and Key needed for mTLS)**   |
+| `CB_PASSWORD`                 | Database password                                                                                         | **Required(or Client Certificate and Key needed for mTLS)**    |
+| `CB_CLIENT_CERT_PATH`         | Path to the client certificate file for mTLS authentication                                               | **Required if using mTLS (or Username and Password required)** |
+| `CB_CLIENT_KEY_PATH`          | Path to the client key file for mTLS authentication                                                       | **Required if using mTLS (or Username and Password required)** |
+| `CB_CA_CERT_PATH`             | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | Prevent data modification queries via SQL++                                                               | `true`                                                         |
+| `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)                                                                           | `stdio`                                                        |
+| `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
+| `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                                                                              | `8000`                                                         |
