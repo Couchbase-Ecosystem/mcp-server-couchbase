@@ -65,10 +65,10 @@ The detailed explanation for the environment variables can be found on the [Gith
 | ----------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `CB_CONNECTION_STRING`        | Couchbase Connection string                                                                               | **Required**                                                   |
 | `CB_USERNAME`                 | Database username                                                                                         | **Required (or Client Certificate and Key needed for mTLS)**   |
-| `CB_PASSWORD`                 | Database password                                                                                         | **Required(or Client Certificate and Key needed for mTLS)**    |
+| `CB_PASSWORD`                 | Database password                                                                                         | **Required (or Client Certificate and Key needed for mTLS)**   |
 | `CB_CLIENT_CERT_PATH`         | Path to the client certificate file for mTLS authentication                                               | **Required if using mTLS (or Username and Password required)** |
 | `CB_CLIENT_KEY_PATH`          | Path to the client key file for mTLS authentication                                                       | **Required if using mTLS (or Username and Password required)** |
-| `CB_CA_CERT_PATH`             | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. |
+| `CB_CA_CERT_PATH`             | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. |                                                                |
 | `CB_MCP_READ_ONLY_QUERY_MODE` | Prevent data modification queries via SQL++                                                               | `true`                                                         |
 | `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)                                                                           | `stdio`                                                        |
 | `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
