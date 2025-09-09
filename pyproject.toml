@@ -1,6 +1,6 @@
 [project]
 name = "couchbase-mcp-server"
-version = "0.4.0"
+version = "0.5.0"
 description = "Couchbase MCP Server - The Developer Data Platform for Critical Applications in Our AI World"
 readme = "README.md"
 requires-python = ">=3.10"
