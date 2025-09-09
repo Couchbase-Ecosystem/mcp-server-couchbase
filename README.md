@@ -32,13 +32,15 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 
 ## Configuration
 
-The MCP server can be run either from the pre built PyPI package or the source using uv.
+The MCP server can be run either from the prebuilt PyPI package or the source using uv.
 
 ### Running from PyPI
 
 We publish a pre built [PyPI package](https://pypi.org/project/couchbase-mcp-server/) for the MCP server.
 
 #### Server Configuration using Pre built Package for MCP Clients
+
+#### Basic Authentication
 
 ```json
 {
@@ -50,6 +52,26 @@ We publish a pre built [PyPI package](https://pypi.org/project/couchbase-mcp-ser
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
         "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+or
+
+#### mTLS
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
+        "CB_CLIENT_KEY_PATH": "/path/to/client.key"
       }
     }
   }
@@ -100,16 +122,21 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 ### Additional Configuration for MCP Server
 
 The server can be configured using environment variables or command line arguments:
+| Environment Variable | CLI Argument | Description | Default |
+|--------------------------------|--------------------------|---------------------------------------------------------------------------------------------|------------------------------------------|
+| `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster | **Required** |
+| `CB_USERNAME` | `--username` | Username with access to required buckets for basic authentication | **Required (or Client Certificate and Key needed for mTLS)** |
+| `CB_PASSWORD` | `--password` | Password for basic authentication | **Required (or Client Certificate and Key needed for mTLS)** |
+| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
+| `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to the client key file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
+| `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. This will not be required if you are connecting to Capella | |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries | `true` |
+| `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
+| `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
+| `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
 
-| Environment Variable          | CLI Argument             | Description                                | Default      |
-| ----------------------------- | ------------------------ | ------------------------------------------ | ------------ |
-| `CB_CONNECTION_STRING`        | `--connection-string`    | Connection string to the Couchbase cluster | **Required** |
-| `CB_USERNAME`                 | `--username`             | Username with access to required buckets   | **Required** |
-| `CB_PASSWORD`                 | `--password`             | Password for authentication                | **Required** |
-| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries          | `true`       |
-| `CB_MCP_TRANSPORT`            | `--transport`            | Transport mode: `stdio`, `http`, `sse`     | `stdio`      |
-| `CB_MCP_HOST`                 | `--host`                 | Host for HTTP/SSE transport modes          | `127.0.0.1`  |
-| `CB_MCP_PORT`                 | `--port`                 | Port for HTTP/SSE transport modes          | `8000`       |
+> Note: For authentication, you need either the Username and Password or the Client Certificate and key paths. Optionally, you can specify the CA root certificate path that will be used to validate the server certificates.
+> If both the Client Certificate & key path and the username and password are specified, the client certificates will be used for authentication.
 
 You can also check the version of the server using:
 
@@ -370,9 +397,9 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 ## Troubleshooting Tips
 
 - Ensure the path to your MCP server repository is correct in the configuration if running from source.
-- Verify that your Couchbase connection string, database username, password are correct.
+- Verify that your Couchbase connection string, database username, password or the path to the certificates are correct.
 - If using Couchbase Capella, ensure that the cluster is [accessible](https://docs.couchbase.com/cloud/clusters/allow-ip-address.html) from the machine where the MCP server is running.
-- Check that the database user has proper permissions to access the specified bucket.
+- Check that the database user has proper permissions to access at least one bucket.
 - Confirm that the `uv` package manager is properly installed and accessible. You may need to provide absolute path to `uv`/`uvx` in the `command` field in the configuration.
 - Check the logs for any errors or warnings that may indicate issues with the MCP server. The location of the logs depend on your MCP client.
 - If you are observing issues running your MCP server from source after updating your local MCP server repository, try running `uv sync` to update the [dependencies](https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment).
