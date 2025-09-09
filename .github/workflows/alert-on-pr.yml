@@ -11,12 +11,26 @@ permissions:
 
 jobs:
   alert:
+    # Only run this job if:
+    # - The event is 'pull_request' and the PR is from the same repository (not a fork), OR
+    # - The event is 'pull_request_target' and the PR is from a forked repository.
+    # This ensures that PRs from forks are handled with 'pull_request_target' (for security),
+    # while PRs from the same repo are handled with 'pull_request'.
+    if: >-
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      ) ||
+      (
+        github.event_name == 'pull_request_target' &&
+        github.event.pull_request.head.repo.full_name != github.repository
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install requests
         run: |
