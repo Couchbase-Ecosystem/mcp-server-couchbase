@@ -15,6 +15,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - Get a list of all the scopes in the specified bucket
 - Get a list of all the collections in a specified scope and bucket. Note that this tool requires the cluster to have Query service.
 - Get the structure for a collection
+- List all indexes in the cluster with their definitions, optionally filtered by bucket name
 - Get a document by ID from a specified scope and collection
 - Upsert a document by ID to a specified scope and collection
 - Delete a document by ID from a specified scope and collection
