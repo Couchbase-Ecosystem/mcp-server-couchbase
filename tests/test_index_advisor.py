@@ -7,11 +7,12 @@ This script demonstrates how to use the new Index Advisor tools:
 2. create_index_from_recommendation - Create an index from recommendations
 
 Usage:
-    uv run test_index_advisor.py
+    uv run tests/test_index_advisor.py
 
 Prerequisites:
     - Set environment variables: CB_CONNECTION_STRING, CB_USERNAME, CB_PASSWORD
-    - Have a Couchbase cluster accessible with the travel-sample bucket (or modify the script)
+    - Have a Couchbase cluster accessible with the travel-sample bucket (or modify the query)
+    - Query should use fully qualified keyspace (bucket.scope.collection)
 """
 
 import json
@@ -102,22 +103,20 @@ def main():  # noqa: PLR0915
     # Test 1: Get Index Advisor Recommendations
     print_section("Test 1: Get Index Advisor Recommendations")
 
-    # You can modify these values for your specific use case
-    bucket_name = "travel-sample"
-    scope_name = "inventory"
-    test_query = "SELECT * FROM landmark WHERE activity = 'eat' AND city = 'Paris'"
+    # You can modify this query for your specific use case
+    # Note: The query should contain fully qualified keyspace (bucket.scope.collection)
+    test_query = (
+        "SELECT * FROM `travel-sample`.inventory.landmark "
+        "WHERE activity = 'eat' AND city = 'Paris'"
+    )
 
-    print(f"Bucket: {bucket_name}")
-    print(f"Scope: {scope_name}")
     print(f"Query: {test_query}\n")
 
     try:
         ctx = create_mock_context(cluster, read_only_mode=True)
 
         print("🔍 Running Index Advisor...\n")
-        recommendations = get_index_advisor_recommendations(
-            ctx, bucket_name, scope_name, test_query
-        )
+        recommendations = get_index_advisor_recommendations(ctx, test_query)
 
         print("📊 Index Advisor Results:")
         print(json.dumps(recommendations, indent=2))

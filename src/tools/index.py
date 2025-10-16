@@ -16,13 +16,12 @@ from utils.context import get_cluster_connection
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
 
-def get_index_advisor_recommendations(
-    ctx: Context, bucket_name: str, scope_name: str, query: str
-) -> dict[str, Any]:
+def get_index_advisor_recommendations(ctx: Context, query: str) -> dict[str, Any]:
     """Get index recommendations from Couchbase Index Advisor for a given SQL++ query.
 
     The Index Advisor analyzes the query and provides recommendations for optimal indexes.
     This tool works with SELECT, UPDATE, DELETE, or MERGE queries.
+    The query should contain fully qualified keyspace (e.g., bucket.scope.collection).
 
     Returns a dictionary with:
     - current_used_indexes: Array of currently used indexes (if any)
@@ -39,18 +38,16 @@ def get_index_advisor_recommendations(
         # Escape single quotes in the query by doubling them for SQL++ string literal
         escaped_query = query.replace("'", "''")
 
-        # Build the ADVISOR query with fully qualified keyspace
+        # Build the ADVISOR query
         advisor_query = f"SELECT ADVISOR('{escaped_query}') AS advisor_result"
 
-        logger.info(f"Running Index Advisor for query in {bucket_name}.{scope_name}")
+        logger.info("Running Index Advisor for the provided query")
 
         # Execute the ADVISOR function at cluster level
         result = cluster.query(advisor_query)
 
         # Extract the advisor result from the query response
-        advisor_results = []
-        for row in result:
-            advisor_results.append(row)
+        advisor_results = list(result)
 
         if not advisor_results:
             return {
