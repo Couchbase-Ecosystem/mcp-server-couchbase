@@ -9,8 +9,8 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
+from tools.query import run_cluster_query
 from utils.constants import MCP_SERVER_NAME
-from utils.context import get_cluster_connection
 from utils.index_utils import generate_index_definition
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
@@ -35,8 +35,6 @@ def list_indexes(
     Returns:
         List of dictionaries with keys: name (str), is_primary (bool), definition (str, GSI only)
     """
-    cluster = get_cluster_connection(ctx)
-
     try:
         # Build query with filters based on provided parameters
         query = "SELECT * FROM system:all_indexes"
@@ -68,7 +66,7 @@ def list_indexes(
 
         # Execute query with parameters
         logger.info(f"Executing query: {query} with params: {params}")
-        result = cluster.query(query, **params)
+        result = run_cluster_query(ctx, query, **params)
 
         indexes = []
         for row in result:
