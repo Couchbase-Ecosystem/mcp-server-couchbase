@@ -1,8 +1,7 @@
 """
 Tools for index operations and optimization.
 
-This module contains tools for getting index recommendations using the Couchbase Index Advisor
-and creating indexes based on those recommendations.
+This module contains tools for getting index recommendations using the Couchbase Index Advisor.
 """
 
 import logging
@@ -10,8 +9,8 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
+from tools.query import run_cluster_query
 from utils.constants import MCP_SERVER_NAME
-from utils.context import get_cluster_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
@@ -32,22 +31,14 @@ def get_index_advisor_recommendations(ctx: Context, query: str) -> dict[str, Any
     - index: The CREATE INDEX SQL++ command
     - statements: Array of statement objects with the query and run count
     """
-    cluster = get_cluster_connection(ctx)
-
     try:
-        # Escape single quotes in the query by doubling them for SQL++ string literal
-        escaped_query = query.replace("'", "''")
-
         # Build the ADVISOR query
-        advisor_query = f"SELECT ADVISOR('{escaped_query}') AS advisor_result"
+        advisor_query = f"SELECT ADVISOR('{query}') AS advisor_result"
 
         logger.info("Running Index Advisor for the provided query")
 
-        # Execute the ADVISOR function at cluster level
-        result = cluster.query(advisor_query)
-
-        # Extract the advisor result from the query response
-        advisor_results = list(result)
+        # Execute the ADVISOR function at cluster level using run_cluster_query
+        advisor_results = run_cluster_query(ctx, advisor_query)
 
         if not advisor_results:
             return {
@@ -91,86 +82,3 @@ def get_index_advisor_recommendations(ctx: Context, query: str) -> dict[str, Any
     except Exception as e:
         logger.error(f"Error running Index Advisor: {e!s}", exc_info=True)
         raise
-
-
-def create_index_from_recommendation(
-    ctx: Context, index_definition: str
-) -> dict[str, Any]:
-    """Create an index using the provided CREATE INDEX statement.
-
-    This tool executes a CREATE INDEX statement, typically from Index Advisor recommendations.
-    Note: This operation requires write permissions and will fail if:
-    - The read-only query mode is enabled
-    - The user lacks CREATE INDEX permissions
-    - An index with the same name already exists
-
-    The index_definition should be a complete CREATE INDEX statement, for example:
-    CREATE INDEX adv_city_activity ON `travel-sample`.inventory.landmark(city, activity)
-
-    Returns a dictionary with:
-    - status: 'success' or 'error'
-    - message: Description of the result
-    - index_definition: The index statement that was executed (on success)
-    """
-    cluster = get_cluster_connection(ctx)
-
-    app_context = ctx.request_context.lifespan_context
-    read_only_query_mode = app_context.read_only_query_mode
-
-    # Check if read-only mode is enabled
-    if read_only_query_mode:
-        logger.error("Cannot create index in read-only query mode")
-        return {
-            "status": "error",
-            "message": "Index creation is not allowed in read-only query mode. Please disable read-only mode (CB_MCP_READ_ONLY_QUERY_MODE=false) to create indexes.",
-            "index_definition": index_definition,
-        }
-
-    try:
-        # Validate that the statement is a CREATE INDEX statement
-        if not index_definition.strip().upper().startswith("CREATE INDEX"):
-            logger.error("Invalid index definition: must start with CREATE INDEX")
-            return {
-                "status": "error",
-                "message": "Invalid index definition. The statement must be a CREATE INDEX command.",
-                "index_definition": index_definition,
-            }
-
-        logger.info(f"Creating index with definition: {index_definition}")
-
-        # Execute the CREATE INDEX statement at cluster level
-        result = cluster.query(index_definition)
-
-        # Consume the result to ensure the query completes
-        for _ in result:
-            pass
-
-        logger.info("Index created successfully")
-
-        return {
-            "status": "success",
-            "message": "Index created successfully",
-            "index_definition": index_definition,
-        }
-
-    except Exception as e:
-        error_message = str(e)
-        logger.error(f"Error creating index: {error_message}", exc_info=True)
-
-        # Provide helpful error messages for common issues
-        if "already exists" in error_message.lower():
-            message = "An index with this name already exists. Consider using a different name or dropping the existing index first."
-        elif (
-            "permission" in error_message.lower()
-            or "authorized" in error_message.lower()
-        ):
-            message = "Insufficient permissions to create index. Please ensure your user has the required permissions."
-        else:
-            message = f"Failed to create index: {error_message}"
-
-        return {
-            "status": "error",
-            "message": message,
-            "index_definition": index_definition,
-            "error_details": error_message,
-        }
