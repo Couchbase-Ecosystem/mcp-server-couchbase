@@ -11,6 +11,7 @@ from mcp.server.fastmcp import Context
 
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
+from utils.index_utils import generate_index_definition
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
@@ -22,8 +23,8 @@ def list_indexes(
     collection_name: str | None = None,
 ) -> list[dict[str, Any]]:
     """List all indexes in the cluster with optional filtering by bucket, scope, and collection.
-    Returns a list of indexes with their names, definitions, and metadata.
-    Each index entry includes: name, bucket, scope, collection, state, index type, and index key definitions.
+    Returns a simplified list of indexes with their names, primary flag, and CREATE INDEX definitions.
+    Excludes sequential scan indexes. For GSI indexes, includes the CREATE INDEX definition.
 
     Args:
         ctx: MCP context for cluster connection
@@ -32,13 +33,13 @@ def list_indexes(
         collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
 
     Returns:
-        List of dictionaries containing index information
+        List of dictionaries with keys: name (str), is_primary (bool), definition (str, GSI only)
     """
     cluster = get_cluster_connection(ctx)
 
     try:
         # Build query with filters based on provided parameters
-        query = "SELECT * FROM system:all_indexes FROM system:indexes AS idx"
+        query = "SELECT * FROM system:all_indexes"
         conditions = []
         params = {}
 
@@ -71,20 +72,45 @@ def list_indexes(
 
         indexes = []
         for row in result:
-            # Extract relevant index information
-            index_info = {
-                "name": row.get("name"),
-                "bucket": row.get("bucket_id"),
-                "scope": row.get("scope_id"),
-                "collection": row.get("keyspace_id"),
-                "index_type": row.get("using", "GSI"),
-                "is_primary": row.get("is_primary", False),
-                "condition": row.get("condition"),
-                "using": row.get("using"),
+            # Extract the actual index data from the nested structure
+            # When querying system:all_indexes, data is wrapped in 'all_indexes' key
+            index_data = row.get("all_indexes", row)
+
+            # Skip sequential scan indexes
+            using = index_data.get("using", "").lower()
+            if using == "sequentialscan":
+                continue
+
+            # Prepare data for index definition generation
+            temp_data = {
+                "name": index_data.get("name"),
+                "bucket": index_data.get("bucket_id"),
+                "scope": index_data.get("scope_id"),
+                "collection": index_data.get("keyspace_id"),
+                "index_type": index_data.get("using", "gsi"),
+                "is_primary": index_data.get("is_primary", False),
+                "index_key": index_data.get("index_key", []),
+                "condition": index_data.get("condition"),
+                "partition": index_data.get("partition"),
+                "using": index_data.get("using", "gsi"),
             }
+
+            # Generate index definition for GSI indexes
+            index_definition = generate_index_definition(temp_data)
+
+            # Only return the essential information
+            index_info = {
+                "name": index_data.get("name"),
+                "is_primary": index_data.get("is_primary", False),
+            }
+
+            # Add definition only if it was generated (GSI indexes only)
+            if index_definition:
+                index_info["definition"] = index_definition
+
             indexes.append(index_info)
 
-        logger.info(f"Found {len(indexes)} indexes")
+        logger.info(f"Found {len(indexes)} indexes (excluding sequential scans)")
         return indexes
     except Exception as e:
         logger.error(f"Error listing indexes: {e}")
