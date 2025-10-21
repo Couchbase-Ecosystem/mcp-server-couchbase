@@ -38,7 +38,7 @@ def list_indexes(
 
     try:
         # Build query with filters based on provided parameters
-        query = "SELECT idx.* FROM system:indexes AS idx"
+        query = "SELECT * FROM system:all_indexes FROM system:indexes AS idx"
         conditions = []
         params = {}
 
@@ -77,12 +77,10 @@ def list_indexes(
                 "bucket": row.get("bucket_id"),
                 "scope": row.get("scope_id"),
                 "collection": row.get("keyspace_id"),
-                "state": row.get("state"),
                 "index_type": row.get("using", "GSI"),
                 "is_primary": row.get("is_primary", False),
-                "index_key": row.get("index_key", []),
                 "condition": row.get("condition"),
-                "partition": row.get("partition"),
+                "using": row.get("using"),
             }
             indexes.append(index_info)
 
