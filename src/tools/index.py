@@ -85,12 +85,11 @@ def list_indexes(
                 "bucket": index_data.get("bucket_id"),
                 "scope": index_data.get("scope_id"),
                 "collection": index_data.get("keyspace_id"),
-                "index_type": index_data.get("using", "gsi"),
                 "is_primary": index_data.get("is_primary", False),
                 "index_key": index_data.get("index_key", []),
                 "condition": index_data.get("condition"),
                 "partition": index_data.get("partition"),
-                "using": index_data.get("using", "gsi"),
+                "type": index_data.get("using", "gsi"),
             }
 
             # Generate index definition for GSI indexes
