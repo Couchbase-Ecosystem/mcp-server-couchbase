@@ -34,11 +34,6 @@ from .context import (
     get_cluster_connection,
 )
 
-# Index utilities
-from .index_utils import (
-    generate_index_definition,
-)
-
 # Note: Individual modules create their own hierarchical loggers using:
 # logger = logging.getLogger(f"{MCP_SERVER_NAME}.module.name")
 
@@ -51,8 +46,6 @@ __all__ = [
     # Context
     "AppContext",
     "get_cluster_connection",
-    # Index utilities
-    "generate_index_definition",
     # Constants
     "MCP_SERVER_NAME",
     "DEFAULT_READ_ONLY_MODE",

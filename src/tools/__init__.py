@@ -4,11 +4,6 @@ Couchbase MCP Tools
 This module contains all the MCP tools for Couchbase operations.
 """
 
-# Index tools
-from .index import (
-    list_indexes,
-)
-
 # Key-Value tools
 from .kv import (
     delete_document_by_id,
@@ -45,7 +40,6 @@ ALL_TOOLS = [
     delete_document_by_id,
     get_schema_for_collection,
     run_sql_plus_plus_query,
-    list_indexes,
 ]
 
 __all__ = [
@@ -61,7 +55,6 @@ __all__ = [
     "delete_document_by_id",
     "get_schema_for_collection",
     "run_sql_plus_plus_query",
-    "list_indexes",
     # Convenience
     "ALL_TOOLS",
 ]
