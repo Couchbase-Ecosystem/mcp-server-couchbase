@@ -1,7 +1,8 @@
 """
-Tools for index operations.
+Tools for index operations and optimization.
 
-This module contains tools for listing and managing indexes in the Couchbase cluster.
+This module contains tools for listing and managing indexes in the Couchbase cluster,
+as well as getting index recommendations using the Couchbase Index Advisor.
 """
 
 import logging
@@ -85,11 +86,12 @@ def list_indexes(
                 "bucket": index_data.get("bucket_id"),
                 "scope": index_data.get("scope_id"),
                 "collection": index_data.get("keyspace_id"),
+                "index_type": index_data.get("using", "gsi"),
                 "is_primary": index_data.get("is_primary", False),
                 "index_key": index_data.get("index_key", []),
                 "condition": index_data.get("condition"),
                 "partition": index_data.get("partition"),
-                "type": index_data.get("using", "gsi"),
+                "using": index_data.get("using", "gsi"),
             }
 
             # Generate index definition for GSI indexes
@@ -111,4 +113,73 @@ def list_indexes(
         return indexes
     except Exception as e:
         logger.error(f"Error listing indexes: {e}")
+        raise
+
+
+def get_index_advisor_recommendations(ctx: Context, query: str) -> dict[str, Any]:
+    """Get index recommendations from Couchbase Index Advisor for a given SQL++ query.
+
+    The Index Advisor analyzes the query and provides recommendations for optimal indexes.
+    This tool works with SELECT, UPDATE, DELETE, or MERGE queries.
+    The query should contain fully qualified keyspace (e.g., bucket.scope.collection).
+
+    Returns a dictionary with:
+    - current_used_indexes: Array of currently used indexes (if any)
+    - recommended_indexes: Array of recommended secondary indexes (if any)
+    - recommended_covering_indexes: Array of recommended covering indexes (if any)
+
+    Each index object contains:
+    - index: The CREATE INDEX SQL++ command
+    - statements: Array of statement objects with the query and run count
+    """
+    try:
+        # Build the ADVISOR query
+        advisor_query = f"SELECT ADVISOR('{query}') AS advisor_result"
+
+        logger.info("Running Index Advisor for the provided query")
+
+        # Execute the ADVISOR function at cluster level using run_cluster_query
+        advisor_results = run_cluster_query(ctx, advisor_query)
+
+        if not advisor_results:
+            return {
+                "message": "No recommendations available",
+                "current_used_indexes": [],
+                "recommended_indexes": [],
+                "recommended_covering_indexes": [],
+            }
+
+        # The result is wrapped in advisor_result key
+        advisor_data = advisor_results[0].get("advisor_result", {})
+
+        # Extract the relevant fields with defaults
+        response = {
+            "current_used_indexes": advisor_data.get("current_used_indexes", []),
+            "recommended_indexes": advisor_data.get("recommended_indexes", []),
+            "recommended_covering_indexes": advisor_data.get(
+                "recommended_covering_indexes", []
+            ),
+        }
+
+        # Add summary information for better user experience
+        response["summary"] = {
+            "current_indexes_count": len(response["current_used_indexes"]),
+            "recommended_indexes_count": len(response["recommended_indexes"]),
+            "recommended_covering_indexes_count": len(
+                response["recommended_covering_indexes"]
+            ),
+            "has_recommendations": bool(
+                response["recommended_indexes"]
+                or response["recommended_covering_indexes"]
+            ),
+        }
+
+        logger.info(
+            f"Index Advisor completed. Found {response['summary']['recommended_indexes_count']} recommended indexes"
+        )
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error running Index Advisor: {e!s}", exc_info=True)
         raise

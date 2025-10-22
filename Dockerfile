@@ -46,7 +46,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
 RUN chown -R mcpuser:mcpuser /app /opt/venv
 
 # Switch to non-root user
-USER mcpuser
+USER 1001
 
 # Environment variables with stdio defaults (override for network mode)
 ENV CB_MCP_READ_ONLY_QUERY_MODE="true" \
