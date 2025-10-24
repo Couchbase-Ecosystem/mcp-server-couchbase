@@ -22,7 +22,7 @@ def generate_index_definition(index_data: dict[str, Any]) -> str | None:
             - scope: Scope name (optional)
             - collection: Collection name (optional)
             - is_primary: Boolean indicating if it's a primary index
-            - using: Index type (must be "gsi" for definition generation)
+            - index_type: Index type (must be "gsi" for definition generation)
             - index_key: List of index keys
             - condition: WHERE condition (optional)
             - partition: PARTITION BY clause (optional)
@@ -31,7 +31,7 @@ def generate_index_definition(index_data: dict[str, Any]) -> str | None:
         CREATE INDEX statement string for GSI indexes, None for other types
     """
     # Only generate definition for GSI indexes
-    if index_data.get("using") != "gsi":
+    if index_data.get("index_type") != "gsi":
         return None
 
     try:
