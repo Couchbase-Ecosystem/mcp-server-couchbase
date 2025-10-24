@@ -148,23 +148,35 @@ def list_indexes(
             if using == "sequentialscan":
                 continue
 
-            # Prepare data for index definition generation
-            temp_data = {
-                "name": index_data.get("name"),
-                "bucket": index_data.get("bucket_id"),
-                "scope": index_data.get("scope_id"),
-                "collection": index_data.get("keyspace_id"),
-                "index_type": index_data.get("using", "gsi"),
-                "is_primary": index_data.get("is_primary", False),
-                "index_key": index_data.get("index_key", []),
-                "condition": index_data.get("condition"),
-                "partition": index_data.get("partition"),
-                "with_clause": index_data.get("with", {}),
-                "include_fields": index_data.get("include", []),
-            }
+            # Check if definition exists in metadata, otherwise generate it
+            index_definition = None
+            metadata = index_data.get("metadata", {})
 
-            # Generate index definition for GSI indexes
-            index_definition = generate_index_definition(temp_data)
+            # First, try to get definition from metadata
+            if "definition" in metadata:
+                index_definition = metadata["definition"]
+                logger.debug(
+                    f"Using definition from metadata for index: {index_data.get('name')}"
+                )
+            else:
+                # If not in metadata, generate it
+                logger.debug(
+                    f"Generating definition for index: {index_data.get('name')}"
+                )
+                temp_data = {
+                    "name": index_data.get("name"),
+                    "bucket": index_data.get("bucket_id"),
+                    "scope": index_data.get("scope_id"),
+                    "collection": index_data.get("keyspace_id"),
+                    "index_type": index_data.get("using", "gsi"),
+                    "is_primary": index_data.get("is_primary", False),
+                    "index_key": index_data.get("index_key", []),
+                    "condition": index_data.get("condition"),
+                    "partition": index_data.get("partition"),
+                    "with_clause": index_data.get("with", {}),
+                    "include_fields": index_data.get("include", []),
+                }
+                index_definition = generate_index_definition(temp_data)
 
             # Only return the essential information
             index_info = {
