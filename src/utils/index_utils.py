@@ -6,123 +6,110 @@ This module contains helper functions for working with Couchbase indexes.
 
 import logging
 from typing import Any
+from urllib.parse import urlparse
+
+import requests
+import urllib3
 
 from .constants import MCP_SERVER_NAME
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.index_utils")
 
 
-def _is_vector_index(index_keys: list[Any]) -> bool:
-    """Check if the index is a vector index by looking for VECTOR keyword."""
-    return any("VECTOR" in str(key).upper() for key in index_keys)
-
-
-def _get_index_type_clause(is_primary: bool, is_vector: bool) -> str:
-    """Get the appropriate CREATE INDEX clause based on index type."""
-    if is_primary:
-        return "CREATE PRIMARY INDEX"
-    if is_vector:
-        return "CREATE VECTOR INDEX"
-    return "CREATE INDEX"
-
-
-def _build_keyspace_path(bucket: str, scope: str | None, collection: str | None) -> str:
-    """Build the keyspace path (bucket.scope.collection)."""
-    path = f"`{bucket}`"
-    if scope and collection:
-        path += f".`{scope}`.`{collection}`"
-    return path
-
-
-def _build_with_clause(with_clause: dict[str, Any]) -> str:
-    """Build the WITH clause for vector indexes."""
-    with_parts = []
-
-    if "dimension" in with_clause:
-        with_parts.append(f'"dimension":{with_clause["dimension"]}')
-
-    if "similarity" in with_clause:
-        with_parts.append(f'"similarity":"{with_clause["similarity"]}"')
-
-    if "description" in with_clause:
-        with_parts.append(f'"description":"{with_clause["description"]}"')
-
-    if with_parts:
-        return " WITH { " + ", ".join(with_parts) + " }"
-    return ""
-
-
-def generate_index_definition(index_data: dict[str, Any]) -> str | None:
-    """Generate CREATE INDEX statement for GSI indexes, including vector indexes.
+def _extract_host_from_connection_string(connection_string: str) -> str:
+    """Extract the host from a Couchbase connection string.
 
     Args:
-        index_data: Dictionary containing index information with keys:
-            - name: Index name
-            - bucket: Bucket name
-            - scope: Scope name (optional)
-            - collection: Collection name (optional)
-            - is_primary: Boolean indicating if it's a primary index
-            - index_type: Index type (must be "gsi" for definition generation)
-            - index_key: List of index keys
-            - condition: WHERE condition (optional)
-            - partition: PARTITION BY clause (optional)
-            - with_clause: Dictionary containing WITH clause properties (for vector indexes)
-            - include_fields: List of fields to include (for vector indexes)
+        connection_string: Connection string like 'couchbase://host' or 'couchbases://host'
 
     Returns:
-        CREATE INDEX statement string for GSI indexes, None for other types
+        The host extracted from the connection string
     """
-    # Only generate definition for GSI indexes
-    if index_data.get("index_type") != "gsi":
-        return None
+    # Parse the connection string
+    parsed = urlparse(connection_string)
 
+    # If there's a netloc (host), return it
+    if parsed.netloc:
+        # Remove port if present
+        host = parsed.netloc.split(":")[0]
+        return host
+
+    # Fallback: try to extract manually
+    # Handle cases like 'couchbase://host:8091' or just 'host'
+    host = connection_string.replace("couchbase://", "").replace("couchbases://", "")
+    host = host.split(":")[0].split("/")[0]
+    return host
+
+
+def fetch_indexes_from_rest_api(
+    connection_string: str,
+    username: str,
+    password: str,
+    bucket_name: str | None = None,
+    scope_name: str | None = None,
+    collection_name: str | None = None,
+    timeout: int = 30,
+) -> list[dict[str, Any]]:
+    """Fetch indexes from Couchbase Index Service REST API.
+
+    Uses the /getIndexStatus endpoint on port 19102 to retrieve index information.
+    This endpoint returns indexes with their definitions directly from the Index Service.
+
+    Args:
+        connection_string: Couchbase connection string
+        username: Username for authentication
+        password: Password for authentication
+        bucket_name: Optional bucket name to filter indexes
+        scope_name: Optional scope name to filter indexes
+        collection_name: Optional collection name to filter indexes
+        timeout: Request timeout in seconds (default: 30)
+
+    Returns:
+        List of index status dictionaries containing name, definition, and other metadata
+    """
     try:
-        # Validate required fields
-        name = index_data.get("name")
-        bucket = index_data.get("bucket")
-        if not name or not bucket:
-            logger.warning(
-                f"Cannot generate index definition for index data: {index_data}. "
-                f"Missing name or bucket."
-            )
-            return None
+        # Extract host from connection string
+        host = _extract_host_from_connection_string(connection_string)
 
-        index_keys = index_data.get("index_key", [])
-        is_vector = _is_vector_index(index_keys)
+        # Build the REST API URL (Index Service runs on port 19102)
+        base_url = f"https://{host}:19102"
+        url = f"{base_url}/getIndexStatus"
 
-        # Start building the definition
-        query_definition = _get_index_type_clause(
-            index_data.get("is_primary", False), is_vector
+        # Build query parameters
+        params = {}
+        if bucket_name:
+            params["bucket"] = bucket_name
+        if scope_name:
+            params["scope"] = scope_name
+        if collection_name:
+            params["collection"] = collection_name
+
+        logger.info(f"Fetching indexes from REST API: {url} with params: {params}")
+
+        # Make the request
+        response = requests.get(
+            url,
+            params=params,
+            auth=(username, password),
+            verify=False,  # Disable SSL verification for self-signed certs
+            timeout=timeout,
         )
 
-        # Add index name and keyspace path
-        query_definition += f" `{name}`"
-        query_definition += f" ON {_build_keyspace_path(bucket, index_data.get('scope'), index_data.get('collection'))}"
+        response.raise_for_status()
+        data = response.json()
 
-        # Add index keys for non-primary indexes
-        if index_keys:
-            keys_str = ", ".join(str(key) for key in index_keys)
-            query_definition += f"({keys_str})"
+        # The API returns a dictionary with 'status' key containing the list of indexes
+        indexes = data.get("status", [])
 
-        # Add INCLUDE clause if present (typically for vector indexes)
-        include_fields = index_data.get("include_fields", [])
-        if include_fields:
-            include_str = ", ".join(f"`{field}`" for field in include_fields)
-            query_definition += f" INCLUDE({include_str})"
+        logger.info(f"Successfully fetched {len(indexes)} indexes from REST API")
+        return indexes
 
-        # Add WHERE condition if exists
-        if condition := index_data.get("condition"):
-            query_definition += f" WHERE {condition}"
-
-        # Add PARTITION BY if exists
-        if partition := index_data.get("partition"):
-            query_definition += f" PARTITION BY {partition}"
-
-        # Add WITH clause for vector indexes
-        if is_vector and (with_clause := index_data.get("with_clause", {})):
-            query_definition += _build_with_clause(with_clause)
-
-        return query_definition
+    except requests.RequestException as e:
+        logger.error(f"Error fetching indexes from REST API: {e}")
+        raise RuntimeError(f"Failed to fetch indexes from REST API: {e}") from e
     except Exception as e:
-        logger.warning(f"Error generating index definition: {e}")
-        return None
+        logger.error(f"Unexpected error in fetch_indexes_from_rest_api: {e}")
+        raise
