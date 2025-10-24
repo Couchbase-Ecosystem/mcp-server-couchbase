@@ -5,7 +5,7 @@ This module contains all the MCP tools for Couchbase operations.
 """
 
 # Index tools
-from .index import get_index_advisor_recommendations
+from .index import get_index_advisor_recommendations, list_indexes
 
 # Key-Value tools
 from .kv import (
@@ -44,6 +44,7 @@ ALL_TOOLS = [
     get_schema_for_collection,
     run_sql_plus_plus_query,
     get_index_advisor_recommendations,
+    list_indexes,
 ]
 
 __all__ = [
@@ -60,6 +61,7 @@ __all__ = [
     "get_schema_for_collection",
     "run_sql_plus_plus_query",
     "get_index_advisor_recommendations",
+    "list_indexes",
     # Convenience
     "ALL_TOOLS",
 ]
