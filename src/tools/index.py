@@ -159,6 +159,8 @@ def list_indexes(
                 "index_key": index_data.get("index_key", []),
                 "condition": index_data.get("condition"),
                 "partition": index_data.get("partition"),
+                "with_clause": index_data.get("with", {}),
+                "include_fields": index_data.get("include", []),
             }
 
             # Generate index definition for GSI indexes
