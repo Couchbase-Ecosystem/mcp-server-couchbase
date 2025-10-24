@@ -11,7 +11,7 @@ from mcp.server.fastmcp import Context
 
 from tools.query import run_cluster_query
 from utils.constants import MCP_SERVER_NAME
-from utils.index_utls import generate_index_definition
+from utils.index_utils import generate_index_definition
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
