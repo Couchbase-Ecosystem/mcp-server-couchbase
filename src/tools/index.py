@@ -1,7 +1,7 @@
 """
-Tools for index operations and optimization.
+Tools for index operations.
 
-This module contains tools for getting index recommendations using the Couchbase Index Advisor.
+This module contains tools for listing and managing indexes in the Couchbase cluster and getting index recommendations using the Couchbase Index Advisor.
 """
 
 import logging
@@ -10,7 +10,9 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from tools.query import run_cluster_query
+from utils.config import get_settings
 from utils.constants import MCP_SERVER_NAME
+from utils.index_utils import fetch_indexes_from_rest_api
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
@@ -81,4 +83,92 @@ def get_index_advisor_recommendations(ctx: Context, query: str) -> dict[str, Any
 
     except Exception as e:
         logger.error(f"Error running Index Advisor: {e!s}", exc_info=True)
+        raise
+
+
+def list_indexes(
+    ctx: Context,
+    bucket_name: str | None = None,
+    scope_name: str | None = None,
+    collection_name: str | None = None,
+) -> list[dict[str, Any]]:
+    """List all indexes in the cluster with optional filtering by bucket, scope, and collection.
+    Returns a list of indexes with their names and CREATE INDEX definitions.
+    Uses the Index Service REST API (/getIndexStatus) to retrieve index information directly.
+
+    Args:
+        ctx: MCP context for cluster connection
+        bucket_name: Optional bucket name to filter indexes
+        scope_name: Optional scope name to filter indexes (requires bucket_name)
+        collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
+
+    Returns:
+        List of dictionaries with keys: name (str), definition (str)
+    """
+    try:
+        # Validate scope and collection requirements
+        if scope_name and not bucket_name:
+            raise ValueError("bucket_name is required when filtering by scope_name")
+        if collection_name and (not bucket_name or not scope_name):
+            raise ValueError(
+                "bucket_name and scope_name are required when filtering by collection_name"
+            )
+
+        # Get connection settings
+        settings = get_settings()
+        connection_string = settings.get("connection_string")
+        username = settings.get("username")
+        password = settings.get("password")
+
+        if not connection_string or not username or not password:
+            raise ValueError(
+                "Missing required connection settings: connection_string, username, or password"
+            )
+
+        # Fetch indexes from REST API
+        logger.info(
+            f"Fetching indexes from REST API for bucket={bucket_name}, "
+            f"scope={scope_name}, collection={collection_name}"
+        )
+
+        raw_indexes = fetch_indexes_from_rest_api(
+            connection_string,
+            username,
+            password,
+            bucket_name=bucket_name,
+            scope_name=scope_name,
+            collection_name=collection_name,
+        )
+
+        # Process and format the results
+        indexes = []
+        for idx in raw_indexes:
+            name = idx.get("name", "")
+            definition = idx.get("definition", "")
+
+            # Skip if no name
+            if not name:
+                continue
+
+            # Clean up definition (remove surrounding quotes and escape characters)
+            clean_definition = ""
+            if isinstance(definition, str) and definition:
+                clean_definition = definition.strip('"').replace('\\"', '"')
+
+            # Build the result
+            index_info = {
+                "name": name,
+            }
+
+            # Add definition if available
+            if clean_definition:
+                index_info["definition"] = clean_definition
+
+            indexes.append(index_info)
+
+        logger.info(f"Found {len(indexes)} indexes from REST API")
+        return indexes
+
+    except Exception as e:
+        logger.error(f"Error listing indexes: {e}", exc_info=True)
         raise
