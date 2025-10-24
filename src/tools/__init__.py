@@ -5,6 +5,8 @@ This module contains all the MCP tools for Couchbase operations.
 """
 
 # Index tools
+# Health check tools
+from .health import get_cluster_health_and_services
 from .index import get_index_advisor_recommendations
 
 # Key-Value tools
@@ -44,6 +46,7 @@ ALL_TOOLS = [
     get_schema_for_collection,
     run_sql_plus_plus_query,
     get_index_advisor_recommendations,
+    get_cluster_health_and_services,
 ]
 
 __all__ = [
@@ -60,6 +63,7 @@ __all__ = [
     "get_schema_for_collection",
     "run_sql_plus_plus_query",
     "get_index_advisor_recommendations",
+    "get_cluster_health_and_services",
     # Convenience
     "ALL_TOOLS",
 ]
