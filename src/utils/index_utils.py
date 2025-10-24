@@ -77,6 +77,16 @@ def generate_index_definition(index_data: dict[str, Any]) -> str | None:
         return None
 
     try:
+        # Validate required fields
+        name = index_data.get("name")
+        bucket = index_data.get("bucket")
+        if not name or not bucket:
+            logger.warning(
+                f"Cannot generate index definition for index data: {index_data}. "
+                f"Missing name or bucket."
+            )
+            return None
+
         index_keys = index_data.get("index_key", [])
         is_vector = _is_vector_index(index_keys)
 
@@ -86,8 +96,8 @@ def generate_index_definition(index_data: dict[str, Any]) -> str | None:
         )
 
         # Add index name and keyspace path
-        query_definition += f" `{index_data['name']}`"
-        query_definition += f" ON {_build_keyspace_path(index_data['bucket'], index_data.get('scope'), index_data.get('collection'))}"
+        query_definition += f" `{name}`"
+        query_definition += f" ON {_build_keyspace_path(bucket, index_data.get('scope'), index_data.get('collection'))}"
 
         # Add index keys for non-primary indexes
         if index_keys:

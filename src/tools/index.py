@@ -181,5 +181,5 @@ def list_indexes(
         logger.info(f"Found {len(indexes)} indexes (excluding sequential scans)")
         return indexes
     except Exception as e:
-        logger.error(f"Error listing indexes: {e}")
+        logger.error(f"Error listing indexes: {e}", exc_info=True)
         raise
