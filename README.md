@@ -22,6 +22,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
   - There is an option in the MCP server, `CB_MCP_READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
 - Get the status of the MCP server
 - Check the cluster credentials by connecting to the cluster
+- Get cluster health status and list of all running services
 
 ## Prerequisites
 
