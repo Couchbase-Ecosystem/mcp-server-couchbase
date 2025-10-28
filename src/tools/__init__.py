@@ -23,6 +23,7 @@ from .query import (
 # Server tools
 from .server import (
     get_buckets_in_cluster,
+    get_cluster_health_and_services,
     get_collections_in_scope,
     get_scopes_and_collections_in_bucket,
     get_scopes_in_bucket,
@@ -44,6 +45,7 @@ ALL_TOOLS = [
     get_schema_for_collection,
     run_sql_plus_plus_query,
     get_index_advisor_recommendations,
+    get_cluster_health_and_services,
 ]
 
 __all__ = [
@@ -60,6 +62,7 @@ __all__ = [
     "get_schema_for_collection",
     "run_sql_plus_plus_query",
     "get_index_advisor_recommendations",
+    "get_cluster_health_and_services",
     # Convenience
     "ALL_TOOLS",
 ]

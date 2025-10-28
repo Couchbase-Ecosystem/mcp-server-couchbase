@@ -4,6 +4,7 @@ Tools for server operations.
 This module contains tools for getting the server status, testing the connection, and getting the buckets in the cluster, the scopes and collections in the bucket.
 """
 
+import json
 import logging
 from typing import Any
 
@@ -137,3 +138,43 @@ def get_collections_in_scope(
         ctx, query, bucket_name=bucket_name, scope_name=scope_name
     )
     return [result["collection_name"] for result in results]
+
+
+def get_cluster_health_and_services(
+    ctx: Context, bucket_name: str | None = None
+) -> dict[str, Any]:
+    """Get cluster health status and list of all running services.
+
+    This tool provides health monitoring by:
+    - Getting health status of all running services with latency information (via ping)
+    - Listing all services running on the cluster with their endpoints
+    - Showing connection status and node information for each service
+
+    If bucket_name is provided, it actively pings services from the perspective of the bucket.
+    Otherwise, it uses cluster-level ping to get the health status of the cluster.
+
+    Returns:
+    - Cluster health status with service-level connection details and latency measurements
+    """
+    try:
+        cluster = get_cluster_connection(ctx)
+
+        if bucket_name:
+            # Ping services from the perspective of the bucket
+            bucket = connect_to_bucket(cluster, bucket_name)
+            result = bucket.ping().as_json()
+        else:
+            # Ping services from the perspective of the cluster
+            result = cluster.ping().as_json()
+
+        return {
+            "status": "success",
+            "data": json.loads(result),
+        }
+    except Exception as e:
+        logger.error(f"Error getting cluster health: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": "Failed to get cluster health and services information",
+        }
