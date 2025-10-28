@@ -9,18 +9,20 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
-from tools.query import run_cluster_query
+from tools.query import run_sql_plus_plus_query
 from utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
 
-def get_index_advisor_recommendations(ctx: Context, query: str) -> dict[str, Any]:
+def get_index_advisor_recommendations(
+    ctx: Context, bucket_name: str, scope_name: str, query: str
+) -> dict[str, Any]:
     """Get index recommendations from Couchbase Index Advisor for a given SQL++ query.
 
     The Index Advisor analyzes the query and provides recommendations for optimal indexes.
     This tool works with SELECT, UPDATE, DELETE, or MERGE queries.
-    The query should contain fully qualified keyspace (e.g., bucket.scope.collection).
+    The queries will be run on the specified scope in the specified bucket.
 
     Returns a dictionary with:
     - current_used_indexes: Array of currently used indexes (if any)
@@ -38,7 +40,9 @@ def get_index_advisor_recommendations(ctx: Context, query: str) -> dict[str, Any
         logger.info("Running Index Advisor for the provided query")
 
         # Execute the ADVISOR function at cluster level using run_cluster_query
-        advisor_results = run_cluster_query(ctx, advisor_query)
+        advisor_results = run_sql_plus_plus_query(
+            ctx, bucket_name, scope_name, advisor_query
+        )
 
         if not advisor_results:
             return {
