@@ -5,8 +5,6 @@ This module contains all the MCP tools for Couchbase operations.
 """
 
 # Index tools
-# Health check tools
-from .health import get_cluster_health_and_services
 from .index import get_index_advisor_recommendations
 
 # Key-Value tools
@@ -25,6 +23,7 @@ from .query import (
 # Server tools
 from .server import (
     get_buckets_in_cluster,
+    get_cluster_health_and_services,
     get_collections_in_scope,
     get_scopes_and_collections_in_bucket,
     get_scopes_in_bucket,

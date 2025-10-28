@@ -14,6 +14,7 @@ from utils.config import get_settings
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
+from utils.health import _get_diagnostics_health, _get_ping_health
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.server")
 
@@ -137,3 +138,43 @@ def get_collections_in_scope(
         ctx, query, bucket_name=bucket_name, scope_name=scope_name
     )
     return [result["collection_name"] for result in results]
+
+
+def get_cluster_health_and_services(
+    ctx: Context, bucket_name: str | None = None
+) -> dict[str, Any]:
+    """Get cluster health status and list of all running services.
+
+    This tool provides comprehensive health monitoring by:
+    - Getting health status of all running services with latency information (via ping)
+    - Listing all services running on the cluster with their endpoints
+    - Showing connection status and node information for each service
+
+    If bucket_name is provided, it actively pings services from the bucket perspective (real-time).
+    Otherwise, it uses cluster-level diagnostics for faster cached state.
+
+    Returns:
+    - Cluster health status with service-level details
+    - List of all available services and their endpoints
+    - Latency measurements (for ping mode)
+    - Connection state for each endpoint
+    """
+    try:
+        cluster = get_cluster_connection(ctx)
+
+        if bucket_name:
+            result = _get_ping_health(bucket_name, cluster)
+        else:
+            result = _get_diagnostics_health(cluster)
+
+        return {
+            "status": "success",
+            "data": result,
+        }
+    except Exception as e:
+        logger.error(f"Error getting cluster health: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": "Failed to get cluster health and services information",
+        }
