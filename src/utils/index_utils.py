@@ -55,7 +55,7 @@ def fetch_indexes_from_rest_api(
 ) -> list[dict[str, Any]]:
     """Fetch indexes from Couchbase Index Service REST API.
 
-    Uses the /getIndexStatus endpoint on port 19102 to retrieve index information.
+    Uses the /getIndexStatus endpoint to retrieve index information.
     This endpoint returns indexes with their definitions directly from the Index Service.
 
     Args:
@@ -74,8 +74,19 @@ def fetch_indexes_from_rest_api(
         # Extract host from connection string
         host = _extract_host_from_connection_string(connection_string)
 
-        # Build the REST API URL (Index Service runs on port 19102)
-        base_url = f"https://{host}:19102"
+        # Determine protocol and port based on whether TLS is enabled
+        # TLS enabled (couchbases://): HTTPS with port 19102
+        # TLS disabled (couchbase://): HTTP with port 9102
+        is_tls_enabled = connection_string.lower().startswith("couchbases://")
+        protocol = "https" if is_tls_enabled else "http"
+        port = 19102 if is_tls_enabled else 9102
+
+        logger.info(
+            f"TLS {'enabled' if is_tls_enabled else 'disabled'}, using {protocol.upper()} with port {port}"
+        )
+
+        # Build the REST API URL
+        base_url = f"{protocol}://{host}:{port}"
         url = f"{base_url}/getIndexStatus"
 
         # Build query parameters
