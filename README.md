@@ -24,6 +24,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - Check the cluster credentials by connecting to the cluster
 - List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, and collection
 - Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance
+- Get cluster health status and list of all running services
 
 ## Prerequisites
 
