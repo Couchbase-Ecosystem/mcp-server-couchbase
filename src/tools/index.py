@@ -119,6 +119,7 @@ def list_indexes(
         connection_string = settings.get("connection_string")
         username = settings.get("username")
         password = settings.get("password")
+        ca_cert_path = settings.get("ca_cert_path")
 
         if not connection_string or not username or not password:
             raise ValueError(
@@ -138,6 +139,7 @@ def list_indexes(
             bucket_name=bucket_name,
             scope_name=scope_name,
             collection_name=collection_name,
+            ca_cert_path=ca_cert_path,
         )
 
         # Process and format the results

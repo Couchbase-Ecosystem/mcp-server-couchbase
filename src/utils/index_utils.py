@@ -5,18 +5,29 @@ This module contains helper functions for working with Couchbase indexes.
 """
 
 import logging
+import os
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 import requests
-import urllib3
 
 from .constants import MCP_SERVER_NAME
 
-# Disable SSL warnings for self-signed certificates
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.index_utils")
+
+
+def _get_capella_root_ca_path() -> str:
+    """Get the path to the Capella root CA certificate.
+
+    Returns:
+        Path to the Capella root CA certificate file.
+    """
+    # Get the path to the certs directory relative to this file
+    utils_dir = Path(__file__).parent
+    project_root = utils_dir.parent.parent
+    capella_ca_path = project_root / "certs" / "capella_root_ca.pem"
+    return str(capella_ca_path)
 
 
 def _extract_host_from_connection_string(connection_string: str) -> str:
@@ -51,6 +62,7 @@ def fetch_indexes_from_rest_api(
     bucket_name: str | None = None,
     scope_name: str | None = None,
     collection_name: str | None = None,
+    ca_cert_path: str | None = None,
     timeout: int = 30,
 ) -> list[dict[str, Any]]:
     """Fetch indexes from Couchbase Index Service REST API.
@@ -65,6 +77,8 @@ def fetch_indexes_from_rest_api(
         bucket_name: Optional bucket name to filter indexes
         scope_name: Optional scope name to filter indexes
         collection_name: Optional collection name to filter indexes
+        ca_cert_path: Optional path to CA certificate for SSL verification.
+                     If not provided and using couchbases://, will use Capella root CA.
         timeout: Request timeout in seconds (default: 30)
 
     Returns:
@@ -78,6 +92,9 @@ def fetch_indexes_from_rest_api(
         # TLS enabled (couchbases://): HTTPS with port 19102
         # TLS disabled (couchbase://): HTTP with port 9102
         is_tls_enabled = connection_string.lower().startswith("couchbases://")
+        is_capella_connection = connection_string.lower().endswith(
+            ".cloud.couchbase.com"
+        )
         protocol = "https" if is_tls_enabled else "http"
         port = 19102 if is_tls_enabled else 9102
 
@@ -100,12 +117,44 @@ def fetch_indexes_from_rest_api(
 
         logger.info(f"Fetching indexes from REST API: {url} with params: {params}")
 
+        # Determine SSL verification setting
+        # For TLS connections (couchbases://), use certificate verification
+        # For non-TLS connections (couchbase://), verification is not needed
+        verify_ssl: bool | str = True
+        if is_tls_enabled:
+            if is_capella_connection:
+                # Use Capella root CA as fallback for couchbases:// connections
+                capella_ca = _get_capella_root_ca_path()
+                if os.path.exists(capella_ca):
+                    verify_ssl = capella_ca
+                    logger.info(
+                        f"Using Capella root CA for SSL verification: {capella_ca}"
+                    )
+                else:
+                    # Fall back to system CA bundle
+                    verify_ssl = True
+                    logger.info("Using system CA bundle for SSL verification")
+            if ca_cert_path:
+                # Use provided certificate path
+                verify_ssl = ca_cert_path
+                logger.info(
+                    f"Using provided CA certificate for SSL verification: {ca_cert_path}"
+                )
+            else:
+                # Fall back to system CA bundle
+                verify_ssl = True
+                logger.info("Using system CA bundle for SSL verification")
+
+        else:
+            # For non-TLS connections, SSL verification is not applicable
+            verify_ssl = True
+
         # Make the request
         response = requests.get(
             url,
             params=params,
             auth=(username, password),
-            verify=False,  # Disable SSL verification for self-signed certs
+            verify=verify_ssl,
             timeout=timeout,
         )
 
