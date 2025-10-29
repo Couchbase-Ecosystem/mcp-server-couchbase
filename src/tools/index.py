@@ -95,6 +95,7 @@ def list_indexes(
     bucket_name: str | None = None,
     scope_name: str | None = None,
     collection_name: str | None = None,
+    include_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
     """List all indexes in the cluster with optional filtering by bucket, scope, and collection.
     Returns a list of indexes with their names and CREATE INDEX definitions.
@@ -105,9 +106,15 @@ def list_indexes(
         bucket_name: Optional bucket name to filter indexes
         scope_name: Optional scope name to filter indexes (requires bucket_name)
         collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
+        include_raw_index_stats: If True, include raw index stats (as-is from API) in addition
+                              to cleaned-up version. Default is False.
 
     Returns:
-        List of dictionaries with keys: name (str), definition (str)
+        List of dictionaries with keys:
+        - name (str): Index name
+        - definition (str): Cleaned-up CREATE INDEX statement
+        - raw_index_stats (dict, optional): Complete raw index status object from API including metadata,
+                                           state, keyspace info, etc. (only if include_raw_index_stats=True)
     """
     try:
         # Validate scope and collection requirements
@@ -166,13 +173,20 @@ def list_indexes(
                 "name": name,
             }
 
-            # Add definition if available
+            # Add cleaned-up definition if available
             if clean_definition:
                 index_info["definition"] = clean_definition
 
+            # Optionally add raw index stats (complete API response) based on parameter
+            if include_raw_index_stats:
+                index_info["raw_index_stats"] = idx
+
             indexes.append(index_info)
 
-        logger.info(f"Found {len(indexes)} indexes from REST API")
+        logger.info(
+            f"Found {len(indexes)} indexes from REST API "
+            f"(include_raw_index_stats={include_raw_index_stats})"
+        )
         return indexes
 
     except Exception as e:
