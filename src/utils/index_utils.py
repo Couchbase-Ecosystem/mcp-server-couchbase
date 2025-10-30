@@ -122,8 +122,14 @@ def fetch_indexes_from_rest_api(
         # For non-TLS connections (couchbase://), verification is not needed
         verify_ssl: bool | str = True
         if is_tls_enabled:
-            if is_capella_connection:
-                # Use Capella root CA as fallback for couchbases:// connections
+            if ca_cert_path:
+                # Priority 1: Use provided certificate path
+                verify_ssl = ca_cert_path
+                logger.info(
+                    f"Using provided CA certificate for SSL verification: {ca_cert_path}"
+                )
+            elif is_capella_connection:
+                # Priority 2: Use Capella root CA for Capella connections
                 capella_ca = _get_capella_root_ca_path()
                 if os.path.exists(capella_ca):
                     verify_ssl = capella_ca
@@ -131,20 +137,16 @@ def fetch_indexes_from_rest_api(
                         f"Using Capella root CA for SSL verification: {capella_ca}"
                     )
                 else:
-                    # Fall back to system CA bundle
+                    # Fall back to system CA bundle if Capella CA not found
                     verify_ssl = True
-                    logger.info("Using system CA bundle for SSL verification")
-            if ca_cert_path:
-                # Use provided certificate path
-                verify_ssl = ca_cert_path
-                logger.info(
-                    f"Using provided CA certificate for SSL verification: {ca_cert_path}"
-                )
+                    logger.warning(
+                        f"Capella CA certificate not found at {capella_ca}, "
+                        "falling back to system CA bundle"
+                    )
             else:
-                # Fall back to system CA bundle
+                # Priority 3: Fall back to system CA bundle for other TLS connections
                 verify_ssl = True
                 logger.info("Using system CA bundle for SSL verification")
-
         else:
             # For non-TLS connections, SSL verification is not applicable
             verify_ssl = True
