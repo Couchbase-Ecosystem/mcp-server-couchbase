@@ -12,7 +12,12 @@ from mcp.server.fastmcp import Context
 from tools.query import run_sql_plus_plus_query
 from utils.config import get_settings
 from utils.constants import MCP_SERVER_NAME
-from utils.index_utils import fetch_indexes_from_rest_api
+from utils.index_utils import (
+    fetch_indexes_from_rest_api,
+    process_index_data,
+    validate_connection_settings,
+    validate_filter_params,
+)
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
@@ -113,29 +118,21 @@ def list_indexes(
         List of dictionaries with keys:
         - name (str): Index name
         - definition (str): Cleaned-up CREATE INDEX statement
+        - status (str): Current status of the index (e.g., "Ready", "Building", "Deferred")
+        - isPrimary (bool): Whether this is a primary index
+        - bucket (str): Bucket name where the index exists
+        - scope (str): Scope name where the index exists
+        - collection (str): Collection name where the index exists
         - raw_index_stats (dict, optional): Complete raw index status object from API including metadata,
                                            state, keyspace info, etc. (only if include_raw_index_stats=True)
     """
     try:
-        # Validate scope and collection requirements
-        if scope_name and not bucket_name:
-            raise ValueError("bucket_name is required when filtering by scope_name")
-        if collection_name and (not bucket_name or not scope_name):
-            raise ValueError(
-                "bucket_name and scope_name are required when filtering by collection_name"
-            )
+        # Validate parameters
+        validate_filter_params(bucket_name, scope_name, collection_name)
 
-        # Get connection settings
+        # Get and validate connection settings
         settings = get_settings()
-        connection_string = settings.get("connection_string")
-        username = settings.get("username")
-        password = settings.get("password")
-        ca_cert_path = settings.get("ca_cert_path")
-
-        if not connection_string or not username or not password:
-            raise ValueError(
-                "Missing required connection settings: connection_string, username, or password"
-            )
+        validate_connection_settings(settings)
 
         # Fetch indexes from REST API
         logger.info(
@@ -144,44 +141,22 @@ def list_indexes(
         )
 
         raw_indexes = fetch_indexes_from_rest_api(
-            connection_string,
-            username,
-            password,
+            settings["connection_string"],
+            settings["username"],
+            settings["password"],
             bucket_name=bucket_name,
             scope_name=scope_name,
             collection_name=collection_name,
-            ca_cert_path=ca_cert_path,
+            ca_cert_path=settings.get("ca_cert_path"),
         )
 
         # Process and format the results
-        indexes = []
-        for idx in raw_indexes:
-            name = idx.get("name", "")
-            definition = idx.get("definition", "")
-
-            # Skip if no name
-            if not name:
-                continue
-
-            # Clean up definition (remove surrounding quotes and escape characters)
-            clean_definition = ""
-            if isinstance(definition, str) and definition:
-                clean_definition = definition.strip('"').replace('\\"', '"')
-
-            # Build the result
-            index_info = {
-                "name": name,
-            }
-
-            # Add cleaned-up definition if available
-            if clean_definition:
-                index_info["definition"] = clean_definition
-
-            # Optionally add raw index stats (complete API response) based on parameter
-            if include_raw_index_stats:
-                index_info["raw_index_stats"] = idx
-
-            indexes.append(index_info)
+        indexes = [
+            processed
+            for idx in raw_indexes
+            if (processed := process_index_data(idx, include_raw_index_stats))
+            is not None
+        ]
 
         logger.info(
             f"Found {len(indexes)} indexes from REST API "

@@ -6,7 +6,6 @@ This module contains helper functions for working with Couchbase indexes.
 
 import logging
 import os
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -17,6 +16,74 @@ from .constants import MCP_SERVER_NAME
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.index_utils")
 
 
+def validate_filter_params(
+    bucket_name: str | None,
+    scope_name: str | None,
+    collection_name: str | None,
+) -> None:
+    """Validate that filter parameters are provided in the correct hierarchy."""
+    if scope_name and not bucket_name:
+        raise ValueError("bucket_name is required when filtering by scope_name")
+    if collection_name and (not bucket_name or not scope_name):
+        raise ValueError(
+            "bucket_name and scope_name are required when filtering by collection_name"
+        )
+
+
+def validate_connection_settings(settings: dict[str, Any]) -> None:
+    """Validate that required connection settings are present."""
+    required = ["connection_string", "username", "password"]
+    missing = [key for key in required if not settings.get(key)]
+    if missing:
+        raise ValueError(f"Missing required connection settings: {', '.join(missing)}")
+
+
+def clean_index_definition(definition: Any) -> str:
+    """Clean up index definition string by removing quotes and escape characters."""
+    if isinstance(definition, str) and definition:
+        return definition.strip('"').replace('\\"', '"')
+    return ""
+
+
+def process_index_data(
+    idx: dict[str, Any], include_raw_index_stats: bool
+) -> dict[str, Any] | None:
+    """Process raw index data into formatted index info.
+
+    Args:
+        idx: Raw index data from the API
+        include_raw_index_stats: Whether to include complete raw stats in the output
+
+    Returns:
+        Formatted index info dictionary, or None if the index should be skipped (e.g., no name).
+    """
+    name = idx.get("name", "")
+    if not name:
+        return None
+
+    # Start with name and optional definition
+    index_info: dict[str, Any] = {"name": name}
+
+    clean_def = clean_index_definition(idx.get("definition", ""))
+    if clean_def:
+        index_info["definition"] = clean_def
+
+    # Copy standard fields from raw index data
+    standard_fields = ["status", "bucket", "scope", "collection"]
+    for field in standard_fields:
+        if field in idx:
+            index_info[field] = idx[field]
+
+    # Always include isPrimary as a boolean
+    index_info["isPrimary"] = idx.get("isPrimary", False)
+
+    # Optionally include complete raw stats
+    if include_raw_index_stats:
+        index_info["raw_index_stats"] = idx
+
+    return index_info
+
+
 def _get_capella_root_ca_path() -> str:
     """Get the path to the Capella root CA certificate.
 
@@ -24,10 +91,10 @@ def _get_capella_root_ca_path() -> str:
         Path to the Capella root CA certificate file.
     """
     # Get the path to the certs directory relative to this file
-    utils_dir = Path(__file__).parent
-    project_root = utils_dir.parent.parent
-    capella_ca_path = project_root / "certs" / "capella_root_ca.pem"
-    return str(capella_ca_path)
+    utils_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(os.path.dirname(utils_dir))
+    capella_ca_path = os.path.join(project_root, "certs", "capella_root_ca.pem")
+    return capella_ca_path
 
 
 def _extract_host_from_connection_string(connection_string: str) -> str:
@@ -118,38 +185,39 @@ def fetch_indexes_from_rest_api(
         logger.info(f"Fetching indexes from REST API: {url} with params: {params}")
 
         # Determine SSL verification setting
-        # For TLS connections (couchbases://), use certificate verification
-        # For non-TLS connections (couchbase://), verification is not needed
+        # Priority 1: Capella connections always use Capella root CA
+        # Priority 2: TLS connections use provided cert or system CA bundle
+        # Priority 3: Non-TLS connections use verify=False
         verify_ssl: bool | str = True
-        if is_tls_enabled:
+        if is_capella_connection:
+            # Priority 1: Use Capella root CA for Capella connections (overrides user-provided cert)
+            capella_ca = _get_capella_root_ca_path()
+            if os.path.exists(capella_ca):
+                verify_ssl = capella_ca
+                logger.info(
+                    f"Capella connection detected, using Capella root CA for SSL verification: {capella_ca}"
+                )
+            else:
+                # Fall back to system CA bundle if Capella CA not found
+                verify_ssl = True
+                logger.warning(
+                    f"Capella CA certificate not found at {capella_ca}, "
+                    "falling back to system CA bundle"
+                )
+        elif is_tls_enabled:
+            # Priority 2: For non-Capella TLS connections, use provided cert or system CA bundle
             if ca_cert_path:
-                # Priority 1: Use provided certificate path
                 verify_ssl = ca_cert_path
                 logger.info(
                     f"Using provided CA certificate for SSL verification: {ca_cert_path}"
                 )
-            elif is_capella_connection:
-                # Priority 2: Use Capella root CA for Capella connections
-                capella_ca = _get_capella_root_ca_path()
-                if os.path.exists(capella_ca):
-                    verify_ssl = capella_ca
-                    logger.info(
-                        f"Using Capella root CA for SSL verification: {capella_ca}"
-                    )
-                else:
-                    # Fall back to system CA bundle if Capella CA not found
-                    verify_ssl = True
-                    logger.warning(
-                        f"Capella CA certificate not found at {capella_ca}, "
-                        "falling back to system CA bundle"
-                    )
             else:
-                # Priority 3: Fall back to system CA bundle for other TLS connections
                 verify_ssl = True
                 logger.info("Using system CA bundle for SSL verification")
         else:
-            # For non-TLS connections, SSL verification is not applicable
-            verify_ssl = True
+            # Priority 3: For non-TLS connections (HTTP), disable SSL verification
+            verify_ssl = False
+            logger.info("Non-TLS connection, SSL verification disabled")
 
         # Make the request
         response = requests.get(
