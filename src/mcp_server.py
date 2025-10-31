@@ -165,7 +165,6 @@ def main(
         {
             "host": host,
             "port": port,
-            "transport": sdk_transport,
         }
         if transport in NETWORK_TRANSPORTS
         else {}
