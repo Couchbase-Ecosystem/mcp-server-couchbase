@@ -6,6 +6,7 @@ This module contains helper functions for working with Couchbase indexes.
 
 import logging
 import os
+from importlib.resources import files
 from typing import Any
 from urllib.parse import urlparse
 
@@ -87,14 +88,32 @@ def process_index_data(
 def _get_capella_root_ca_path() -> str:
     """Get the path to the Capella root CA certificate.
 
+    Uses importlib.resources to locate the certificate file, which works when the package is installed with fallback for development.
+
     Returns:
         Path to the Capella root CA certificate file.
     """
-    # Get the path to the certs directory relative to this file
-    utils_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(os.path.dirname(utils_dir))
-    capella_ca_path = os.path.join(project_root, "certs", "capella_root_ca.pem")
-    return capella_ca_path
+    try:
+        # Use importlib.resources to get the certificate path (works for installed packages)
+        cert_file = files("certs").joinpath("capella_root_ca.pem")
+        # Convert to string path - this works for both installed packages and dev mode
+        return str(cert_file)
+    except (ImportError, FileNotFoundError, TypeError):
+        # Fallback for development: use src/certs/ directory
+        utils_dir = os.path.dirname(os.path.abspath(__file__))
+        src_dir = os.path.dirname(utils_dir)
+        fallback_path = os.path.join(src_dir, "certs", "capella_root_ca.pem")
+
+        if os.path.exists(fallback_path):
+            logger.info(f"Using fallback certificate path: {fallback_path}")
+            return fallback_path
+
+        # If we still can't find it, log a warning and return the fallback path anyway
+        logger.warning(
+            f"Could not locate Capella root CA certificate at {fallback_path}. "
+            "SSL verification may fail for Capella connections."
+        )
+        return fallback_path
 
 
 def _extract_host_from_connection_string(connection_string: str) -> str:
