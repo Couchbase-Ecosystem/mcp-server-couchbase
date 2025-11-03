@@ -21,6 +21,7 @@ def validate_filter_params(
     bucket_name: str | None,
     scope_name: str | None,
     collection_name: str | None,
+    index_name: str | None = None,
 ) -> None:
     """Validate that filter parameters are provided in the correct hierarchy."""
     if scope_name and not bucket_name:
@@ -28,6 +29,10 @@ def validate_filter_params(
     if collection_name and (not bucket_name or not scope_name):
         raise ValueError(
             "bucket_name and scope_name are required when filtering by collection_name"
+        )
+    if index_name and (not bucket_name or not scope_name or not collection_name):
+        raise ValueError(
+            "bucket_name, scope_name, and collection_name are required when filtering by index_name"
         )
 
 
@@ -188,7 +193,10 @@ def _determine_ssl_verification(
 
 
 def _build_query_params(
-    bucket_name: str | None, scope_name: str | None, collection_name: str | None
+    bucket_name: str | None,
+    scope_name: str | None,
+    collection_name: str | None,
+    index_name: str | None = None,
 ) -> dict[str, str]:
     """Build query parameters for the index REST API.
 
@@ -196,6 +204,7 @@ def _build_query_params(
         bucket_name: Optional bucket name
         scope_name: Optional scope name
         collection_name: Optional collection name
+        index_name: Optional index name
 
     Returns:
         Dictionary of query parameters
@@ -207,6 +216,8 @@ def _build_query_params(
         params["scope"] = scope_name
     if collection_name:
         params["collection"] = collection_name
+    if index_name:
+        params["index"] = index_name
     return params
 
 
@@ -217,6 +228,7 @@ def fetch_indexes_from_rest_api(
     bucket_name: str | None = None,
     scope_name: str | None = None,
     collection_name: str | None = None,
+    index_name: str | None = None,
     ca_cert_path: str | None = None,
     timeout: int = 30,
 ) -> list[dict[str, Any]]:
@@ -232,6 +244,7 @@ def fetch_indexes_from_rest_api(
         bucket_name: Optional bucket name to filter indexes
         scope_name: Optional scope name to filter indexes
         collection_name: Optional collection name to filter indexes
+        index_name: Optional index name to filter indexes
         ca_cert_path: Optional path to CA certificate for SSL verification.
                      If not provided and using couchbases://, will use Capella root CA.
         timeout: Request timeout in seconds (default: 30)
@@ -253,7 +266,7 @@ def fetch_indexes_from_rest_api(
     )
 
     # Build query parameters and determine SSL verification
-    params = _build_query_params(bucket_name, scope_name, collection_name)
+    params = _build_query_params(bucket_name, scope_name, collection_name, index_name)
     verify_ssl = _determine_ssl_verification(connection_string, ca_cert_path)
 
     # Try each host one by one until we get a successful response

@@ -100,9 +100,10 @@ def list_indexes(
     bucket_name: str | None = None,
     scope_name: str | None = None,
     collection_name: str | None = None,
+    index_name: str | None = None,
     include_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
-    """List all indexes in the cluster with optional filtering by bucket, scope, and collection.
+    """List all indexes in the cluster with optional filtering by bucket, scope, collection, and index name.
     Returns a list of indexes with their names and CREATE INDEX definitions.
     Uses the Index Service REST API (/getIndexStatus) to retrieve index information directly.
 
@@ -111,6 +112,7 @@ def list_indexes(
         bucket_name: Optional bucket name to filter indexes
         scope_name: Optional scope name to filter indexes (requires bucket_name)
         collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
+        index_name: Optional index name to filter indexes (requires bucket_name, scope_name, and collection_name)
         include_raw_index_stats: If True, include raw index stats (as-is from API) in addition
                               to cleaned-up version. Default is False.
 
@@ -128,7 +130,7 @@ def list_indexes(
     """
     try:
         # Validate parameters
-        validate_filter_params(bucket_name, scope_name, collection_name)
+        validate_filter_params(bucket_name, scope_name, collection_name, index_name)
 
         # Get and validate connection settings
         settings = get_settings()
@@ -137,7 +139,7 @@ def list_indexes(
         # Fetch indexes from REST API
         logger.info(
             f"Fetching indexes from REST API for bucket={bucket_name}, "
-            f"scope={scope_name}, collection={collection_name}"
+            f"scope={scope_name}, collection={collection_name}, index={index_name}"
         )
 
         raw_indexes = fetch_indexes_from_rest_api(
@@ -147,6 +149,7 @@ def list_indexes(
             bucket_name=bucket_name,
             scope_name=scope_name,
             collection_name=collection_name,
+            index_name=index_name,
             ca_cert_path=settings.get("ca_cert_path"),
         )
 
