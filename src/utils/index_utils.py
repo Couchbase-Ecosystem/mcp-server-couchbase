@@ -10,7 +10,7 @@ from importlib.resources import files
 from typing import Any
 from urllib.parse import urlparse
 
-import requests
+import httpx
 
 from .constants import MCP_SERVER_NAME
 
@@ -239,7 +239,7 @@ def fetch_indexes_from_rest_api(
             logger.info("Non-TLS connection, SSL verification disabled")
 
         # Make the request
-        response = requests.get(
+        response = httpx.get(
             url,
             params=params,
             auth=(username, password),
@@ -256,7 +256,7 @@ def fetch_indexes_from_rest_api(
         logger.info(f"Successfully fetched {len(indexes)} indexes from REST API")
         return indexes
 
-    except requests.RequestException as e:
+    except httpx.HTTPError as e:
         logger.error(f"Error fetching indexes from REST API: {e}")
         raise RuntimeError(f"Failed to fetch indexes from REST API: {e}") from e
     except Exception as e:
