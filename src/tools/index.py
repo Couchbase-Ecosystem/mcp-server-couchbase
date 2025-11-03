@@ -12,6 +12,7 @@ from mcp.server.fastmcp import Context
 from tools.query import run_sql_plus_plus_query
 from utils.config import get_settings
 from utils.constants import MCP_SERVER_NAME
+from utils.context import get_cluster_connection
 from utils.index_utils import (
     fetch_indexes_from_rest_api,
     process_index_data,
@@ -134,6 +135,16 @@ def list_indexes(
         settings = get_settings()
         validate_connection_settings(settings)
 
+        # Get cluster connection for efficient host selection
+        cluster = None
+        try:
+            cluster = get_cluster_connection(ctx)
+            logger.info("Using cluster connection to find index service host")
+        except Exception as e:
+            logger.warning(
+                f"Could not get cluster connection, will use first host from connection string: {e}"
+            )
+
         # Fetch indexes from REST API
         logger.info(
             f"Fetching indexes from REST API for bucket={bucket_name}, "
@@ -148,6 +159,7 @@ def list_indexes(
             scope_name=scope_name,
             collection_name=collection_name,
             ca_cert_path=settings.get("ca_cert_path"),
+            cluster=cluster,
         )
 
         # Process and format the results

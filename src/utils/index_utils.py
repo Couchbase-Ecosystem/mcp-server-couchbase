@@ -4,6 +4,7 @@ Utility functions for index operations.
 This module contains helper functions for working with Couchbase indexes.
 """
 
+import json
 import logging
 import os
 from typing import Any
@@ -97,29 +98,213 @@ def _get_capella_root_ca_path() -> str:
     return capella_ca_path
 
 
-def _extract_host_from_connection_string(connection_string: str) -> str:
-    """Extract the host from a Couchbase connection string.
+def _extract_hosts_from_connection_string(connection_string: str) -> list[str]:
+    """Extract all hosts from a Couchbase connection string.
 
     Args:
-        connection_string: Connection string like 'couchbase://host' or 'couchbases://host'
+        connection_string: Connection string like 'couchbase://host' or 'couchbases://host1,host2,host3'
 
     Returns:
-        The host extracted from the connection string
+        List of hosts extracted from the connection string
     """
     # Parse the connection string
     parsed = urlparse(connection_string)
 
-    # If there's a netloc (host), return it
+    # If there's a netloc (host), extract it
     if parsed.netloc:
-        # Remove port if present
-        host = parsed.netloc.split(":")[0]
-        return host
+        # Remove port if present and split by comma for multiple hosts
+        netloc = parsed.netloc
+        # Split by comma to handle multiple hosts
+        hosts = [host.split(":")[0] for host in netloc.split(",")]
+        return hosts
 
     # Fallback: try to extract manually
     # Handle cases like 'couchbase://host:8091' or just 'host'
-    host = connection_string.replace("couchbase://", "").replace("couchbases://", "")
-    host = host.split(":")[0].split("/")[0]
-    return host
+    host_part = connection_string.replace("couchbase://", "").replace(
+        "couchbases://", ""
+    )
+    host_part = host_part.split("/")[0]  # Remove any path
+    # Split by comma for multiple hosts
+    hosts = [host.split(":")[0] for host in host_part.split(",")]
+    return hosts
+
+
+def _extract_host_from_endpoint(endpoint: Any, service_name: str) -> str | None:
+    """Extract host from an endpoint object.
+
+    Args:
+        endpoint: Endpoint object from ping result
+        service_name: Name of the service for logging
+
+    Returns:
+        Host address or None if not found
+    """
+    if hasattr(endpoint, "remote") and endpoint.remote:
+        # Remote is in format "host:port"
+        host = endpoint.remote.split(":")[0]
+        logger.info(
+            f"Found index service on host {host} from ping data (service: {service_name})"
+        )
+        return host
+    return None
+
+
+def _get_index_service_host_from_ping(cluster: Any) -> str | None:
+    """Get the host running the index service from cluster ping data.
+
+    Args:
+        cluster: Couchbase cluster object
+
+    Returns:
+        Host address running the index service, or None if not found
+    """
+    try:
+        # Get ping results
+        ping_result = cluster.ping()
+
+        # Try to use the endpoints attribute directly (SDK object)
+        if hasattr(ping_result, "endpoints"):
+            # The SDK PingResult object has endpoints attribute
+            # which is a dict with service types as keys
+            for service_type, endpoints in ping_result.endpoints.items():
+                service_name = str(service_type).lower()
+                # Check if this is an index service
+                # Common names: 'index', 'indexing', 'servicetype.index'
+                if "index" in service_name and endpoints and len(endpoints) > 0:
+                    # Get the first endpoint and try to extract host
+                    host = _extract_host_from_endpoint(endpoints[0], service_name)
+                    if host:
+                        return host
+
+        # Fallback: try JSON format
+        ping_json = json.loads(ping_result.as_json())
+        services = ping_json.get("services", {})
+
+        # Look for index service with various possible names
+        for service_type in ["index", "indexing", "Index", "INDEX"]:
+            if service_type in services:
+                endpoints = services[service_type]
+                if endpoints and len(endpoints) > 0:
+                    endpoint = endpoints[0]
+                    # Try different field names for the remote address
+                    for field in ["remote", "host", "address", "hostname"]:
+                        if endpoint.get(field):
+                            remote = endpoint[field]
+                            # Extract host from "host:port" format
+                            host = remote.split(":")[0] if ":" in remote else remote
+                            logger.info(
+                                f"Found index service on host {host} from ping JSON (service: {service_type})"
+                            )
+                            return host
+
+        logger.warning("Index service not found in ping data")
+        logger.debug(f"Available services: {list(services.keys())}")
+        return None
+
+    except Exception as e:
+        logger.warning(f"Failed to get index service host from ping: {e}")
+        return None
+
+
+def _determine_target_host(
+    connection_string: str, cluster: Any | None
+) -> tuple[str, list[str]]:
+    """Determine which host to use for REST API calls.
+
+    Args:
+        connection_string: Couchbase connection string
+        cluster: Optional cluster object to use for ping
+
+    Returns:
+        Tuple of (target_host, all_hosts)
+    """
+    hosts = _extract_hosts_from_connection_string(connection_string)
+
+    # Priority 1: If cluster is provided, use ping to find index service host
+    host = None
+    if cluster is not None:
+        host = _get_index_service_host_from_ping(cluster)
+        if host:
+            logger.info(f"Using index service host from ping: {host}")
+
+    # Priority 2: Use the first host from the connection string
+    if host is None:
+        host = hosts[0]
+        if len(hosts) > 1:
+            logger.info(
+                f"Connection string has {len(hosts)} hosts. Using first host: {host}"
+            )
+        else:
+            logger.info(f"Using host from connection string: {host}")
+
+    return host, hosts
+
+
+def _get_protocol_and_port(connection_string: str) -> tuple[str, int]:
+    """Determine protocol and port based on connection string.
+
+    Args:
+        connection_string: Couchbase connection string
+
+    Returns:
+        Tuple of (protocol, port)
+    """
+    # TLS enabled (couchbases://): HTTPS with port 19102
+    # TLS disabled (couchbase://): HTTP with port 9102
+    is_tls_enabled = connection_string.lower().startswith("couchbases://")
+    protocol = "https" if is_tls_enabled else "http"
+    port = 19102 if is_tls_enabled else 9102
+
+    logger.info(
+        f"TLS {'enabled' if is_tls_enabled else 'disabled'}, using {protocol.upper()} with port {port}"
+    )
+
+    return protocol, port
+
+
+def _determine_ssl_verification(
+    connection_string: str, ca_cert_path: str | None
+) -> bool | str:
+    """Determine SSL verification setting based on connection type.
+
+    Args:
+        connection_string: Couchbase connection string
+        ca_cert_path: Optional user-provided CA certificate path
+
+    Returns:
+        SSL verification setting (bool or path to cert)
+    """
+    is_tls_enabled = connection_string.lower().startswith("couchbases://")
+    is_capella_connection = connection_string.lower().endswith(".cloud.couchbase.com")
+
+    # Priority 1: Capella connections always use Capella root CA
+    if is_capella_connection:
+        capella_ca = _get_capella_root_ca_path()
+        if os.path.exists(capella_ca):
+            logger.info(
+                f"Capella connection detected, using Capella root CA for SSL verification: {capella_ca}"
+            )
+            return capella_ca
+        # Fall back to system CA bundle if Capella CA not found
+        logger.warning(
+            f"Capella CA certificate not found at {capella_ca}, "
+            "falling back to system CA bundle"
+        )
+        return True
+
+    # Priority 2: For non-Capella TLS connections, use provided cert or system CA bundle
+    if is_tls_enabled:
+        if ca_cert_path:
+            logger.info(
+                f"Using provided CA certificate for SSL verification: {ca_cert_path}"
+            )
+            return ca_cert_path
+        logger.info("Using system CA bundle for SSL verification")
+        return True
+
+    # Priority 3: For non-TLS connections (HTTP), disable SSL verification
+    logger.info("Non-TLS connection, SSL verification disabled")
+    return False
 
 
 def fetch_indexes_from_rest_api(
@@ -131,6 +316,7 @@ def fetch_indexes_from_rest_api(
     collection_name: str | None = None,
     ca_cert_path: str | None = None,
     timeout: int = 30,
+    cluster: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch indexes from Couchbase Index Service REST API.
 
@@ -138,7 +324,7 @@ def fetch_indexes_from_rest_api(
     This endpoint returns indexes with their definitions directly from the Index Service.
 
     Args:
-        connection_string: Couchbase connection string
+        connection_string: Couchbase connection string (can have multiple hosts)
         username: Username for authentication
         password: Password for authentication
         bucket_name: Optional bucket name to filter indexes
@@ -147,31 +333,21 @@ def fetch_indexes_from_rest_api(
         ca_cert_path: Optional path to CA certificate for SSL verification.
                      If not provided and using couchbases://, will use Capella root CA.
         timeout: Request timeout in seconds (default: 30)
+        cluster: Optional Couchbase cluster object to use for finding index service host.
+                If provided, will use ping to find the node with index service.
 
     Returns:
         List of index status dictionaries containing name, definition, and other metadata
     """
     try:
-        # Extract host from connection string
-        host = _extract_host_from_connection_string(connection_string)
+        # Determine target host for the REST API call
+        host, _ = _determine_target_host(connection_string, cluster)
 
-        # Determine protocol and port based on whether TLS is enabled
-        # TLS enabled (couchbases://): HTTPS with port 19102
-        # TLS disabled (couchbase://): HTTP with port 9102
-        is_tls_enabled = connection_string.lower().startswith("couchbases://")
-        is_capella_connection = connection_string.lower().endswith(
-            ".cloud.couchbase.com"
-        )
-        protocol = "https" if is_tls_enabled else "http"
-        port = 19102 if is_tls_enabled else 9102
-
-        logger.info(
-            f"TLS {'enabled' if is_tls_enabled else 'disabled'}, using {protocol.upper()} with port {port}"
-        )
+        # Get protocol and port
+        protocol, port = _get_protocol_and_port(connection_string)
 
         # Build the REST API URL
-        base_url = f"{protocol}://{host}:{port}"
-        url = f"{base_url}/getIndexStatus"
+        url = f"{protocol}://{host}:{port}/getIndexStatus"
 
         # Build query parameters
         params = {}
@@ -185,39 +361,7 @@ def fetch_indexes_from_rest_api(
         logger.info(f"Fetching indexes from REST API: {url} with params: {params}")
 
         # Determine SSL verification setting
-        # Priority 1: Capella connections always use Capella root CA
-        # Priority 2: TLS connections use provided cert or system CA bundle
-        # Priority 3: Non-TLS connections use verify=False
-        verify_ssl: bool | str = True
-        if is_capella_connection:
-            # Priority 1: Use Capella root CA for Capella connections (overrides user-provided cert)
-            capella_ca = _get_capella_root_ca_path()
-            if os.path.exists(capella_ca):
-                verify_ssl = capella_ca
-                logger.info(
-                    f"Capella connection detected, using Capella root CA for SSL verification: {capella_ca}"
-                )
-            else:
-                # Fall back to system CA bundle if Capella CA not found
-                verify_ssl = True
-                logger.warning(
-                    f"Capella CA certificate not found at {capella_ca}, "
-                    "falling back to system CA bundle"
-                )
-        elif is_tls_enabled:
-            # Priority 2: For non-Capella TLS connections, use provided cert or system CA bundle
-            if ca_cert_path:
-                verify_ssl = ca_cert_path
-                logger.info(
-                    f"Using provided CA certificate for SSL verification: {ca_cert_path}"
-                )
-            else:
-                verify_ssl = True
-                logger.info("Using system CA bundle for SSL verification")
-        else:
-            # Priority 3: For non-TLS connections (HTTP), disable SSL verification
-            verify_ssl = False
-            logger.info("Non-TLS connection, SSL verification disabled")
+        verify_ssl = _determine_ssl_verification(connection_string, ca_cert_path)
 
         # Make the request
         response = requests.get(
