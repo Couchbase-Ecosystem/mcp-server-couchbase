@@ -1,0 +1,253 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.Couchbase-Ecosystem/mcp-server-couchbase",
+  "description": "Couchbase Model Context Protocol Server to interact with Couchbase clusters",
+  "repository": {
+    "url": "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase",
+    "source": "github"
+  },
+  "version": "0.5.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "couchbase-mcp-server",
+      "version": "0.5.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "CB_CONNECTION_STRING",
+          "description": "Couchbase connection string. Required for connecting to the cluster.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_USERNAME",
+          "description": "Couchbase database username. Required for basic authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_PASSWORD",
+          "description": "Couchbase database password. Required for basic authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "CB_CA_CERT_PATH",
+          "description": "Couchbase CA certificate path. Required for TLS authentication in non Capella clusters.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_CLIENT_CERT_PATH",
+          "description": "Couchbase client certificate path. Required for mTLS authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_CLIENT_KEY_PATH",
+          "description": "Couchbase client key path. Required for mTLS authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_READ_ONLY_QUERY_MODE",
+          "description": "Couchbase read only query mode. Set to true to allow only read-only queries. Set to false to allow data modification queries.",
+          "isRequired": false,
+          "format": "boolean",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_TRANSPORT",
+          "description": "Transport mode for the server (stdio, http or sse). Default is stdio",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_HOST",
+          "description": "Host to run the MCP server on (default: 127.0.0.1). Used only for HTTP and SSE transport modes.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_PORT",
+          "description": "Port to run the MCP server on (default: 8000). Used only for HTTP and SSE transport modes.",
+          "isRequired": false,
+          "format": "number",
+          "isSecret": false
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "named",
+          "name": "--connection-string",
+          "description": "Couchbase connection string. Required for connecting to the cluster.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--username",
+          "description": "Couchbase database username. Required for basic authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--password",
+          "description": "Couchbase database password. Required for basic authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "type": "named",
+          "name": "--ca-cert-path",
+          "description": "Couchbase CA certificate path. Required for TLS authentication in non Capella clusters.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--client-cert-path",
+          "description": "Couchbase client certificate path. Required for mTLS authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--client-key-path",
+          "description": "Couchbase client key path. Required for mTLS authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--read-only-query-mode",
+          "description": "Couchbase read only query mode. Set to true to allow only read-only queries. Set to false to allow data modification queries.",
+          "isRequired": false,
+          "format": "boolean",
+          "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--transport",
+          "description": "Transport mode for the server (stdio, http or sse). Default is stdio",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--host",
+          "description": "Host to run the MCP server on (default: 127.0.0.1). Used only for HTTP and SSE transport modes.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--port",
+          "description": "Port to run the MCP server on (default: 8000). Used only for HTTP and SSE transport modes.",
+          "isRequired": false,
+          "format": "number",
+          "isSecret": false
+        }
+      ]
+    },
+    {
+      "registryType": "oci",
+      "identifier": "docker.io/couchbaseecosystem/mcp-server-couchbase:0.5.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "CB_MCP_CONNECTION_STRING",
+          "description": "Couchbase connection string. Required for connecting to the cluster.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_USERNAME",
+          "description": "Couchbase database username. Required for basic authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_PASSWORD",
+          "description": "Couchbase database password. Required for basic authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "CB_CA_CERT_PATH",
+          "description": "Couchbase CA certificate path. Required for TLS authentication in non Capella clusters.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_CLIENT_CERT_PATH",
+          "description": "Couchbase client certificate path. Required for mTLS authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_CLIENT_KEY_PATH",
+          "description": "Couchbase client key path. Required for mTLS authentication.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_READ_ONLY_QUERY_MODE",
+          "description": "Couchbase read only query mode. Set to true to allow only read-only queries. Set to false to allow data modification queries.",
+          "isRequired": false,
+          "format": "boolean",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_TRANSPORT",
+          "description": "Transport mode for the server (stdio, http or sse). Default is stdio",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_HOST",
+          "description": "Host to run the MCP server on (default: 127.0.0.1). Used only for HTTP and SSE transport modes.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_PORT",
+          "description": "Port to run the MCP server on (default: 8000). Used only for HTTP and SSE transport modes.",
+          "isRequired": false,
+          "format": "number",
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
