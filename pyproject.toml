@@ -3,7 +3,7 @@ name = "couchbase-mcp-server"
 version = "0.5.0"
 description = "Couchbase MCP Server - The Developer Data Platform for Critical Applications in Our AI World"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 license = "Apache-2.0"
 authors = [
     { name="Nithish Raghunandanan", email="devadvocates@couchbase.com" },
@@ -15,10 +15,11 @@ classifiers = [
 ]
 
 dependencies = [
-    "click==8.2.1",
-    "couchbase==4.4.0",
-    "lark-sqlpp==0.0.1",
-    "mcp[cli]==1.12.0",
+    "click>=8.2.1,<9.0.0",
+    "couchbase>=4.4.0,<5.0.0",
+    "lark-sqlpp>=0.0.1",
+    "mcp[cli]>=1.20.0,<2.0.0",
+    "urllib3>=2.0.0",
 ]
 
 [project.urls]
@@ -122,6 +123,24 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+# Build system configuration
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Configure hatchling to use src-layout
+[tool.hatch.build.targets.wheel]
+# Include all packages from src/ and map them to the root
+only-include = [
+    "src/mcp_server.py",
+    "src/tools",
+    "src/utils",
+    "src/certs"
+]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
 
 [tool.uv]
 package = true
