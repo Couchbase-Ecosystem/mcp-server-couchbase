@@ -116,29 +116,98 @@ def _get_capella_root_ca_path() -> str:
         return fallback_path
 
 
-def _extract_host_from_connection_string(connection_string: str) -> str:
-    """Extract the host from a Couchbase connection string.
+def _extract_hosts_from_connection_string(connection_string: str) -> list[str]:
+    """Extract all hosts from a Couchbase connection string.
 
     Args:
-        connection_string: Connection string like 'couchbase://host' or 'couchbases://host'
+        connection_string: Connection string like 'couchbase://host' or 'couchbases://host1,host2,host3'
 
     Returns:
-        The host extracted from the connection string
+        List of hosts extracted from the connection string
     """
     # Parse the connection string
     parsed = urlparse(connection_string)
 
-    # If there's a netloc (host), return it
+    # If there's a netloc (host), extract all hosts
     if parsed.netloc:
-        # Remove port if present
-        host = parsed.netloc.split(":")[0]
-        return host
+        # Split by comma to handle multiple hosts
+        # Remove port if present from each host
+        hosts = [host.split(":")[0].strip() for host in parsed.netloc.split(",")]
+        return hosts
 
     # Fallback: try to extract manually
     # Handle cases like 'couchbase://host:8091' or just 'host'
-    host = connection_string.replace("couchbase://", "").replace("couchbases://", "")
-    host = host.split(":")[0].split("/")[0]
-    return host
+    host_part = connection_string.replace("couchbase://", "").replace(
+        "couchbases://", ""
+    )
+    host_part = host_part.split("/")[0]
+    hosts = [host.split(":")[0].strip() for host in host_part.split(",")]
+    return hosts
+
+
+def _determine_ssl_verification(
+    connection_string: str, ca_cert_path: str | None
+) -> bool | str:
+    """Determine SSL verification setting based on connection string and cert path.
+
+    Args:
+        connection_string: Couchbase connection string
+        ca_cert_path: Optional path to CA certificate
+
+    Returns:
+        SSL verification setting (bool or path to cert file)
+    """
+    is_tls_enabled = connection_string.lower().startswith("couchbases://")
+    is_capella_connection = connection_string.lower().endswith(".cloud.couchbase.com")
+
+    # Priority 1: Capella connections always use Capella root CA
+    if is_capella_connection:
+        capella_ca = _get_capella_root_ca_path()
+        if os.path.exists(capella_ca):
+            logger.info(
+                f"Capella connection detected, using Capella root CA: {capella_ca}"
+            )
+            return capella_ca
+        logger.warning(
+            f"Capella CA certificate not found at {capella_ca}, "
+            "falling back to system CA bundle"
+        )
+        return True
+
+    # Priority 2: Non-Capella TLS connections use provided cert or system CA bundle
+    if is_tls_enabled:
+        if ca_cert_path:
+            logger.info(f"Using provided CA certificate: {ca_cert_path}")
+            return ca_cert_path
+        logger.info("Using system CA bundle for SSL verification")
+        return True
+
+    # Priority 3: Non-TLS connections (HTTP), disable SSL verification
+    logger.info("Non-TLS connection, SSL verification disabled")
+    return False
+
+
+def _build_query_params(
+    bucket_name: str | None, scope_name: str | None, collection_name: str | None
+) -> dict[str, str]:
+    """Build query parameters for the index REST API.
+
+    Args:
+        bucket_name: Optional bucket name
+        scope_name: Optional scope name
+        collection_name: Optional collection name
+
+    Returns:
+        Dictionary of query parameters
+    """
+    params = {}
+    if bucket_name:
+        params["bucket"] = bucket_name
+    if scope_name:
+        params["scope"] = scope_name
+    if collection_name:
+        params["collection"] = collection_name
+    return params
 
 
 def fetch_indexes_from_rest_api(
@@ -157,7 +226,7 @@ def fetch_indexes_from_rest_api(
     This endpoint returns indexes with their definitions directly from the Index Service.
 
     Args:
-        connection_string: Couchbase connection string
+        connection_string: Couchbase connection string (may contain multiple hosts)
         username: Username for authentication
         password: Password for authentication
         bucket_name: Optional bucket name to filter indexes
@@ -170,95 +239,57 @@ def fetch_indexes_from_rest_api(
     Returns:
         List of index status dictionaries containing name, definition, and other metadata
     """
-    try:
-        # Extract host from connection string
-        host = _extract_host_from_connection_string(connection_string)
+    # Extract all hosts from connection string
+    hosts = _extract_hosts_from_connection_string(connection_string)
 
-        # Determine protocol and port based on whether TLS is enabled
-        # TLS enabled (couchbases://): HTTPS with port 19102
-        # TLS disabled (couchbase://): HTTP with port 9102
-        is_tls_enabled = connection_string.lower().startswith("couchbases://")
-        is_capella_connection = connection_string.lower().endswith(
-            ".cloud.couchbase.com"
-        )
-        protocol = "https" if is_tls_enabled else "http"
-        port = 19102 if is_tls_enabled else 9102
+    # Determine protocol and port based on whether TLS is enabled
+    is_tls_enabled = connection_string.lower().startswith("couchbases://")
+    protocol = "https" if is_tls_enabled else "http"
+    port = 19102 if is_tls_enabled else 9102
 
-        logger.info(
-            f"TLS {'enabled' if is_tls_enabled else 'disabled'}, using {protocol.upper()} with port {port}"
-        )
+    logger.info(
+        f"TLS {'enabled' if is_tls_enabled else 'disabled'}, "
+        f"using {protocol.upper()} with port {port}"
+    )
 
-        # Build the REST API URL
-        base_url = f"{protocol}://{host}:{port}"
-        url = f"{base_url}/getIndexStatus"
+    # Build query parameters and determine SSL verification
+    params = _build_query_params(bucket_name, scope_name, collection_name)
+    verify_ssl = _determine_ssl_verification(connection_string, ca_cert_path)
 
-        # Build query parameters
-        params = {}
-        if bucket_name:
-            params["bucket"] = bucket_name
-        if scope_name:
-            params["scope"] = scope_name
-        if collection_name:
-            params["collection"] = collection_name
+    # Try each host one by one until we get a successful response
+    last_error = None
+    for host in hosts:
+        try:
+            url = f"{protocol}://{host}:{port}/getIndexStatus"
+            logger.info(
+                f"Attempting to fetch indexes from: {url} with params: {params}"
+            )
 
-        logger.info(f"Fetching indexes from REST API: {url} with params: {params}")
+            response = httpx.get(
+                url,
+                params=params,
+                auth=(username, password),
+                verify=verify_ssl,
+                timeout=timeout,
+            )
 
-        # Determine SSL verification setting
-        # Priority 1: Capella connections always use Capella root CA
-        # Priority 2: TLS connections use provided cert or system CA bundle
-        # Priority 3: Non-TLS connections use verify=False
-        verify_ssl: bool | str = True
-        if is_capella_connection:
-            # Priority 1: Use Capella root CA for Capella connections (overrides user-provided cert)
-            capella_ca = _get_capella_root_ca_path()
-            if os.path.exists(capella_ca):
-                verify_ssl = capella_ca
-                logger.info(
-                    f"Capella connection detected, using Capella root CA for SSL verification: {capella_ca}"
-                )
-            else:
-                # Fall back to system CA bundle if Capella CA not found
-                verify_ssl = True
-                logger.warning(
-                    f"Capella CA certificate not found at {capella_ca}, "
-                    "falling back to system CA bundle"
-                )
-        elif is_tls_enabled:
-            # Priority 2: For non-Capella TLS connections, use provided cert or system CA bundle
-            if ca_cert_path:
-                verify_ssl = ca_cert_path
-                logger.info(
-                    f"Using provided CA certificate for SSL verification: {ca_cert_path}"
-                )
-            else:
-                verify_ssl = True
-                logger.info("Using system CA bundle for SSL verification")
-        else:
-            # Priority 3: For non-TLS connections (HTTP), disable SSL verification
-            verify_ssl = False
-            logger.info("Non-TLS connection, SSL verification disabled")
+            response.raise_for_status()
+            data = response.json()
+            indexes = data.get("status", [])
 
-        # Make the request
-        response = httpx.get(
-            url,
-            params=params,
-            auth=(username, password),
-            verify=verify_ssl,
-            timeout=timeout,
-        )
+            logger.info(f"Successfully fetched {len(indexes)} indexes from {host}")
+            return indexes
 
-        response.raise_for_status()
-        data = response.json()
+        except httpx.HTTPError as e:
+            logger.warning(f"Failed to fetch indexes from {host}: {e}")
+            last_error = e
+        except Exception as e:
+            logger.warning(f"Unexpected error when fetching from {host}: {e}")
+            last_error = e
 
-        # The API returns a dictionary with 'status' key containing the list of indexes
-        indexes = data.get("status", [])
-
-        logger.info(f"Successfully fetched {len(indexes)} indexes from REST API")
-        return indexes
-
-    except httpx.HTTPError as e:
-        logger.error(f"Error fetching indexes from REST API: {e}")
-        raise RuntimeError(f"Failed to fetch indexes from REST API: {e}") from e
-    except Exception as e:
-        logger.error(f"Unexpected error in fetch_indexes_from_rest_api: {e}")
-        raise
+    # If we get here, all hosts failed
+    error_msg = f"Failed to fetch indexes from all hosts: {hosts}"
+    if last_error:
+        error_msg += f". Last error: {last_error}"
+    logger.error(error_msg)
+    raise RuntimeError(error_msg)
