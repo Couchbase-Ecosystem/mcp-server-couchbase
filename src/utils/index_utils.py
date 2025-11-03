@@ -246,7 +246,7 @@ def fetch_indexes_from_rest_api(
         collection_name: Optional collection name to filter indexes
         index_name: Optional index name to filter indexes
         ca_cert_path: Optional path to CA certificate for SSL verification.
-                     If not provided and using couchbases://, will use Capella root CA.
+                     If not provided and using Capella, will use Capella root CA.
         timeout: Request timeout in seconds (default: 30)
 
     Returns:
