@@ -22,6 +22,9 @@ Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/mai
   - There is an option in the MCP server, `CB_MCP_READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
 - Get the status of the MCP server
 - Check the cluster credentials by connecting to the cluster
+- List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name.
+- Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance
+- Get cluster health status and list of all running services
 
 ## Usage
 
