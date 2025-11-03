@@ -178,7 +178,7 @@
       },
       "environmentVariables": [
         {
-          "name": "CB_MCP_CONNECTION_STRING",
+          "name": "CB_CONNECTION_STRING",
           "description": "Couchbase connection string. Required for connecting to the cluster.",
           "isRequired": false,
           "format": "string",
