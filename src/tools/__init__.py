@@ -54,13 +54,13 @@ ALL_TOOLS = [
     get_index_advisor_recommendations,
     list_indexes,
     get_cluster_health_and_services,
+    get_queries_not_selective,
+    get_queries_not_using_covering_index,
+    get_queries_using_primary_index,
+    get_queries_with_large_result_count,
+    get_queries_with_largest_response_sizes,
     get_top_longest_running_queries,
     get_top_most_frequent_queries,
-    get_queries_with_largest_response_sizes,
-    get_queries_with_large_result_count,
-    get_queries_using_primary_index,
-    get_queries_not_using_covering_index,
-    get_queries_not_selective,
 ]
 
 __all__ = [
@@ -79,13 +79,13 @@ __all__ = [
     "get_index_advisor_recommendations",
     "list_indexes",
     "get_cluster_health_and_services",
+    "get_queries_not_selective",
+    "get_queries_not_using_covering_index",
+    "get_queries_using_primary_index",
+    "get_queries_with_large_result_count",
+    "get_queries_with_largest_response_sizes",
     "get_top_longest_running_queries",
     "get_top_most_frequent_queries",
-    "get_queries_with_largest_response_sizes",
-    "get_queries_with_large_result_count",
-    "get_queries_using_primary_index",
-    "get_queries_not_using_covering_index",
-    "get_queries_not_selective",
     # Convenience
     "ALL_TOOLS",
 ]

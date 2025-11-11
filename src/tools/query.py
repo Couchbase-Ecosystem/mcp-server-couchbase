@@ -108,7 +108,7 @@ def get_top_longest_running_queries(
     Returns:
         List of queries with their average service time and count
     """
-    query = f"""
+    query = """
     SELECT statement,
         DURATION_TO_STR(avgServiceTime) AS avgServiceTime,
         COUNT(1) AS queries
@@ -119,10 +119,10 @@ def get_top_longest_running_queries(
     GROUP BY statement
     LETTING avgServiceTime = AVG(STR_TO_DURATION(serviceTime))
     ORDER BY avgServiceTime DESC
-    LIMIT {limit}
+    LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query)
+    return run_cluster_query(ctx, query, limit=limit)
 
 
 def get_top_most_frequent_queries(
@@ -136,7 +136,7 @@ def get_top_most_frequent_queries(
     Returns:
         List of queries with their frequency count
     """
-    query = f"""
+    query = """
     SELECT statement,
         COUNT(1) AS queries
     FROM system:completed_requests
@@ -146,10 +146,10 @@ def get_top_most_frequent_queries(
     GROUP BY statement
     LETTING queries = COUNT(1)
     ORDER BY queries DESC
-    LIMIT {limit}
+    LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query)
+    return run_cluster_query(ctx, query, limit=limit)
 
 
 def get_queries_with_largest_response_sizes(
@@ -163,7 +163,7 @@ def get_queries_with_largest_response_sizes(
     Returns:
         List of queries with their average result size in bytes, KB, and MB
     """
-    query = f"""
+    query = """
     SELECT statement,
         avgResultSize AS avgResultSizeBytes,
         (avgResultSize / 1000) AS avgResultSizeKB,
@@ -176,10 +176,10 @@ def get_queries_with_largest_response_sizes(
     GROUP BY statement
     LETTING avgResultSize = AVG(resultSize)
     ORDER BY avgResultSize DESC
-    LIMIT {limit}
+    LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query)
+    return run_cluster_query(ctx, query, limit=limit)
 
 
 def get_queries_with_large_result_count(
@@ -193,7 +193,7 @@ def get_queries_with_large_result_count(
     Returns:
         List of queries with their average result count
     """
-    query = f"""
+    query = """
     SELECT statement,
         avgResultCount,
         COUNT(1) AS queries
@@ -204,10 +204,10 @@ def get_queries_with_large_result_count(
     GROUP BY statement
     LETTING avgResultCount = AVG(resultCount)
     ORDER BY avgResultCount DESC
-    LIMIT {limit}
+    LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query)
+    return run_cluster_query(ctx, query, limit=limit)
 
 
 def get_queries_using_primary_index(
@@ -221,16 +221,16 @@ def get_queries_using_primary_index(
     Returns:
         List of queries that use primary indexes, ordered by result count
     """
-    query = f"""
+    query = """
     SELECT *
     FROM system:completed_requests
     WHERE phaseCounts.`primaryScan` IS NOT MISSING
         AND UPPER(statement) NOT LIKE '% SYSTEM:%'
     ORDER BY resultCount DESC
-    LIMIT {limit}
+    LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query)
+    return run_cluster_query(ctx, query, limit=limit)
 
 
 def get_queries_not_using_covering_index(
@@ -244,17 +244,17 @@ def get_queries_not_using_covering_index(
     Returns:
         List of queries that perform index scans but also require fetches (not covering)
     """
-    query = f"""
+    query = """
     SELECT *
     FROM system:completed_requests
     WHERE phaseCounts.`indexScan` IS NOT MISSING
         AND phaseCounts.`fetch` IS NOT MISSING
         AND UPPER(statement) NOT LIKE '% SYSTEM:%'
     ORDER BY resultCount DESC
-    LIMIT {limit}
+    LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query)
+    return run_cluster_query(ctx, query, limit=limit)
 
 
 def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, Any]]:
@@ -266,14 +266,14 @@ def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, A
     Returns:
         List of queries where index scans return significantly more documents than the final result
     """
-    query = f"""
+    query = """
     SELECT statement,
        AVG(phaseCounts.`indexScan` - resultCount) AS diff
     FROM system:completed_requests
     WHERE phaseCounts.`indexScan` > resultCount
     GROUP BY statement
     ORDER BY diff DESC
-    LIMIT {limit};
+    LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query)
+    return run_cluster_query(ctx, query, limit=limit)
