@@ -129,6 +129,11 @@ line-ending = "auto"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+]
+
 # Configure hatchling to use src-layout
 [tool.hatch.build.targets.wheel]
 # Include all packages from src/ and map them to the root
