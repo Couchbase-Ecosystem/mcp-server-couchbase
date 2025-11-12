@@ -79,7 +79,6 @@ Before pushing, verify all versions match:
 
 ```bash
 # Check versions
-VERSION="0.5.2"
 echo "Checking version consistency..."
 echo "pyproject.toml: $(grep '^version = ' pyproject.toml)"
 echo "server.json root: $(jq -r '.version' server.json)"
