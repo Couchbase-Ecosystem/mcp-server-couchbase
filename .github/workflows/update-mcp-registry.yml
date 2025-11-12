@@ -43,13 +43,17 @@ jobs:
 
       - name: Validate version consistency
         id: version
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           # Read versions from files
           ROOT_VERSION=$(jq -r '.version' server.json)
           # Only get versions from packages that have a version field (exclude null/empty)
           PACKAGE_VERSIONS=$(jq -r '.packages[] | select(.version != null) | .version' server.json | sort -u)
           PYPROJECT_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          TAG_VERSION=${GITHUB_REF_NAME#v}
+          # Get tag from the triggering workflow (Docker), not current workflow
+          # Use environment variable to prevent code injection
+          TAG_VERSION=${HEAD_BRANCH#v}
 
           echo "Version Check:"
           echo "  server.json root:    $ROOT_VERSION"
