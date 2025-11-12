@@ -8,6 +8,8 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase/badge" alt="Couchbase Server MCP server" />
 </a>
 
+<!-- mcp-name: io.github.Couchbase-Ecosystem/mcp-server-couchbase -->
+
 ## Features
 
 - Get a list of all the buckets in the cluster
