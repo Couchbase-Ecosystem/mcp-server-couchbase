@@ -6,12 +6,12 @@
     "url": "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase",
     "source": "github"
   },
-  "version": "0.5.2rc5",
+  "version": "0.5.2rc6",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "couchbase-mcp-server",
-      "version": "0.5.2rc5",
+      "version": "0.5.2rc6",
       "transport": {
         "type": "stdio"
       },
@@ -172,7 +172,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "docker.io/couchbaseecosystem/mcp-server-couchbase:0.5.2rc5",
+      "identifier": "docker.io/couchbaseecosystem/mcp-server-couchbase:0.5.2rc6",
       "transport": {
         "type": "stdio"
       },
