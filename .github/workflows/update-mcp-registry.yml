@@ -141,7 +141,9 @@ jobs:
 
       - name: Notify completion
         if: success()
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          echo "MCP Registry updated successfully for version ${{ steps.version.outputs.version }}"
-          echo "Docker image: docker.io/couchbaseecosystem/mcp-server-couchbase:${{ steps.version.outputs.version }}"
-          echo "PyPI package: couchbase-mcp-server==${{ steps.version.outputs.version }}"
+          echo "MCP Registry updated successfully for version $VERSION"
+          echo "Docker image: docker.io/couchbaseecosystem/mcp-server-couchbase:$VERSION"
+          echo "PyPI package: couchbase-mcp-server==$VERSION"
