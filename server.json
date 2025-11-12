@@ -247,8 +247,7 @@
           "format": "number",
           "isSecret": false
         }
-      ],
-      "version": "0.5.2rc1"
+      ]
     }
   ]
 }
