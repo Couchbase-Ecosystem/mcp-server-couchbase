@@ -46,7 +46,7 @@ def run_sql_plus_plus_query(
 
     Example:
         query = "SELECT * FROM users WHERE age > 18"
-        # Not: "SELECT * FROM bucket.scope.users WHERE age > 18"
+        # Incorrect: "SELECT * FROM bucket.scope.users WHERE age > 18"
     """
     cluster = get_cluster_connection(ctx)
 
