@@ -6,6 +6,7 @@ This module contains utility functions for configuration, connection, and contex
 
 # Configuration utilities
 from .config import (
+    set_settings,
     get_settings,
 )
 
@@ -44,6 +45,7 @@ from .index_utils import (
 
 __all__ = [
     # Config
+    "set_settings",
     "get_settings",
     # Connection
     "connect_to_couchbase_cluster",
