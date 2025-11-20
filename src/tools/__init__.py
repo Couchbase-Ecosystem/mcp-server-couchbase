@@ -16,6 +16,7 @@ from .kv import (
 
 # Query tools
 from .query import (
+    analyze_queries,
     get_schema_for_collection,
     run_sql_plus_plus_query,
 )
@@ -47,6 +48,7 @@ ALL_TOOLS = [
     get_index_advisor_recommendations,
     list_indexes,
     get_cluster_health_and_services,
+    analyze_queries,
 ]
 
 __all__ = [
@@ -65,6 +67,7 @@ __all__ = [
     "get_index_advisor_recommendations",
     "list_indexes",
     "get_cluster_health_and_services",
+    "analyze_queries",
     # Convenience
     "ALL_TOOLS",
 ]
