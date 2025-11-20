@@ -97,183 +97,184 @@ def run_cluster_query(ctx: Context, query: str, **kwargs: Any) -> list[dict[str,
         raise
 
 
-def get_top_longest_running_queries(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
-    """Get the top N longest running queries from the system:completed_requests catalog.
+def analyze_queries(
+    ctx: Context, analysis_types: list[str], limit: int = 10
+) -> dict[str, Any]:
+    """Analyze query performance from system:completed_requests catalog.
+
+    This tool provides comprehensive query performance analysis to identify bottlenecks,
+    optimization opportunities, and performance issues.
+
+    Available Analysis Types:
+    - "longest_running": Top N queries with the highest average service time
+    - "most_frequent": Top N most frequently executed queries
+    - "largest_response": Queries returning the most data (by response size)
+    - "large_result_count": Queries returning the most documents
+    - "primary_index": Queries using primary indexes (typically inefficient)
+    - "no_covering_index": Queries not using covering indexes (require document fetches)
+    - "not_selective": Queries with poor selectivity (scan many, return few)
+    - "all": Run all available analyses
 
     Args:
-        limit: Number of queries to return (default: 10)
+        ctx: MCP context for cluster connection
+        analysis_types: List of analysis types to run (e.g., ["longest_running", "most_frequent"])
+                       Use ["all"] to run all available analyses
+        limit: Maximum number of results to return per analysis (default: 10)
 
     Returns:
-        List of queries with their average service time and count
+        Dictionary containing results for each requested analysis type with:
+        - description: What the analysis shows
+        - results: List of query results
+        - count: Number of results returned
+
+    Example:
+        analyze_queries(ctx, ["longest_running", "primary_index"], limit=5)
+        Returns queries that are slow and queries using primary indexes.
+
+    Note:
+        Queries against system catalogs (INFER, CREATE INDEX, SYSTEM:*) are excluded
+        from analysis to focus on application-level query performance.
     """
-    query = """
-    SELECT statement,
-        DURATION_TO_STR(avgServiceTime) AS avgServiceTime,
-        COUNT(1) AS queries
-    FROM system:completed_requests
-    WHERE UPPER(statement) NOT LIKE 'INFER %'
-        AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
-        AND UPPER(statement) NOT LIKE '% SYSTEM:%'
-    GROUP BY statement
-    LETTING avgServiceTime = AVG(STR_TO_DURATION(serviceTime))
-    ORDER BY avgServiceTime DESC
-    LIMIT $limit
-    """
+    # Define all available analyses
+    analyses = {
+        "longest_running": {
+            "description": "Queries with the highest average service time (slowest queries)",
+            "query": """
+                SELECT statement,
+                    DURATION_TO_STR(avgServiceTime) AS avgServiceTime,
+                    COUNT(1) AS queries
+                FROM system:completed_requests
+                WHERE UPPER(statement) NOT LIKE 'INFER %'
+                    AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
+                    AND UPPER(statement) NOT LIKE '% SYSTEM:%'
+                GROUP BY statement
+                LETTING avgServiceTime = AVG(STR_TO_DURATION(serviceTime))
+                ORDER BY avgServiceTime DESC
+                LIMIT $limit
+            """,
+        },
+        "most_frequent": {
+            "description": "Queries executed most frequently (high volume queries)",
+            "query": """
+                SELECT statement,
+                    COUNT(1) AS queries
+                FROM system:completed_requests
+                WHERE UPPER(statement) NOT LIKE 'INFER %'
+                    AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
+                    AND UPPER(statement) NOT LIKE '% SYSTEM:%'
+                GROUP BY statement
+                ORDER BY queries DESC
+                LIMIT $limit
+            """,
+        },
+        "largest_response": {
+            "description": "Queries returning the most data by response size (memory-intensive queries)",
+            "query": """
+                SELECT statement,
+                    avgResultSize AS avgResultSizeBytes,
+                    (avgResultSize / 1000) AS avgResultSizeKB,
+                    (avgResultSize / 1000000) AS avgResultSizeMB,
+                    COUNT(1) AS queries
+                FROM system:completed_requests
+                WHERE UPPER(statement) NOT LIKE 'INFER %'
+                    AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
+                    AND UPPER(statement) NOT LIKE '% SYSTEM:%'
+                GROUP BY statement
+                LETTING avgResultSize = AVG(resultSize)
+                ORDER BY avgResultSize DESC
+                LIMIT $limit
+            """,
+        },
+        "large_result_count": {
+            "description": "Queries returning the most documents (high document count queries)",
+            "query": """
+                SELECT statement,
+                    avgResultCount,
+                    COUNT(1) AS queries
+                FROM system:completed_requests
+                WHERE UPPER(statement) NOT LIKE 'INFER %'
+                    AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
+                    AND UPPER(statement) NOT LIKE '% SYSTEM:%'
+                GROUP BY statement
+                LETTING avgResultCount = AVG(resultCount)
+                ORDER BY avgResultCount DESC
+                LIMIT $limit
+            """,
+        },
+        "primary_index": {
+            "description": "Queries using primary indexes (typically inefficient, should use secondary indexes)",
+            "query": """
+                SELECT *
+                FROM system:completed_requests
+                WHERE phaseCounts.`primaryScan` IS NOT MISSING
+                    AND UPPER(statement) NOT LIKE '% SYSTEM:%'
+                ORDER BY resultCount DESC
+                LIMIT $limit
+            """,
+        },
+        "no_covering_index": {
+            "description": "Queries not using covering indexes (require document fetches, can be optimized)",
+            "query": """
+                SELECT *
+                FROM system:completed_requests
+                WHERE phaseCounts.`indexScan` IS NOT MISSING
+                    AND phaseCounts.`fetch` IS NOT MISSING
+                    AND UPPER(statement) NOT LIKE '% SYSTEM:%'
+                ORDER BY resultCount DESC
+                LIMIT $limit
+            """,
+        },
+        "not_selective": {
+            "description": "Queries with poor selectivity (scan many documents but return few, inefficient filtering)",
+            "query": """
+                SELECT statement,
+                   AVG(phaseCounts.`indexScan` - resultCount) AS diff
+                FROM system:completed_requests
+                WHERE phaseCounts.`indexScan` > resultCount
+                GROUP BY statement
+                ORDER BY diff DESC
+                LIMIT $limit
+            """,
+        },
+    }
 
-    return run_cluster_query(ctx, query, limit=limit)
+    # Expand "all" to all available analysis types
+    if "all" in analysis_types:
+        analysis_types = list(analyses.keys())
 
+    # Validate analysis types
+    invalid_types = [t for t in analysis_types if t not in analyses]
+    if invalid_types:
+        raise ValueError(
+            f"Invalid analysis types: {invalid_types}. "
+            f"Valid types are: {list(analyses.keys())} or 'all'"
+        )
 
-def get_top_most_frequent_queries(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
-    """Get the top N most frequent queries from the system:completed_requests catalog.
+    # Run requested analyses
+    results = {}
+    for analysis_type in analysis_types:
+        try:
+            analysis_config = analyses[analysis_type]
+            query_results = run_cluster_query(
+                ctx, analysis_config["query"], limit=limit
+            )
 
-    Args:
-        limit: Number of queries to return (default: 10)
+            results[analysis_type] = {
+                "description": analysis_config["description"],
+                "results": query_results,
+                "count": len(query_results),
+            }
 
-    Returns:
-        List of queries with their frequency count
-    """
-    query = """
-    SELECT statement,
-        COUNT(1) AS queries
-    FROM system:completed_requests
-    WHERE UPPER(statement) NOT LIKE 'INFER %'
-        AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
-        AND UPPER(statement) NOT LIKE '% SYSTEM:%'
-    GROUP BY statement
-    LETTING queries = COUNT(1)
-    ORDER BY queries DESC
-    LIMIT $limit
-    """
+            logger.info(
+                f"Analysis '{analysis_type}' completed: {len(query_results)} results"
+            )
 
-    return run_cluster_query(ctx, query, limit=limit)
+        except Exception as e:
+            logger.error(f"Error running analysis '{analysis_type}': {e}")
+            results[analysis_type] = {
+                "description": analysis_config["description"],
+                "error": str(e),
+                "count": 0,
+            }
 
-
-def get_queries_with_largest_response_sizes(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
-    """Get queries with the largest response sizes from the system:completed_requests catalog.
-
-    Args:
-        limit: Number of queries to return (default: 10)
-
-    Returns:
-        List of queries with their average result size in bytes, KB, and MB
-    """
-    query = """
-    SELECT statement,
-        avgResultSize AS avgResultSizeBytes,
-        (avgResultSize / 1000) AS avgResultSizeKB,
-        (avgResultSize / 1000000) AS avgResultSizeMB,
-        COUNT(1) AS queries
-    FROM system:completed_requests
-    WHERE UPPER(statement) NOT LIKE 'INFER %'
-        AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
-        AND UPPER(statement) NOT LIKE '% SYSTEM:%'
-    GROUP BY statement
-    LETTING avgResultSize = AVG(resultSize)
-    ORDER BY avgResultSize DESC
-    LIMIT $limit
-    """
-
-    return run_cluster_query(ctx, query, limit=limit)
-
-
-def get_queries_with_large_result_count(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
-    """Get queries with the largest result counts from the system:completed_requests catalog.
-
-    Args:
-        limit: Number of queries to return (default: 10)
-
-    Returns:
-        List of queries with their average result count
-    """
-    query = """
-    SELECT statement,
-        avgResultCount,
-        COUNT(1) AS queries
-    FROM system:completed_requests
-    WHERE UPPER(statement) NOT LIKE 'INFER %'
-        AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
-        AND UPPER(statement) NOT LIKE '% SYSTEM:%'
-    GROUP BY statement
-    LETTING avgResultCount = AVG(resultCount)
-    ORDER BY avgResultCount DESC
-    LIMIT $limit
-    """
-
-    return run_cluster_query(ctx, query, limit=limit)
-
-
-def get_queries_using_primary_index(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
-    """Get queries that use a primary index from the system:completed_requests catalog.
-
-    Args:
-        limit: Number of queries to return (default: 10)
-
-    Returns:
-        List of queries that use primary indexes, ordered by result count
-    """
-    query = """
-    SELECT *
-    FROM system:completed_requests
-    WHERE phaseCounts.`primaryScan` IS NOT MISSING
-        AND UPPER(statement) NOT LIKE '% SYSTEM:%'
-    ORDER BY resultCount DESC
-    LIMIT $limit
-    """
-
-    return run_cluster_query(ctx, query, limit=limit)
-
-
-def get_queries_not_using_covering_index(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
-    """Get queries that don't use a covering index from the system:completed_requests catalog.
-
-    Args:
-        limit: Number of queries to return (default: 10)
-
-    Returns:
-        List of queries that perform index scans but also require fetches (not covering)
-    """
-    query = """
-    SELECT *
-    FROM system:completed_requests
-    WHERE phaseCounts.`indexScan` IS NOT MISSING
-        AND phaseCounts.`fetch` IS NOT MISSING
-        AND UPPER(statement) NOT LIKE '% SYSTEM:%'
-    ORDER BY resultCount DESC
-    LIMIT $limit
-    """
-
-    return run_cluster_query(ctx, query, limit=limit)
-
-
-def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, Any]]:
-    """Get queries that are not very selective from the system:completed_requests catalog.
-
-    Args:
-        limit: Number of queries to return (default: 10)
-
-    Returns:
-        List of queries where index scans return significantly more documents than the final result
-    """
-    query = """
-    SELECT statement,
-       AVG(phaseCounts.`indexScan` - resultCount) AS diff
-    FROM system:completed_requests
-    WHERE phaseCounts.`indexScan` > resultCount
-    GROUP BY statement
-    ORDER BY diff DESC
-    LIMIT $limit
-    """
-
-    return run_cluster_query(ctx, query, limit=limit)
+    return results

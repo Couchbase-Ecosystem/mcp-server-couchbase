@@ -16,14 +16,8 @@ from .kv import (
 
 # Query tools
 from .query import (
-    get_queries_not_selective,
-    get_queries_not_using_covering_index,
-    get_queries_using_primary_index,
-    get_queries_with_large_result_count,
-    get_queries_with_largest_response_sizes,
+    analyze_queries,
     get_schema_for_collection,
-    get_top_longest_running_queries,
-    get_top_most_frequent_queries,
     run_sql_plus_plus_query,
 )
 
@@ -54,13 +48,7 @@ ALL_TOOLS = [
     get_index_advisor_recommendations,
     list_indexes,
     get_cluster_health_and_services,
-    get_queries_not_selective,
-    get_queries_not_using_covering_index,
-    get_queries_using_primary_index,
-    get_queries_with_large_result_count,
-    get_queries_with_largest_response_sizes,
-    get_top_longest_running_queries,
-    get_top_most_frequent_queries,
+    analyze_queries,
 ]
 
 __all__ = [
@@ -79,13 +67,7 @@ __all__ = [
     "get_index_advisor_recommendations",
     "list_indexes",
     "get_cluster_health_and_services",
-    "get_queries_not_selective",
-    "get_queries_not_using_covering_index",
-    "get_queries_using_primary_index",
-    "get_queries_with_large_result_count",
-    "get_queries_with_largest_response_sizes",
-    "get_top_longest_running_queries",
-    "get_top_most_frequent_queries",
+    "analyze_queries",
     # Convenience
     "ALL_TOOLS",
 ]
