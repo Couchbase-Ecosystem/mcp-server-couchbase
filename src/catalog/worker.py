@@ -23,7 +23,9 @@ from acouchbase.bucket import AsyncBucket
 from utils.config import get_settings
 from utils.connection import connect_to_bucket_async, connect_to_couchbase_cluster_async
 from utils.constants import MCP_SERVER_NAME
-from store import get_catalog_store
+from catalog.store.store import get_catalog_store
+from catalog.schema import parse_infer_output, SchemaCollection
+
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.catalog")
 
 
@@ -37,8 +39,34 @@ def _compute_schema_hash(schema_data: dict[str, Any]) -> str:
     return hashlib.sha256(schema_json.encode()).hexdigest()
 
 
-async def _collect_buckets_scopes_collections(cluster: AsyncCluster) -> dict[str, Any]:
-    """Collect all buckets, scopes, and collections from the cluster."""
+async def _get_index_definitions(cluster: AsyncCluster, bucket_name: str, scope_name: str, collection_name: str) -> list[dict[str, Any]]:
+    """Get index definitions for a collection."""
+    try:
+        query = f"SELECT * FROM system:indexes WHERE bucket_id = '{bucket_name}' AND scope_id = '{scope_name}' AND keyspace_id = '{collection_name}'"
+        result = await cluster.query(query)
+        indexes = []
+        async for row in result:
+            indexes.append(row)
+        # Sort indexes by name to maintain consistent order
+        indexes_sorted = sorted(indexes, key=lambda idx: idx.get('indexes', {}).get('name', idx.get('name', '')))
+        return indexes_sorted
+    except Exception as e:
+        logger.warning(f"Error fetching indexes for {bucket_name}.{scope_name}.{collection_name}: {e}")
+        return []
+
+
+async def _collect_buckets_scopes_collections(cluster: AsyncCluster, existing_database_info: dict[str, Any]) -> dict[str, Any]:
+    """
+    Collect all buckets, scopes, and collections from the cluster.
+    Merges new schema data with existing schema data.
+    
+    Args:
+        cluster: AsyncCluster connection
+        existing_database_info: Previously collected database info to merge with
+    
+    Returns:
+        Updated database_info with merged schema data
+    """
     database_info = {"buckets": {}}
     
     try:
@@ -46,7 +74,10 @@ async def _collect_buckets_scopes_collections(cluster: AsyncCluster) -> dict[str
         bucket_manager = cluster.buckets()
         all_buckets = await bucket_manager.get_all_buckets()
         
-        for bucket_info in all_buckets:
+        # Sort buckets by name to maintain consistent order
+        all_buckets_sorted = sorted(all_buckets, key=lambda b: b.name)
+        
+        for bucket_info in all_buckets_sorted:
             bucket_name = bucket_info.name
             logger.debug(f"Processing bucket: {bucket_name}")
             
@@ -57,24 +88,60 @@ async def _collect_buckets_scopes_collections(cluster: AsyncCluster) -> dict[str
             collection_manager = bucket.collections()
             scopes = await collection_manager.get_all_scopes()
             
-            for scope in scopes:
+            # Sort scopes by name to maintain consistent order
+            scopes_sorted = sorted(scopes, key=lambda s: s.name)
+            
+            for scope in scopes_sorted:
                 scope_name = scope.name
                 collections_data = {}
                 
                 # Get all collections in the scope
-                for collection in scope.collections:
+                # Sort collections by name to maintain consistent order
+                collections_sorted = sorted(scope.collections, key=lambda c: c.name)
+                
+                for collection in collections_sorted:
                     collection_name = collection.name
                     logger.debug(f"Processing collection: {bucket_name}.{scope_name}.{collection_name}")
                     
                     # Run INFER query to get schema
-                    
-                    schema = await _infer_collection_schema(
+                    raw_schema = await _infer_collection_schema(
                         bucket, scope_name, collection_name
                     )
                     
+                    # Parse schema into SchemaCollection (multiple variants)
+                    new_schema_collection = parse_infer_output(raw_schema)
+                    
+                    # Merge with existing schema if present
+                    try:
+                        existing_buckets = existing_database_info.get("buckets", {})
+                        existing_bucket = existing_buckets.get(bucket_name, {})
+                        existing_scopes = existing_bucket.get("scopes", {})
+                        existing_scope = existing_scopes.get(scope_name, {})
+                        existing_collections = existing_scope.get("collections", {})
+                        existing_collection = existing_collections.get(collection_name, {})
+                        existing_schema_list = existing_collection.get("schema", [])
+                        
+                        if existing_schema_list and isinstance(existing_schema_list, list):
+                            # Load existing schema collection and merge with new
+                            # Uses 70% similarity 1:1 matching
+                            existing_schema_collection = SchemaCollection.from_dict(existing_schema_list)
+                            existing_schema_collection.merge(new_schema_collection)
+                            schema = existing_schema_collection.to_dict()
+                            logger.debug(f"Merged schema for {bucket_name}.{scope_name}.{collection_name} ({len(existing_schema_collection)} variants)")
+                        else:
+                            # No existing schema, use new schema collection
+                            schema = new_schema_collection.to_dict()
+                    except Exception as e:
+                        logger.warning(f"Error merging schema for {bucket_name}.{scope_name}.{collection_name}: {e}")
+                        schema = new_schema_collection.to_dict()
+                    
+                    # Get indexes
+                    indexes = await _get_index_definitions(cluster, bucket_name, scope_name, collection_name)
+                            
                     collections_data[collection_name] = {
                         "name": collection_name,
-                        "schema": schema
+                        "schema": schema,
+                        "indexes": indexes,
                     }
                 
                 scopes_data[scope_name] = {
@@ -87,7 +154,6 @@ async def _collect_buckets_scopes_collections(cluster: AsyncCluster) -> dict[str
                 "scopes": scopes_data
             }
         
-        #print(database_info)   
         logger.info(f"Collected schema for {len(database_info['buckets'])} buckets")
         return database_info
         
@@ -104,8 +170,10 @@ async def _infer_collection_schema(bucket: AsyncBucket, scope_name: str, collect
         # First check if the collection has any documents
         count_query = f"SELECT RAW COUNT(*) FROM `{collection_name}` LIMIT 1"
         count_result = scope.query(count_query)
+        doc_count = 0
         async for row in count_result:
             doc_count = row
+        
         # Only run INFER if there are documents
         if doc_count == 0:
             logger.debug(f"Skipping schema inference for {scope_name}.{collection_name} (no documents)")
@@ -116,9 +184,9 @@ async def _infer_collection_schema(bucket: AsyncBucket, scope_name: str, collect
         schema_list = []
         async for row in result:
             schema_list.append(row)
+        
         # INFER returns a list, we flatten it
         return schema_list[0] if schema_list else []
-        
     except Exception as e:
         logger.error(f"Error inferring schema for {scope_name}.{collection_name}: {e}")
         return []
@@ -165,27 +233,25 @@ async def _catalog_worker_async(stop_event: threading.Event) -> None:
             if cluster:
                 logger.info("Starting catalog refresh cycle")
                 
-                # Collect schema information
-                database_info = await _collect_buckets_scopes_collections(cluster)
-                
-                # Compute hash of the new schema
-                new_hash = _compute_schema_hash(database_info)
-                
-                # Store in global store
+                # Get existing database info from store
                 store = get_catalog_store()
                 old_database_info = store.get_database_info()
                 old_hash = _compute_schema_hash(old_database_info) if old_database_info else None
                 
-                # Update store with new data
-                store.add_database_info(database_info)
-                store.set_schema_hash(new_hash)
+                # Collect schema information (with merging)
+                database_info = await _collect_buckets_scopes_collections(cluster, old_database_info)
                 
-                # Check if schema changed
+                # Compute hash of the new schema
+                new_hash = _compute_schema_hash(database_info)
+                
+                # Only update store if schema changed
                 if old_hash != new_hash:
-                    logger.info("Schema change detected, setting enrichment flag")
+                    logger.info("Schema change detected, updating store and setting enrichment flag")
+                    store.add_database_info(database_info)
+                    store.set_schema_hash(new_hash)
                     store.set_needs_enrichment(True)
                 else:
-                    logger.debug("No schema changes detected")
+                    logger.debug("No schema changes detected, skipping store update")
                 
                 logger.info("Catalog refresh cycle completed")
             else:

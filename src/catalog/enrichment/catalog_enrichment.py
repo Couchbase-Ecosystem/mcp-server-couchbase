@@ -17,7 +17,7 @@ from typing import Any, Optional
 from mcp.server.session import ServerSession
 from mcp.types import SamplingMessage, TextContent
 
-from store import get_catalog_store
+from catalog.store.store import get_catalog_store
 from utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
@@ -57,7 +57,12 @@ def _build_enrichment_prompt(database_info: dict[str, Any]) -> str:
         "- Collection descriptions with their purpose",
         "- Key field descriptions",
         "- Relationships between collections",
-        "- Example query patterns that would be useful",
+        "",
+        "## Important Instructions:",
+        "- Analyze the 'indexes' field to understand which fields are optimized for filtering and sorting.",
+        "- Analyze the 'samples' field to understand the actual data values, date formats, and status codes.",
+        "- Identify potential join keys even if they are not explicitly defined as foreign keys.",
+        "- Suggest optimal query patterns based on the available indexes.",
     ]
     
     return "\n".join(prompt_parts)
@@ -96,7 +101,7 @@ async def _request_llm_enrichment(
             max_tokens=4096,
             temperature=0.2,  # Lower temperature for more consistent descriptions
         )
-        logger.info(result)
+        logger.debug(f"Sampling response received: {type(result).__name__}")
         
         # Extract the response text
         if result and hasattr(result, 'content'):
@@ -144,7 +149,7 @@ async def _check_and_enrich_catalog(session: Optional[ServerSession]) -> None:
         
         if not database_info or not database_info.get("buckets"):
             logger.warning("No database info available for enrichment")
-            store.clear_needs_enrichment()
+            store.set_needs_enrichment(False)
             return
         
         # Request LLM enrichment
@@ -154,11 +159,10 @@ async def _check_and_enrich_catalog(session: Optional[ServerSession]) -> None:
             # Store the enriched prompt
             store.add_prompt(enriched_prompt)
             logger.info("Enriched prompt stored successfully")
+            # Clear the enrichment flag
+            store.set_needs_enrichment(False)
         else:
             logger.warning("Failed to get enriched prompt from LLM")
-        
-        # Clear the enrichment flag
-        store.clear_needs_enrichment()
         
     except Exception as e:
         logger.error(f"Error in catalog enrichment: {e}", exc_info=True)
@@ -166,24 +170,26 @@ async def _check_and_enrich_catalog(session: Optional[ServerSession]) -> None:
 
 async def run_enrichment_cron(session: Optional[ServerSession]) -> None:
     """
-    Run the enrichment cron job that periodically checks for changes.
+    Run the enrichment cron job that waits for schema changes.
     
-    This function runs in the MCP server's event loop and checks every 2 minutes
-    if the catalog needs enrichment.
+    This function runs in the MCP server's event loop and waits for a signal
+    from the catalog worker that enrichment is needed.
     
     Args:
         session: Optional MCP ServerSession for sampling
     """
-    logger.info("Catalog enrichment cron started")
-    
+    logger.info("Catalog enrichment task started (cron job)")
     while True:
         try:
+            # Perform enrichment
             await _check_and_enrich_catalog(session)
+
+            # Wait for a bit before retrying
+            await asyncio.sleep(ENRICHMENT_CHECK_INTERVAL)
         except Exception as e:
-            logger.error(f"Error in enrichment cron cycle: {e}", exc_info=True)
-        
-        # Wait for next cycle
-        await asyncio.sleep(ENRICHMENT_CHECK_INTERVAL)
+            logger.error(f"Error in enrichment cycle: {e}", exc_info=True)
+            # Wait a bit before retrying to avoid tight loops on error
+            await asyncio.sleep(60)
 
 
 _enrichment_task: Optional[asyncio.Task] = None
@@ -229,4 +235,3 @@ def is_enrichment_cron_running() -> bool:
     """Check if the enrichment cron is running."""
     global _enrichment_task
     return _enrichment_task is not None and not _enrichment_task.done()
-

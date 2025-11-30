@@ -10,3 +10,5 @@ wheels/
 .venv
 # Environment variables
 .env
+
+.vscode

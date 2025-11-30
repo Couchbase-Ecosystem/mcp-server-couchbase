@@ -7,7 +7,7 @@ This script can be used to manually test and verify the catalog system component
 import logging
 import time
 import click
-from store import get_catalog_store
+from catalog.store.store import get_catalog_store
 from catalog_manager import (
     is_catalog_thread_running,
     start_catalog_thread,
