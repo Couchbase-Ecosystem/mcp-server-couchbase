@@ -880,6 +880,9 @@ Potential improvements to the catalog system:
 
 1. **Incremental Updates**: Only INFER changed collections
 2. **Event-driven sampling**: Instead periodic pooling use event driven pattern for sampling.
+3. **Parallel Schema Inference**: Currently, the worker processes collections sequentially. Implementing parallel execution using `asyncio.gather` with a concurrency limit (e.g., `asyncio.Semaphore(5)`) would significantly speed up the catalog refresh cycle.
+4. **Job Queue for Inference**: Decouple the scheduling from execution by using an internal job queue. This allows "spinning up" inference jobs for specific collections efficiently, handling retries for failed jobs, and prioritizing active collections.
+5. **On-Demand Granular Refresh**: Add capability to trigger schema inference for a specific bucket, scope, or collection on demand, useful when the user knows a schema has changed.
 
 ---
 
