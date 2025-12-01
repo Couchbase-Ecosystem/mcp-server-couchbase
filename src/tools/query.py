@@ -97,6 +97,27 @@ def run_cluster_query(ctx: Context, query: str, **kwargs: Any) -> list[dict[str,
         raise
 
 
+def _run_query_tool_with_empty_message(
+    ctx: Context,
+    query: str,
+    *,
+    limit: int,
+    empty_message: str,
+    extra_payload: dict[str, Any] | None = None,
+    **query_kwargs: Any,
+) -> list[dict[str, Any]]:
+    """Execute a cluster query with a consistent empty-result response."""
+    results = run_cluster_query(ctx, query, limit=limit, **query_kwargs)
+
+    if results:
+        return results
+
+    payload: dict[str, Any] = {"message": empty_message, "results": []}
+    if extra_payload:
+        payload.update(extra_payload)
+    return [payload]
+
+
 def get_top_longest_running_queries(
     ctx: Context, limit: int = 10
 ) -> list[dict[str, Any]]:
@@ -122,7 +143,14 @@ def get_top_longest_running_queries(
     LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query, limit=limit)
+    return _run_query_tool_with_empty_message(
+        ctx,
+        query,
+        limit=limit,
+        empty_message=(
+            "No completed queries were available to calculate longest running queries."
+        ),
+    )
 
 
 def get_top_most_frequent_queries(
@@ -149,7 +177,14 @@ def get_top_most_frequent_queries(
     LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query, limit=limit)
+    return _run_query_tool_with_empty_message(
+        ctx,
+        query,
+        limit=limit,
+        empty_message=(
+            "No completed queries were available to calculate most frequent queries."
+        ),
+    )
 
 
 def get_queries_with_largest_response_sizes(
@@ -179,7 +214,14 @@ def get_queries_with_largest_response_sizes(
     LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query, limit=limit)
+    return _run_query_tool_with_empty_message(
+        ctx,
+        query,
+        limit=limit,
+        empty_message=(
+            "No completed queries were available to calculate response sizes."
+        ),
+    )
 
 
 def get_queries_with_large_result_count(
@@ -207,7 +249,14 @@ def get_queries_with_large_result_count(
     LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query, limit=limit)
+    return _run_query_tool_with_empty_message(
+        ctx,
+        query,
+        limit=limit,
+        empty_message=(
+            "No completed queries were available to calculate result counts."
+        ),
+    )
 
 
 def get_queries_using_primary_index(
@@ -230,7 +279,14 @@ def get_queries_using_primary_index(
     LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query, limit=limit)
+    return _run_query_tool_with_empty_message(
+        ctx,
+        query,
+        limit=limit,
+        empty_message=(
+            "No queries using the primary index were found in system:completed_requests."
+        ),
+    )
 
 
 def get_queries_not_using_covering_index(
@@ -254,7 +310,15 @@ def get_queries_not_using_covering_index(
     LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query, limit=limit)
+    return _run_query_tool_with_empty_message(
+        ctx,
+        query,
+        limit=limit,
+        empty_message=(
+            "No queries that require fetches after index scans were found "
+            "in system:completed_requests."
+        ),
+    )
 
 
 def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, Any]]:
@@ -276,4 +340,11 @@ def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, A
     LIMIT $limit
     """
 
-    return run_cluster_query(ctx, query, limit=limit)
+    return _run_query_tool_with_empty_message(
+        ctx,
+        query,
+        limit=limit,
+        empty_message=(
+            "No non-selective queries were found in system:completed_requests."
+        ),
+    )
