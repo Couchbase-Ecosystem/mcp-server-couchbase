@@ -136,6 +136,7 @@ def get_top_longest_running_queries(
     FROM system:completed_requests
     WHERE UPPER(statement) NOT LIKE 'INFER %'
         AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
+        AND UPPER(statement) NOT LIKE 'CREATE PRIMARY INDEX%'
         AND UPPER(statement) NOT LIKE '% SYSTEM:%'
     GROUP BY statement
     LETTING avgServiceTime = AVG(STR_TO_DURATION(serviceTime))
@@ -170,6 +171,10 @@ def get_top_most_frequent_queries(
     FROM system:completed_requests
     WHERE UPPER(statement) NOT LIKE 'INFER %'
         AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
+
+        AND UPPER(statement) NOT LIKE 'CREATE PRIMARY INDEX%'
+        AND UPPER(statement) NOT LIKE 'EXPLAIN %'
+        AND UPPER(statement) NOT LIKE 'ADVISE %'
         AND UPPER(statement) NOT LIKE '% SYSTEM:%'
     GROUP BY statement
     LETTING queries = COUNT(1)
@@ -207,6 +212,7 @@ def get_queries_with_largest_response_sizes(
     FROM system:completed_requests
     WHERE UPPER(statement) NOT LIKE 'INFER %'
         AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
+        AND UPPER(statement) NOT LIKE 'CREATE PRIMARY INDEX%'
         AND UPPER(statement) NOT LIKE '% SYSTEM:%'
     GROUP BY statement
     LETTING avgResultSize = AVG(resultSize)
@@ -241,8 +247,9 @@ def get_queries_with_large_result_count(
         COUNT(1) AS queries
     FROM system:completed_requests
     WHERE UPPER(statement) NOT LIKE 'INFER %'
-        AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
-        AND UPPER(statement) NOT LIKE '% SYSTEM:%'
+    AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
+    AND UPPER(statement) NOT LIKE 'CREATE PRIMARY INDEX%'
+    AND UPPER(statement) NOT LIKE '% SYSTEM:%'
     GROUP BY statement
     LETTING avgResultCount = AVG(resultCount)
     ORDER BY avgResultCount DESC
