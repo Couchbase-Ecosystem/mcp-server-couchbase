@@ -39,7 +39,15 @@ def get_schema_for_collection(
 def run_sql_plus_plus_query(
     ctx: Context, bucket_name: str, scope_name: str, query: str
 ) -> list[dict[str, Any]]:
-    """Run a SQL++ query on a scope and return the results as a list of JSON objects."""
+    """Run a SQL++ query on a scope and return the results as a list of JSON objects.
+
+    The query will be run on the specified scope in the specified bucket.
+    The query should use collection names directly without bucket/scope prefixes, as the scope context is automatically set.
+
+    Example:
+        query = "SELECT * FROM users WHERE age > 18"
+        # Incorrect: "SELECT * FROM bucket.scope.users WHERE age > 18"
+    """
     cluster = get_cluster_connection(ctx)
 
     bucket = connect_to_bucket(cluster, bucket_name)
