@@ -540,10 +540,10 @@ app_context.cluster.close()
               ],
               "indexes": [
                 {
+                  "id": ""
                   "name": "def_inventory_airline_primary",
-                  "is_primary": true,
                   "index_key": [],
-                  "condition": "",
+                  "metadata":{"definition": ""},
                   "state": "online"
                 }
               ]
