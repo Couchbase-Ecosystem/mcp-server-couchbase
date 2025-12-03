@@ -42,7 +42,8 @@ def _compute_schema_hash(schema_data: dict[str, Any]) -> str:
 async def _get_index_definitions(cluster: AsyncCluster, bucket_name: str, scope_name: str, collection_name: str) -> list[dict[str, Any]]:
     """Get index definitions for a collection."""
     try:
-        query = f"SELECT * FROM system:indexes WHERE bucket_id = '{bucket_name}' AND scope_id = '{scope_name}' AND keyspace_id = '{collection_name}'"
+        query = f"SELECT i.bucket_id, i.scope_id, i.keyspace_id, i.index_key, i.metadata.definition, meta().id FROM system:indexes as i"
+        f"WHERE i.bucket_id = '{bucket_name}' AND i.scope_id = '{scope_name}' AND i.keyspace_id = '{collection_name}'"
         result = await cluster.query(query)
         indexes = []
         async for row in result:
