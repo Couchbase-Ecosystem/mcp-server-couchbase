@@ -1,10 +1,5 @@
 """
-High-level integration tests for the Couchbase MCP server.
-
-These tests mirror the workflow from the Real Python MCP client tutorial
-and validate that:
-- The expected tools are exposed by the MCP server
-- Tools can be invoked against a demo Couchbase cluster
+Shared fixtures and utilities for MCP server integration tests.
 """
 
 from __future__ import annotations
@@ -90,63 +85,65 @@ async def create_mcp_session() -> AsyncIterator[ClientSession]:
                 yield session
 
 
-def _extract_payload(response: Any) -> Any:
-    """Extract a usable payload from a tool response."""
+def extract_payload(response: Any) -> Any:
+    """Extract a usable payload from a tool response.
+
+    MCP tool responses can return data in different formats:
+    - A single content block with JSON-encoded data (dict, list, etc.)
+    - Multiple content blocks, one per list item (for list returns)
+
+    This function handles both cases.
+    """
     content = getattr(response, "content", None) or []
     if not content:
         return None
 
+    # Try to get text from the first content block
     first = content[0]
     raw = getattr(first, "text", None)
     if raw is None and hasattr(first, "data"):
         raw = first.data
 
+    # If first block is valid JSON, return it (handles dicts and JSON-encoded lists)
     if isinstance(raw, str):
         try:
             return json.loads(raw)
         except json.JSONDecodeError:
-            return raw
-    return raw
+            pass
+
+    # If first block is not valid JSON, collect all content blocks into a list.
+    # This handles list returns where each item is a separate content block
+    # (including single-item lists).
+    items = []
+    for block in content:
+        text = getattr(block, "text", None)
+        if text is not None:
+            # Try to parse each item as JSON, fall back to raw string
+            try:
+                items.append(json.loads(text))
+            except json.JSONDecodeError:
+                items.append(text)
+    return items if items else raw
 
 
-@pytest.mark.asyncio
-async def test_tools_are_registered() -> None:
-    """Ensure all expected tools are exposed by the server."""
-    async with create_mcp_session() as session:
-        tools_response = await session.list_tools()
-        tool_names = {tool.name for tool in tools_response.tools}
-        missing = EXPECTED_TOOLS - tool_names
-        assert not missing, f"Missing MCP tools: {sorted(missing)}"
+def get_test_bucket() -> str | None:
+    """Get the test bucket name from environment, or None if not set."""
+    return os.getenv("CB_MCP_TEST_BUCKET")
 
 
-@pytest.mark.asyncio
-async def test_cluster_connection_tool_invocation() -> None:
-    """Verify the cluster connectivity tool executes against the demo cluster."""
-    async with create_mcp_session() as session:
-        bucket = os.getenv("CB_MCP_TEST_BUCKET")
-        arguments: dict[str, str] = {"bucket_name": bucket} if bucket else {}
-
-        response = await session.call_tool(
-            "test_cluster_connection", arguments=arguments
-        )
-        payload = _extract_payload(response)
-
-        assert payload, "No data returned from test_cluster_connection"
-        if isinstance(payload, dict):
-            assert payload.get("status") == "success", payload
-            if bucket:
-                assert payload.get("bucket_name") == bucket
+def get_test_scope() -> str:
+    """Get the test scope name from environment, defaults to _default."""
+    return os.getenv("CB_MCP_TEST_SCOPE", "_default")
 
 
-@pytest.mark.asyncio
-async def test_can_list_buckets() -> None:
-    """Call a data-returning tool to ensure the session is usable."""
-    async with create_mcp_session() as session:
-        response = await session.call_tool("get_buckets_in_cluster", arguments={})
-        payload = _extract_payload(response)
+def get_test_collection() -> str:
+    """Get the test collection name from environment, defaults to _default."""
+    return os.getenv("CB_MCP_TEST_COLLECTION", "_default")
 
-        assert payload is not None, "No payload returned from get_buckets_in_cluster"
-        # If the demo cluster has buckets, we should see them; otherwise we at least
-        # confirm the tool executed without errors.
-        if isinstance(payload, list):
-            assert payload, "Expected at least one bucket from the demo cluster"
+
+def require_test_bucket() -> str:
+    """Get the test bucket name, skipping test if not set."""
+    bucket = get_test_bucket()
+    if not bucket:
+        pytest.skip("CB_MCP_TEST_BUCKET not set")
+    return bucket
