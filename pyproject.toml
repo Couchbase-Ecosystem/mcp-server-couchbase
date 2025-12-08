@@ -35,6 +35,8 @@ couchbase-mcp-server = "mcp_server:main"
 dev = [
     "ruff==0.12.5",
     "pre-commit==4.2.0",
+    "pytest==8.3.3",
+    "pytest-asyncio==0.24.0",
 ]
 
 # Ruff configuration
@@ -123,6 +125,11 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+# Pytest configuration
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
 
 # Build system configuration
 [build-system]
