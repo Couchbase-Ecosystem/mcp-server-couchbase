@@ -16,6 +16,7 @@ from __future__ import annotations
 import pytest
 from conftest import (
     create_mcp_session,
+    ensure_list,
     extract_payload,
     get_test_scope,
     require_test_bucket,
@@ -94,7 +95,7 @@ async def test_get_collections_in_scope() -> None:
             "get_collections_in_scope",
             arguments={"bucket_name": bucket, "scope_name": scope},
         )
-        payload = extract_payload(response)
+        payload = ensure_list(extract_payload(response))
 
         assert isinstance(payload, list), (
             f"Expected list of collections, got {type(payload)}"
