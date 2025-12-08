@@ -37,6 +37,61 @@ EXPECTED_TOOLS = {
     "get_cluster_health_and_services",
 }
 
+# Tools organized by category for validation
+TOOLS_BY_CATEGORY = {
+    "server": {
+        "get_server_configuration_status",
+        "test_cluster_connection",
+        "get_buckets_in_cluster",
+        "get_scopes_in_bucket",
+        "get_scopes_and_collections_in_bucket",
+        "get_collections_in_scope",
+        "get_cluster_health_and_services",
+    },
+    "kv": {
+        "get_document_by_id",
+        "upsert_document_by_id",
+        "delete_document_by_id",
+    },
+    "query": {
+        "get_schema_for_collection",
+        "run_sql_plus_plus_query",
+    },
+    "index": {
+        "list_indexes",
+        "get_index_advisor_recommendations",
+    },
+}
+
+# Expected required parameters for tools that need them
+TOOL_REQUIRED_PARAMS = {
+    "get_scopes_in_bucket": ["bucket_name"],
+    "get_scopes_and_collections_in_bucket": ["bucket_name"],
+    "get_collections_in_scope": ["bucket_name", "scope_name"],
+    "get_document_by_id": [
+        "bucket_name",
+        "scope_name",
+        "collection_name",
+        "document_id",
+    ],
+    "upsert_document_by_id": [
+        "bucket_name",
+        "scope_name",
+        "collection_name",
+        "document_id",
+        "document_content",
+    ],
+    "delete_document_by_id": [
+        "bucket_name",
+        "scope_name",
+        "collection_name",
+        "document_id",
+    ],
+    "get_schema_for_collection": ["bucket_name", "scope_name", "collection_name"],
+    "run_sql_plus_plus_query": ["bucket_name", "scope_name", "query"],
+    "get_index_advisor_recommendations": ["bucket_name", "scope_name", "query"],
+}
+
 # Minimum configuration needed to talk to a demo cluster
 REQUIRED_ENV_VARS = ("CB_CONNECTION_STRING", "CB_USERNAME", "CB_PASSWORD")
 

@@ -25,6 +25,7 @@ async def test_get_schema_for_collection() -> None:
     bucket = require_test_bucket()
     scope = get_test_scope()
     collection = get_test_collection()
+    skip_reason = None
 
     async with create_mcp_session() as session:
         response = await session.call_tool(
@@ -37,12 +38,26 @@ async def test_get_schema_for_collection() -> None:
         )
         payload = extract_payload(response)
 
-        assert isinstance(payload, dict), f"Expected dict, got {type(payload)}"
-        assert "collection_name" in payload
-        assert payload["collection_name"] == collection
-        assert "schema" in payload
-        # Schema is a list (may be empty if collection has no documents)
-        assert isinstance(payload["schema"], list)
+        # Handle error case (e.g., empty collection can't infer schema)
+        if isinstance(payload, str):
+            if "No documents found" in payload or "unable to infer schema" in payload:
+                skip_reason = (
+                    f"Collection '{collection}' has no documents to infer schema"
+                )
+            else:
+                raise AssertionError(f"Tool returned error: {payload}")
+        else:
+            assert isinstance(payload, dict), f"Expected dict, got {type(payload)}"
+            assert "collection_name" in payload
+            assert payload["collection_name"] == collection
+            assert "schema" in payload
+            # Schema is a list - skip if empty
+            assert isinstance(payload["schema"], list)
+            if len(payload["schema"]) == 0:
+                skip_reason = f"Collection '{collection}' returned empty schema"
+
+    if skip_reason:
+        pytest.skip(skip_reason)
 
 
 @pytest.mark.asyncio
@@ -79,6 +94,7 @@ async def test_run_sql_plus_plus_query_with_limit() -> None:
     bucket = require_test_bucket()
     scope = get_test_scope()
     collection = get_test_collection()
+    skip_reason = None
 
     query = f"SELECT * FROM `{collection}` LIMIT 5"
 
@@ -94,8 +110,16 @@ async def test_run_sql_plus_plus_query_with_limit() -> None:
         payload = ensure_list(extract_payload(response))
 
         assert isinstance(payload, list), f"Expected list, got {type(payload)}"
-        # Should return at most 5 documents
-        assert len(payload) <= 5
+
+        # Skip if collection is empty
+        if len(payload) == 0:
+            skip_reason = f"Collection '{collection}' has no documents"
+        else:
+            # Should return at most 5 documents
+            assert len(payload) <= 5
+
+    if skip_reason:
+        pytest.skip(skip_reason)
 
 
 @pytest.mark.asyncio
@@ -104,6 +128,7 @@ async def test_run_sql_plus_plus_query_meta() -> None:
     bucket = require_test_bucket()
     scope = get_test_scope()
     collection = get_test_collection()
+    skip_reason = None
 
     # Query to get document IDs using META()
     query = f"SELECT META().id as doc_id FROM `{collection}` LIMIT 1"
@@ -120,6 +145,12 @@ async def test_run_sql_plus_plus_query_meta() -> None:
         payload = ensure_list(extract_payload(response))
 
         assert isinstance(payload, list), f"Expected list, got {type(payload)}"
-        # If collection has documents, should return doc_id
-        if payload:
+
+        # Skip if collection is empty
+        if len(payload) == 0:
+            skip_reason = f"Collection '{collection}' has no documents"
+        else:
             assert "doc_id" in payload[0]
+
+    if skip_reason:
+        pytest.skip(skip_reason)

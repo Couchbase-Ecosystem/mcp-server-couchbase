@@ -9,9 +9,11 @@ from __future__ import annotations
 import pytest
 from conftest import (
     EXPECTED_TOOLS,
+    TOOL_REQUIRED_PARAMS,
+    TOOLS_BY_CATEGORY,
     create_mcp_session,
     extract_payload,
-    get_test_bucket,
+    require_test_bucket,
 )
 
 
@@ -26,22 +28,198 @@ async def test_tools_are_registered() -> None:
 
 
 @pytest.mark.asyncio
+async def test_all_tools_have_descriptions() -> None:
+    """Verify all tools have non-empty descriptions for discoverability."""
+    async with create_mcp_session() as session:
+        tools_response = await session.list_tools()
+
+        tools_without_description = []
+        for tool in tools_response.tools:
+            if tool.name in EXPECTED_TOOLS and (
+                not tool.description or len(tool.description.strip()) == 0
+            ):
+                tools_without_description.append(tool.name)
+
+        assert not tools_without_description, (
+            f"Tools missing descriptions: {sorted(tools_without_description)}"
+        )
+
+
+@pytest.mark.asyncio
+async def test_all_tools_have_input_schema() -> None:
+    """Verify all tools have input schema defined."""
+    async with create_mcp_session() as session:
+        tools_response = await session.list_tools()
+
+        tools_without_schema = []
+        for tool in tools_response.tools:
+            if tool.name in EXPECTED_TOOLS and not tool.inputSchema:
+                tools_without_schema.append(tool.name)
+
+        assert not tools_without_schema, (
+            f"Tools missing input schema: {sorted(tools_without_schema)}"
+        )
+
+
+@pytest.mark.asyncio
+async def test_tools_have_required_parameters() -> None:
+    """Verify tools that need parameters have them defined as required."""
+    async with create_mcp_session() as session:
+        tools_response = await session.list_tools()
+
+        # Build a map of tool name -> tool for easy lookup
+        tools_map = {tool.name: tool for tool in tools_response.tools}
+
+        errors = []
+        for tool_name, expected_params in TOOL_REQUIRED_PARAMS.items():
+            if tool_name not in tools_map:
+                errors.append(f"{tool_name}: tool not found")
+                continue
+
+            tool = tools_map[tool_name]
+            schema = tool.inputSchema or {}
+            required = schema.get("required", [])
+            properties = schema.get("properties", {})
+
+            # Check all expected params exist in properties
+            for param in expected_params:
+                if param not in properties:
+                    errors.append(f"{tool_name}: missing property '{param}'")
+                elif param not in required:
+                    errors.append(f"{tool_name}: '{param}' should be required")
+
+        assert not errors, "Parameter validation errors:\n" + "\n".join(errors)
+
+
+@pytest.mark.asyncio
+async def test_server_tools_are_registered() -> None:
+    """Verify all server category tools are registered."""
+    async with create_mcp_session() as session:
+        tools_response = await session.list_tools()
+        tool_names = {tool.name for tool in tools_response.tools}
+
+        missing = TOOLS_BY_CATEGORY["server"] - tool_names
+        assert not missing, f"Missing server tools: {sorted(missing)}"
+
+
+@pytest.mark.asyncio
+async def test_kv_tools_are_registered() -> None:
+    """Verify all KV (document) tools are registered."""
+    async with create_mcp_session() as session:
+        tools_response = await session.list_tools()
+        tool_names = {tool.name for tool in tools_response.tools}
+
+        missing = TOOLS_BY_CATEGORY["kv"] - tool_names
+        assert not missing, f"Missing KV tools: {sorted(missing)}"
+
+
+@pytest.mark.asyncio
+async def test_query_tools_are_registered() -> None:
+    """Verify all query tools are registered."""
+    async with create_mcp_session() as session:
+        tools_response = await session.list_tools()
+        tool_names = {tool.name for tool in tools_response.tools}
+
+        missing = TOOLS_BY_CATEGORY["query"] - tool_names
+        assert not missing, f"Missing query tools: {sorted(missing)}"
+
+
+@pytest.mark.asyncio
+async def test_index_tools_are_registered() -> None:
+    """Verify all index tools are registered."""
+    async with create_mcp_session() as session:
+        tools_response = await session.list_tools()
+        tool_names = {tool.name for tool in tools_response.tools}
+
+        missing = TOOLS_BY_CATEGORY["index"] - tool_names
+        assert not missing, f"Missing index tools: {sorted(missing)}"
+
+
+@pytest.mark.asyncio
+async def test_tool_descriptions_are_meaningful() -> None:
+    """Verify tool descriptions contain meaningful content (not too short)."""
+    async with create_mcp_session() as session:
+        tools_response = await session.list_tools()
+
+        # Minimum description length to be considered meaningful
+        min_length = 20
+
+        short_descriptions = []
+        for tool in tools_response.tools:
+            if tool.name in EXPECTED_TOOLS:
+                desc = tool.description or ""
+                if len(desc.strip()) < min_length:
+                    short_descriptions.append(
+                        f"{tool.name}: '{desc[:50]}...' (len={len(desc)})"
+                    )
+
+        assert not short_descriptions, (
+            "Tools with too-short descriptions:\n" + "\n".join(short_descriptions)
+        )
+
+
+@pytest.mark.asyncio
+async def test_no_unexpected_tools() -> None:
+    """Verify no unexpected tools are registered (catches accidental additions)."""
+    async with create_mcp_session() as session:
+        tools_response = await session.list_tools()
+        tool_names = {tool.name for tool in tools_response.tools}
+
+        unexpected = tool_names - EXPECTED_TOOLS
+        # This is informational - new tools should be added to EXPECTED_TOOLS
+        if unexpected:
+            pytest.skip(
+                f"New tools found (add to EXPECTED_TOOLS): {sorted(unexpected)}"
+            )
+
+
+@pytest.mark.asyncio
 async def test_cluster_connection_tool_invocation() -> None:
     """Verify the cluster connectivity tool executes against the demo cluster."""
     async with create_mcp_session() as session:
-        bucket = get_test_bucket()
-        arguments: dict[str, str] = {"bucket_name": bucket} if bucket else {}
+        # First test cluster connection without bucket (should always work)
+        response = await session.call_tool("test_cluster_connection", arguments={})
+        payload = extract_payload(response)
 
+        assert payload, "No data returned from test_cluster_connection"
+        assert isinstance(payload, dict), f"Expected dict, got {type(payload)}"
+        assert payload.get("status") == "success", (
+            f"Cluster connection failed: {payload}"
+        )
+        assert payload.get("cluster_connected") is True
+
+
+@pytest.mark.asyncio
+async def test_cluster_connection_with_bucket() -> None:
+    """Verify cluster connection tool works with a bucket (if configured)."""
+    bucket = require_test_bucket()
+    skip_reason = None
+
+    async with create_mcp_session() as session:
         response = await session.call_tool(
-            "test_cluster_connection", arguments=arguments
+            "test_cluster_connection", arguments={"bucket_name": bucket}
         )
         payload = extract_payload(response)
 
         assert payload, "No data returned from test_cluster_connection"
-        if isinstance(payload, dict):
-            assert payload.get("status") == "success", payload
-            if bucket:
-                assert payload.get("bucket_name") == bucket
+        assert isinstance(payload, dict), f"Expected dict, got {type(payload)}"
+
+        # If bucket doesn't exist, we get an error - mark for skip (can't skip inside async cm)
+        if payload.get("status") == "error":
+            error = payload.get("error", "")
+            if "BucketNotFoundException" in error:
+                skip_reason = f"Test bucket '{bucket}' not found on cluster"
+            else:
+                # Other error - fail the test
+                raise AssertionError(f"Connection failed: {payload}")
+        else:
+            assert payload.get("status") == "success", f"Connection failed: {payload}"
+            assert payload.get("bucket_name") == bucket
+            assert payload.get("bucket_connected") is True
+
+    # Skip outside the async context manager if needed
+    if skip_reason:
+        pytest.skip(skip_reason)
 
 
 @pytest.mark.asyncio
@@ -56,3 +234,18 @@ async def test_can_list_buckets() -> None:
         # confirm the tool executed without errors.
         if isinstance(payload, list):
             assert payload, "Expected at least one bucket from the demo cluster"
+
+
+@pytest.mark.asyncio
+async def test_server_status_without_connection() -> None:
+    """Verify get_server_configuration_status works without establishing connection."""
+    async with create_mcp_session() as session:
+        response = await session.call_tool(
+            "get_server_configuration_status", arguments={}
+        )
+        payload = extract_payload(response)
+
+        assert payload is not None, "No payload returned"
+        assert isinstance(payload, dict), f"Expected dict, got {type(payload)}"
+        assert payload.get("status") == "running"
+        assert payload.get("server_name") == "couchbase"
