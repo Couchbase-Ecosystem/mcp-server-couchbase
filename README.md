@@ -29,7 +29,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance
 - Get cluster health status and list of all running services
 - Query performance analysis tools:
-  - Get top longest running queries by average service time
+  - Get longest running queries by average service time
   - Get most frequently executed queries
   - Get queries with the largest response sizes
   - Get queries with the largest result counts
