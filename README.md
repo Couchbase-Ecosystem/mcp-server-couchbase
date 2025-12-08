@@ -28,6 +28,14 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 - List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name.
 - Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance
 - Get cluster health status and list of all running services
+- Query performance analysis tools:
+  - Get longest running queries by average service time
+  - Get most frequently executed queries
+  - Get queries with the largest response sizes
+  - Get queries with the largest result counts
+  - Get queries that use a primary index (potential performance concern)
+  - Get queries that don't use a covering index
+  - Get queries that are not selective (index scans return many more documents than final result)
 
 ## Prerequisites
 

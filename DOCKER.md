@@ -19,12 +19,21 @@ Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/mai
 - Upsert a document by ID to a specified scope and collection
 - Delete a document by ID from a specified scope and collection
 - Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope
+  - Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., use `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`)
   - There is an option in the MCP server, `CB_MCP_READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
 - Get the status of the MCP server
 - Check the cluster credentials by connecting to the cluster
 - List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name.
 - Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance
 - Get cluster health status and list of all running services
+- Query performance analysis tools using:
+  - Get longest running queries by average service time
+  - Get most frequently executed queries
+  - Get queries with the largest response sizes
+  - Get queries with the largest result counts
+  - Get queries that use a primary index (potential performance concern)
+  - Get queries that don't use a covering index
+  - Get queries that are not selective (index scans return many more documents than final result)
 
 ## Usage
 
