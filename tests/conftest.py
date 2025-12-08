@@ -98,32 +98,32 @@ def extract_payload(response: Any) -> Any:
     if not content:
         return None
 
-    # Try to get text from the first content block
+    # If there are multiple content blocks, collect them all as a list
+    # (each item in a list return may be a separate content block)
+    if len(content) > 1:
+        items = []
+        for block in content:
+            text = getattr(block, "text", None)
+            if text is not None:
+                try:
+                    items.append(json.loads(text))
+                except json.JSONDecodeError:
+                    items.append(text)
+        return items if items else None
+
+    # Single content block - try to parse as JSON
     first = content[0]
     raw = getattr(first, "text", None)
     if raw is None and hasattr(first, "data"):
         raw = first.data
 
-    # If first block is valid JSON, return it (handles dicts and JSON-encoded lists)
     if isinstance(raw, str):
         try:
             return json.loads(raw)
         except json.JSONDecodeError:
-            pass
+            return raw
 
-    # If first block is not valid JSON, collect all content blocks into a list.
-    # This handles list returns where each item is a separate content block
-    # (including single-item lists).
-    items = []
-    for block in content:
-        text = getattr(block, "text", None)
-        if text is not None:
-            # Try to parse each item as JSON, fall back to raw string
-            try:
-                items.append(json.loads(text))
-            except json.JSONDecodeError:
-                items.append(text)
-    return items if items else raw
+    return raw
 
 
 def get_test_bucket() -> str | None:
@@ -147,3 +147,16 @@ def require_test_bucket() -> str:
     if not bucket:
         pytest.skip("CB_MCP_TEST_BUCKET not set")
     return bucket
+
+
+def ensure_list(value: Any) -> list[Any]:
+    """Ensure the value is a list.
+
+    MCP can return single-item lists as just the item (not wrapped in a list).
+    This helper wraps single non-list values in a list for consistent handling.
+    """
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
