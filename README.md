@@ -422,7 +422,7 @@ We provide high-level MCP integration tests to verify that the server exposes th
 2. Run the tests:
 
 ```bash
-uv run pytest tests/test_mcp_server_integration.py
+uv run pytest tests/ -v
 ```
 
 ---
