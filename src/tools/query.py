@@ -126,10 +126,8 @@ def _run_query_tool_with_empty_message(
     return [payload]
 
 
-def get_top_longest_running_queries(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
-    """Get the top N longest running queries from the system:completed_requests catalog.
+def get_longest_running_queries(ctx: Context, limit: int = 10) -> list[dict[str, Any]]:
+    """Get the N longest running queries from the system:completed_requests catalog.
 
     Args:
         limit: Number of queries to return (default: 10)
@@ -162,10 +160,8 @@ def get_top_longest_running_queries(
     )
 
 
-def get_top_most_frequent_queries(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
-    """Get the top N most frequent queries from the system:completed_requests catalog.
+def get_most_frequent_queries(ctx: Context, limit: int = 10) -> list[dict[str, Any]]:
+    """Get the N most frequent queries from the system:completed_requests catalog.
 
     Args:
         limit: Number of queries to return (default: 10)
@@ -179,7 +175,6 @@ def get_top_most_frequent_queries(
     FROM system:completed_requests
     WHERE UPPER(statement) NOT LIKE 'INFER %'
         AND UPPER(statement) NOT LIKE 'CREATE INDEX%'
-
         AND UPPER(statement) NOT LIKE 'CREATE PRIMARY INDEX%'
         AND UPPER(statement) NOT LIKE 'EXPLAIN %'
         AND UPPER(statement) NOT LIKE 'ADVISE %'
