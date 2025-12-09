@@ -35,6 +35,14 @@ EXPECTED_TOOLS = {
     "get_index_advisor_recommendations",
     "list_indexes",
     "get_cluster_health_and_services",
+    # Performance analysis tools
+    "get_longest_running_queries",
+    "get_most_frequent_queries",
+    "get_queries_with_largest_response_sizes",
+    "get_queries_with_large_result_count",
+    "get_queries_using_primary_index",
+    "get_queries_not_using_covering_index",
+    "get_queries_not_selective",
 }
 
 # Tools organized by category for validation
@@ -60,6 +68,15 @@ TOOLS_BY_CATEGORY = {
     "index": {
         "list_indexes",
         "get_index_advisor_recommendations",
+    },
+    "performance": {
+        "get_longest_running_queries",
+        "get_most_frequent_queries",
+        "get_queries_with_largest_response_sizes",
+        "get_queries_with_large_result_count",
+        "get_queries_using_primary_index",
+        "get_queries_not_using_covering_index",
+        "get_queries_not_selective",
     },
 }
 
