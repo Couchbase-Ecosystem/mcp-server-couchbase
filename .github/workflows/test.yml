@@ -141,12 +141,12 @@ jobs:
           echo "Inserting test documents..."
           curl -s -X POST http://localhost:8093/query/service \
             -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES ('test-doc-1', {'type': 'test', 'name': 'Test Document 1', 'id': 1})" \
+            -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES {\"type\": \"test\", \"name\": \"Test Document 1\", \"id\": 1})" \
             || echo "Insert may have failed"
 
           curl -s -X POST http://localhost:8093/query/service \
             -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES ('test-doc-2', {'type': 'test', 'name': 'Test Document 2', 'id': 2})" \
+            -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES ('test-doc-2', {\"type\": \"test\", \"name\": \"Test Document 2\", \"id\": 2})" \
             || echo "Insert may have failed"
 
       # ============================================
