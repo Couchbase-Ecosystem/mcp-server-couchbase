@@ -1,5 +1,8 @@
 name: Tests
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -260,6 +263,7 @@ jobs:
   # ============================================
   test-summary:
     name: Test Summary
+    permissions: {}
     runs-on: ubuntu-latest
     needs: [integration-tests]
     if: always()
