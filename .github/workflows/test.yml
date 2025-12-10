@@ -197,13 +197,8 @@ jobs:
           MCP_SERVER_URL: http://127.0.0.1:8000
           PYTHONPATH: src
         run: |
-          echo "Running HTTP transport connectivity test..."
-          # Test that server responds
-          curl -v http://127.0.0.1:8000/ || echo "Server endpoint test"
-
-          # Run MCP integration tests (these use stdio client internally)
-          # For HTTP, we verify the server starts and responds
-          echo "HTTP transport server verified successfully"
+          echo "Running tests with HTTP transport..."
+          uv run pytest tests/ -v --tb=short
 
       - name: Stop HTTP server
         if: matrix.transport == 'http' && always()
@@ -250,12 +245,8 @@ jobs:
           MCP_SERVER_URL: http://127.0.0.1:8000
           PYTHONPATH: src
         run: |
-          echo "Running SSE transport connectivity test..."
-          # Test that server responds
-          curl -v http://127.0.0.1:8000/ || echo "Server endpoint test"
-
-          # For SSE, we verify the server starts and responds
-          echo "SSE transport server verified successfully"
+          echo "Running tests with SSE transport..."
+          uv run pytest tests/ -v --tb=short
 
       - name: Stop SSE server
         if: matrix.transport == 'sse' && always()
