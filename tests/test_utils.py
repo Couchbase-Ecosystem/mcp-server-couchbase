@@ -486,7 +486,7 @@ class TestContextModule:
         """Verify get_cluster_connection creates connection if not exists."""
         mock_cluster = MagicMock()
         mock_ctx = MagicMock()
-        # First access returns None (no cluster), then returns the mock after connection
+        # Cluster starts as None (no existing connection)
         mock_ctx.request_context.lifespan_context.cluster = None
 
         mock_settings = {
@@ -495,30 +495,23 @@ class TestContextModule:
             "password": "password",
         }
 
+        # Simulate the cluster being set after connection
+        def set_cluster_side_effect(*args, **kwargs):
+            mock_ctx.request_context.lifespan_context.cluster = mock_cluster
+            return mock_cluster
+
         with (
             patch("utils.context.get_settings", return_value=mock_settings),
             patch(
-                "utils.context.connect_to_couchbase_cluster", return_value=mock_cluster
-            ),
-        ):
-            # Simulate the cluster being set after connection
-            def set_cluster_side_effect(*args, **kwargs):
-                mock_ctx.request_context.lifespan_context.cluster = mock_cluster
-                return mock_cluster
-
-            with patch(
                 "utils.context.connect_to_couchbase_cluster",
                 side_effect=set_cluster_side_effect,
-            ):
-                # Since cluster is None, it will try to connect
-                # The function sets the cluster and then returns it
-                # We need to adjust the mock behavior
-                pass
+            ),
+        ):
+            # Since cluster is None, it will try to connect and create a new connection
+            result = get_cluster_connection(mock_ctx)
 
-        # Test the path where cluster already exists
-        mock_ctx.request_context.lifespan_context.cluster = mock_cluster
-        result = get_cluster_connection(mock_ctx)
         assert result == mock_cluster
+        assert mock_ctx.request_context.lifespan_context.cluster == mock_cluster
 
     def test_set_cluster_in_lifespan_context_success(self) -> None:
         """Verify _set_cluster_in_lifespan_context sets cluster correctly."""
