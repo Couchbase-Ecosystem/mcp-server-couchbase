@@ -176,10 +176,10 @@ jobs:
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
 
-          # Wait for server to be ready
+          # Wait for server to be ready (check if port is listening)
           echo "Waiting for HTTP server to be ready..."
           for i in {1..30}; do
-            if curl -s http://127.0.0.1:8000/health > /dev/null 2>&1 || curl -s http://127.0.0.1:8000/mcp/v1 > /dev/null 2>&1; then
+            if nc -z 127.0.0.1 8000 2>/dev/null; then
               echo "HTTP server is ready"
               break
             fi
@@ -224,10 +224,10 @@ jobs:
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
 
-          # Wait for server to be ready
+          # Wait for server to be ready (check if port is listening)
           echo "Waiting for SSE server to be ready..."
           for i in {1..30}; do
-            if curl -s http://127.0.0.1:8000/sse > /dev/null 2>&1 || curl -s http://127.0.0.1:8000/ > /dev/null 2>&1; then
+            if nc -z 127.0.0.1 8000 2>/dev/null; then
               echo "SSE server is ready"
               break
             fi
