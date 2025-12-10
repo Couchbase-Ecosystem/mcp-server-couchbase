@@ -157,16 +157,7 @@ jobs:
           PYTHONPATH: src
         run: |
           echo "Running tests with STDIO transport..."
-          uv run pytest tests/ -v --tb=short \
-            --cov=src --cov-report=term-missing --cov-report=xml
-
-      - name: Upload coverage to Codecov
-        if: matrix.transport == 'stdio'
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage.xml
-          flags: integration-tests
-          fail_ci_if_error: false
+          uv run pytest tests/ -v --tb=short
 
       # ============================================
       # HTTP Transport Tests
