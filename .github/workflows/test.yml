@@ -1,0 +1,285 @@
+name: Tests
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Default test credentials for Couchbase
+  CB_USERNAME: Administrator
+  CB_PASSWORD: password
+  CB_MCP_TEST_BUCKET: travel-sample
+
+jobs:
+  # ============================================
+  # Integration Tests - All Transport Modes
+  # ============================================
+  integration-tests:
+    name: Integration (${{ matrix.transport }} transport)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        transport: ["stdio", "http", "sse"]
+
+    services:
+      couchbase:
+        image: couchbase:enterprise-8.0.0
+        ports:
+          - 8091:8091
+          - 8092:8092
+          - 8093:8093
+          - 8094:8094
+          - 8095:8095
+          - 8096:8096
+          - 9102:9102
+          - 11210:11210
+          - 11207:11207
+        options: >-
+          --health-cmd "curl -s http://localhost:8091/pools || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python (latest)
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Wait for Couchbase to be ready
+        run: |
+          echo "Waiting for Couchbase to be fully ready..."
+          for i in {1..60}; do
+            if curl -s http://localhost:8091/pools > /dev/null 2>&1; then
+              echo "Couchbase REST API is responding"
+              break
+            fi
+            echo "Waiting for Couchbase... ($i/60)"
+            sleep 2
+          done
+
+      - name: Initialize Couchbase cluster
+        run: |
+          echo "Initializing Couchbase cluster..."
+
+          # Initialize node
+          curl -s -X POST http://localhost:8091/nodes/self/controller/settings \
+            -d 'path=/opt/couchbase/var/lib/couchbase/data' \
+            -d 'index_path=/opt/couchbase/var/lib/couchbase/data'
+
+          # Set up services
+          curl -s -X POST http://localhost:8091/node/controller/setupServices \
+            -d 'services=kv,n1ql,index,fts'
+
+          # Set memory quotas
+          curl -s -X POST http://localhost:8091/pools/default \
+            -d 'memoryQuota=512' \
+            -d 'indexMemoryQuota=256' \
+            -d 'ftsMemoryQuota=256'
+
+          # Set credentials
+          curl -s -X POST http://localhost:8091/settings/web \
+            -d "password=${{ env.CB_PASSWORD }}" \
+            -d "username=${{ env.CB_USERNAME }}" \
+            -d 'port=SAME'
+
+          echo "Cluster initialization complete"
+
+      - name: Create test bucket
+        run: |
+          echo "Creating test bucket..."
+
+          # Wait for cluster to be fully initialized
+          sleep 5
+
+          # Create travel-sample bucket (or a test bucket)
+          curl -s -X POST http://localhost:8091/pools/default/buckets \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d 'name=${{ env.CB_MCP_TEST_BUCKET }}' \
+            -d 'bucketType=couchbase' \
+            -d 'ramQuota=256' \
+            -d 'flushEnabled=1'
+
+          # Wait for bucket to be ready
+          echo "Waiting for bucket to be ready..."
+          for i in {1..30}; do
+            if curl -s -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+               http://localhost:8091/pools/default/buckets/${{ env.CB_MCP_TEST_BUCKET }} | grep -q '"status":"healthy"'; then
+              echo "Bucket is healthy"
+              break
+            fi
+            echo "Waiting for bucket... ($i/30)"
+            sleep 2
+          done
+
+      - name: Create primary index
+        run: |
+          echo "Creating primary index..."
+          sleep 5
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=CREATE PRIMARY INDEX ON \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default" \
+            || echo "Primary index may already exist or query service not ready"
+
+      - name: Insert test documents
+        run: |
+          echo "Inserting test documents..."
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES {\"type\": \"test\", \"name\": \"Test Document 1\", \"id\": 1})" \
+            || echo "Insert may have failed"
+
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES ('test-doc-2', {\"type\": \"test\", \"name\": \"Test Document 2\", \"id\": 2})" \
+            || echo "Insert may have failed"
+
+      # ============================================
+      # STDIO Transport Tests
+      # ============================================
+      - name: Run STDIO integration tests
+        if: matrix.transport == 'stdio'
+        env:
+          CB_CONNECTION_STRING: couchbase://localhost
+          CB_MCP_TRANSPORT: stdio
+          PYTHONPATH: src
+        run: |
+          echo "Running tests with STDIO transport..."
+          uv run pytest tests/ -v --tb=short
+
+      # ============================================
+      # HTTP Transport Tests
+      # ============================================
+      - name: Start MCP server (HTTP)
+        if: matrix.transport == 'http'
+        env:
+          CB_CONNECTION_STRING: couchbase://localhost
+          CB_MCP_TRANSPORT: http
+          CB_MCP_HOST: 127.0.0.1
+          CB_MCP_PORT: 8000
+          PYTHONPATH: src
+        run: |
+          echo "Starting MCP server with HTTP transport..."
+          uv run python -m mcp_server &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+
+          # Wait for server to be ready (check if port is listening)
+          echo "Waiting for HTTP server to be ready..."
+          for i in {1..30}; do
+            if nc -z 127.0.0.1 8000 2>/dev/null; then
+              echo "HTTP server is ready"
+              break
+            fi
+            echo "Waiting for HTTP server... ($i/30)"
+            sleep 1
+          done
+
+      - name: Run HTTP transport tests
+        if: matrix.transport == 'http'
+        env:
+          CB_CONNECTION_STRING: couchbase://localhost
+          CB_MCP_TRANSPORT: http
+          CB_MCP_HOST: 127.0.0.1
+          CB_MCP_PORT: 8000
+          MCP_SERVER_URL: http://127.0.0.1:8000/mcp
+          PYTHONPATH: src
+        run: |
+          echo "Running tests with HTTP transport..."
+          uv run pytest tests/ -v --tb=short
+
+      - name: Stop HTTP server
+        if: matrix.transport == 'http' && always()
+        run: |
+          if [ -n "$SERVER_PID" ]; then
+            kill $SERVER_PID 2>/dev/null || true
+          fi
+
+      # ============================================
+      # SSE Transport Tests
+      # ============================================
+      - name: Start MCP server (SSE)
+        if: matrix.transport == 'sse'
+        env:
+          CB_CONNECTION_STRING: couchbase://localhost
+          CB_MCP_TRANSPORT: sse
+          CB_MCP_HOST: 127.0.0.1
+          CB_MCP_PORT: 8000
+          PYTHONPATH: src
+        run: |
+          echo "Starting MCP server with SSE transport..."
+          uv run python -m mcp_server &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+
+          # Wait for server to be ready (check if port is listening)
+          echo "Waiting for SSE server to be ready..."
+          for i in {1..30}; do
+            if nc -z 127.0.0.1 8000 2>/dev/null; then
+              echo "SSE server is ready"
+              break
+            fi
+            echo "Waiting for SSE server... ($i/30)"
+            sleep 1
+          done
+
+      - name: Run SSE transport tests
+        if: matrix.transport == 'sse'
+        env:
+          CB_CONNECTION_STRING: couchbase://localhost
+          CB_MCP_TRANSPORT: sse
+          CB_MCP_HOST: 127.0.0.1
+          CB_MCP_PORT: 8000
+          MCP_SERVER_URL: http://127.0.0.1:8000/sse
+          PYTHONPATH: src
+        run: |
+          echo "Running tests with SSE transport..."
+          uv run pytest tests/ -v --tb=short
+
+      - name: Stop SSE server
+        if: matrix.transport == 'sse' && always()
+        run: |
+          if [ -n "$SERVER_PID" ]; then
+            kill $SERVER_PID 2>/dev/null || true
+          fi
+
+  # ============================================
+  # Test Summary
+  # ============================================
+  test-summary:
+    name: Test Summary
+    permissions: {}
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          echo "=== Test Results Summary ==="
+          echo "Integration Tests: ${{ needs.integration-tests.result }}"
+          echo ""
+
+          if [ "${{ needs.integration-tests.result }}" == "failure" ]; then
+            echo "❌ Some tests failed"
+            exit 1
+          elif [ "${{ needs.integration-tests.result }}" == "cancelled" ]; then
+            echo "⚠️ Tests were cancelled"
+            exit 1
+          else
+            echo "✅ All tests passed!"
+          fi

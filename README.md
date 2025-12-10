@@ -418,6 +418,21 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 - Check the logs for any errors or warnings that may indicate issues with the MCP server. The location of the logs depend on your MCP client.
 - If you are observing issues running your MCP server from source after updating your local MCP server repository, try running `uv sync` to update the [dependencies](https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment).
 
+## Integration testing
+
+We provide high-level MCP integration tests to verify that the server exposes the expected tools and that they can be invoked against a demo Couchbase cluster.
+
+1. Export demo cluster credentials:
+   - `CB_CONNECTION_STRING`
+   - `CB_USERNAME`
+   - `CB_PASSWORD`
+   - Optional: `CB_MCP_TEST_BUCKET` (a bucket to probe during the tests)
+2. Run the tests:
+
+```bash
+uv run pytest tests/ -v
+```
+
 ---
 
 ## 👩‍💻 Contributing
