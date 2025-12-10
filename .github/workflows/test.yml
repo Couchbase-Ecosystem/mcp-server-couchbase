@@ -197,7 +197,7 @@ jobs:
           CB_MCP_TRANSPORT: http
           CB_MCP_HOST: 127.0.0.1
           CB_MCP_PORT: 8000
-          MCP_SERVER_URL: http://127.0.0.1:8000
+          MCP_SERVER_URL: http://127.0.0.1:8000/mcp
           PYTHONPATH: src
         run: |
           echo "Running tests with HTTP transport..."
@@ -245,7 +245,7 @@ jobs:
           CB_MCP_TRANSPORT: sse
           CB_MCP_HOST: 127.0.0.1
           CB_MCP_PORT: 8000
-          MCP_SERVER_URL: http://127.0.0.1:8000
+          MCP_SERVER_URL: http://127.0.0.1:8000/sse
           PYTHONPATH: src
         run: |
           echo "Running tests with SSE transport..."
