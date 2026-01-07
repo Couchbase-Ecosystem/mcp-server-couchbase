@@ -3,17 +3,53 @@ Store module for catalog data with thread-safe operations.
 
 This module provides a global store for:
 - Database schema information (buckets, scopes, collections)
+- Per-collection metadata for incremental updates
 - Enriched prompts from LLM sampling
 - Change detection flags
 """
 
 import json
 import logging
+from dataclasses import dataclass, asdict
+from datetime import datetime
 from pathlib import Path
 from threading import Lock
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CollectionMetadata:
+    """Metadata for tracking collection changes for incremental updates."""
+
+    bucket: str
+    scope: str
+    collection: str
+    schema_hash: str
+    last_infer_time: str  # ISO format string for JSON serialization
+    document_count: int | None = None
+
+    @property
+    def path(self) -> str:
+        """Get the collection path in bucket/scope/collection format."""
+        return f"{self.bucket}/{self.scope}/{self.collection}"
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "CollectionMetadata":
+        """Create CollectionMetadata from dictionary."""
+        return cls(
+            bucket=data["bucket"],
+            scope=data["scope"],
+            collection=data["collection"],
+            schema_hash=data["schema_hash"],
+            last_infer_time=data["last_infer_time"],
+            document_count=data.get("document_count"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return asdict(self)
 
 
 class Store:
@@ -25,15 +61,17 @@ class Store:
     def __init__(self):
         """Initialize the store with empty data structures."""
         self.database_info: dict[str, Any] = {}
+        self.collection_metadata: dict[str, CollectionMetadata] = {}  # path -> metadata
         self.prompt: str = ""
         self.schema_hash: str = ""
         self.needs_enrichment: bool = False
+        self.last_full_refresh: str | None = None  # ISO format
         self._lock: Lock = Lock()
         self._state_file: Path = self.STATE_FILE
-        
+
         # Create state directory if it doesn't exist
         self._state_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Load state from file if it exists
         self._load_state()
 
@@ -173,46 +211,121 @@ class Store:
     def get_needs_enrichment(self) -> bool:
         """
         Get the enrichment needed flag.
-        
+
         Returns:
             Boolean indicating if enrichment is needed
         """
         with self._lock:
             return self.needs_enrichment
 
+    def get_collection_metadata(self, path: str) -> CollectionMetadata | None:
+        """
+        Get metadata for a specific collection.
+
+        Args:
+            path: Collection path in format 'bucket/scope/collection'
+
+        Returns:
+            CollectionMetadata if found, None otherwise
+        """
+        with self._lock:
+            return self.collection_metadata.get(path)
+
+    def set_collection_metadata(self, metadata: CollectionMetadata) -> None:
+        """
+        Set metadata for a collection.
+        Persists the change to disk.
+
+        Args:
+            metadata: CollectionMetadata instance
+        """
+        with self._lock:
+            self.collection_metadata[metadata.path] = metadata
+            self._save_state()
+
+    def get_all_collection_metadata(self) -> dict[str, CollectionMetadata]:
+        """
+        Get all collection metadata.
+
+        Returns:
+            Copy of collection metadata dictionary
+        """
+        with self._lock:
+            return self.collection_metadata.copy()
+
+    def remove_collection_metadata(self, path: str) -> None:
+        """
+        Remove metadata for a collection (e.g., when collection is deleted).
+
+        Args:
+            path: Collection path in format 'bucket/scope/collection'
+        """
+        with self._lock:
+            self.collection_metadata.pop(path, None)
+            self._save_state()
+
+    def set_last_full_refresh(self, timestamp: str) -> None:
+        """
+        Set the timestamp of the last full catalog refresh.
+
+        Args:
+            timestamp: ISO format timestamp string
+        """
+        with self._lock:
+            self.last_full_refresh = timestamp
+            self._save_state()
+
+    def get_last_full_refresh(self) -> str | None:
+        """
+        Get the timestamp of the last full catalog refresh.
+
+        Returns:
+            ISO format timestamp string or None
+        """
+        with self._lock:
+            return self.last_full_refresh
+
     def to_dict(self) -> dict[str, Any]:
         """
         Export the entire store state as a dictionary.
-        
+
         This is the primary method for encoding store state. All file I/O operations
         use this method internally for serialization.
-        
+
         Returns:
             Dictionary containing the store state
         """
         return {
             "database_info": self.database_info,
+            "collection_metadata": {
+                path: meta.to_dict()
+                for path, meta in self.collection_metadata.items()
+            },
             "prompt": self.prompt,
             "schema_hash": self.schema_hash,
             "needs_enrichment": self.needs_enrichment,
+            "last_full_refresh": self.last_full_refresh,
         }
 
     def from_dict(self, state_dict: dict[str, Any]) -> None:
         """
         Import store state from a dictionary.
-        
+
         This is the primary method for decoding store state. All file I/O operations
         use this method internally for deserialization.
-        
+
         Note: Called during initialization before threads access the store.
-        
+
         Args:
             state_dict: Dictionary containing store state with required fields:
                        - database_info: Database schema information
                        - prompt: Enriched prompt string
                        - schema_hash: Hash of current schema
                        - needs_enrichment: Boolean flag for enrichment status
-            
+                       Optional fields (for backward compatibility):
+                       - collection_metadata: Per-collection tracking data
+                       - last_full_refresh: Timestamp of last full refresh
+
         Raises:
             ValueError: If the dictionary is missing required fields
         """
@@ -221,11 +334,21 @@ class Store:
             missing_fields = required_fields - set(state_dict.keys())
             if missing_fields:
                 raise ValueError(f"Missing required fields: {missing_fields}")
-            
+
             self.database_info = state_dict["database_info"]
             self.prompt = state_dict["prompt"]
             self.schema_hash = state_dict["schema_hash"]
             self.needs_enrichment = state_dict["needs_enrichment"]
+
+            # Optional fields for backward compatibility with old state files
+            self.last_full_refresh = state_dict.get("last_full_refresh")
+
+            # Load collection metadata if present
+            collection_metadata_dict = state_dict.get("collection_metadata", {})
+            self.collection_metadata = {
+                path: CollectionMetadata.from_dict(meta_dict)
+                for path, meta_dict in collection_metadata_dict.items()
+            }
         except Exception as e:
             logger.error(f"Failed to import state from dictionary: {e}")
             raise

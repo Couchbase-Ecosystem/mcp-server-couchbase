@@ -2,7 +2,7 @@
 Catalog enrichment using LLM sampling.
 
 This module runs in the MCP server's async event loop and:
-1. Periodically checks for schema changes (every 2 minutes)
+1. Waits for schema change signals from the catalog worker (event-driven)
 2. Uses MCP sampling to request LLM to generate descriptions
 3. Stores enriched prompts back in the catalog store
 
@@ -17,12 +17,16 @@ from typing import Any, Optional
 from mcp.server.session import ServerSession
 from mcp.types import SamplingMessage, TextContent
 
+from catalog.events.bridge import get_enrichment_bridge
 from catalog.store.store import get_catalog_store
 from utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
 
-# Enrichment check interval (2 minutes)
+# Timeout for waiting on bridge signal (for graceful shutdown checks)
+BRIDGE_WAIT_TIMEOUT = 60.0  # seconds
+
+# Legacy polling interval (fallback if bridge not available)
 ENRICHMENT_CHECK_INTERVAL = 120  # seconds
 
 
@@ -170,26 +174,52 @@ async def _check_and_enrich_catalog(session: Optional[ServerSession]) -> None:
 
 async def run_enrichment_cron(session: Optional[ServerSession]) -> None:
     """
-    Run the enrichment cron job that waits for schema changes.
-    
-    This function runs in the MCP server's event loop and waits for a signal
-    from the catalog worker that enrichment is needed.
-    
+    Run the enrichment task that waits for schema change signals.
+
+    This function runs in the MCP server's event loop and waits for signals
+    from the catalog worker via the ThreadToAsyncBridge. This is event-driven
+    rather than polling-based for better responsiveness.
+
     Args:
         session: Optional MCP ServerSession for sampling
     """
-    logger.info("Catalog enrichment task started (cron job)")
+    logger.info("Catalog enrichment task started (event-driven)")
+
+    # Set up the bridge with the current event loop
+    bridge = get_enrichment_bridge()
+    try:
+        bridge.set_target_loop(asyncio.get_running_loop())
+        logger.debug("Enrichment bridge target loop set")
+    except RuntimeError as e:
+        logger.warning(f"Could not set bridge target loop: {e}")
+
+    # Check if there's already a pending enrichment request (from startup)
+    store = get_catalog_store()
+    if store.get_needs_enrichment():
+        logger.info("Found pending enrichment request at startup")
+        await _check_and_enrich_catalog(session)
+
     while True:
         try:
-            # Perform enrichment
-            await _check_and_enrich_catalog(session)
+            # Wait for signal from catalog worker (with timeout for shutdown checks)
+            signaled = await bridge.wait_for_signal(timeout=BRIDGE_WAIT_TIMEOUT)
 
-            # Wait for a bit before retrying
-            await asyncio.sleep(ENRICHMENT_CHECK_INTERVAL)
+            if signaled:
+                logger.info("Received enrichment signal from catalog worker")
+                await _check_and_enrich_catalog(session)
+            else:
+                # Timeout - check if enrichment is needed anyway (fallback)
+                if store.get_needs_enrichment():
+                    logger.debug("Timeout but enrichment flag set - processing")
+                    await _check_and_enrich_catalog(session)
+
+        except asyncio.CancelledError:
+            logger.info("Enrichment task cancelled")
+            raise
         except Exception as e:
             logger.error(f"Error in enrichment cycle: {e}", exc_info=True)
             # Wait a bit before retrying to avoid tight loops on error
-            await asyncio.sleep(60)
+            await asyncio.sleep(30)
 
 
 _enrichment_task: Optional[asyncio.Task] = None
