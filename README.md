@@ -234,16 +234,16 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 </details>
 
 <details> 
-<summary>VS Code </summary>
+<summary>VS Code</summary>
 
 Follow the steps below to use the Couchbase MCP server with [VS Code](https://code.visualstudio.com/).
-1. Install the [VS Code](https://code.visualstudio.com/)
-2. Following are a couple of ways to install the MCP server.
-    * For a Workspace server configuration 
+1. Install [VS Code](https://code.visualstudio.com/)
+2. Following are a couple of ways to configure the MCP server.
+    * For a Workspace server configuration
       - Create a new file in workspace as .vscode/mcp.json. 
       - Add the [configuration](#configuration) and save the file.
     * For the Global server configuration: 
-      - Run **MCP: Open User Configuration** in the Command pallete(`Ctrl+Shift+P` or `Cmd+Shift+P`) 
+      - Run **MCP: Open User Configuration** in the Command Pallete(`Ctrl+Shift+P` or `Cmd+Shift+P`) 
       - Add the [configuration](#configuration) and save the file. 
 3. Once you save the file, the server starts and a small action list appears with `Running|Stop|n Tools|More..`. 
 4. Click on the options from the option list to `Start`/`Stop`/manage the server.
@@ -257,16 +257,16 @@ In the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`),
 - choose “Show Output” to see its logs in the Output tab.
 </details>
 
-<details> 
+<details>
 <summary>JetBrains IDEs</summary>
 
 Follow the steps below to use the Couchbase MCP server with [JetBrains IDEs](https://www.jetbrains.com/)
 1. Install any one of the [JetBrains IDEs](https://www.jetbrains.com/)
 2. Install any one of the JetBrains plugins - [AI Assistant](https://www.jetbrains.com/help/ai-assistant/getting-started-with-ai-assistant.html) or [Junie](https://www.jetbrains.com/help/junie/get-started-with-junie.html)
 3. Navigate to **Settings > Tools > AI Assistant or Junie > MCP Server**
-4. Click "+" to add the Couchbase MCP [configuration](#configuration) and click save.
-5. You will see the couchbase MCP server added to the list of servers. Once you click Apply, the Coucbase MCP server starts and on-hover of status, it shows all the tools available. 
-6. You can now use the Couchbase MCP server in JetBrains IDES to query your Couchbase cluster using natural language and perform CRUD operations on documents.
+4. Click "+" to add the Couchbase MCP [configuration](#configuration) and click Save.
+5. You will see the Couchbase MCP server added to the list of servers. Once you click Apply, the Couchbase MCP server starts and on-hover of status, it shows all the tools available.
+6. You can now use the Couchbase MCP server in JetBrains IDEs to query your Couchbase cluster using natural language and perform CRUD operations on documents.
 
 Logs: 
 The log file can be explored at **Help > Show Log in Finder (Explorer) > mcp > couchbase**
