@@ -233,6 +233,60 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 
 </details>
 
+<details> 
+<summary>VS Code</summary>
+
+Follow the steps below to use the Couchbase MCP server with [VS Code](https://code.visualstudio.com/).
+1. Install [VS Code](https://code.visualstudio.com/)
+2. Following are a couple of ways to configure the MCP server.
+    * For a Workspace server configuration
+      - Create a new file in workspace as .vscode/mcp.json. 
+      - Add the [configuration](#configuration) and save the file.
+    * For the Global server configuration: 
+      - Run **MCP: Open User Configuration** in the Command Pallete(`Ctrl+Shift+P` or `Cmd+Shift+P`) 
+      - Add the [configuration](#configuration) and save the file. 
+    * **Note**: VS Code uses `servers` as the top-level JSON property in mcp.json files to define MCP (Model Context Protocol) servers, while Cursor uses `mcpServers` for the equivalent configuration. Check the [VS Code client configurations](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for any further changes or details. An example VS Code configuration is provided below. 
+      ```json
+        {
+          "servers": {
+            "couchbase": {
+              "command": "uvx",
+              "args": ["couchbase-mcp-server"],
+              "env": {
+                "CB_CONNECTION_STRING": "couchbases://connection-string",
+                "CB_USERNAME": "username",
+                "CB_PASSWORD": "password"
+              }
+            }
+          }
+        }
+        ```
+3. Once you save the file, the server starts and a small action list appears with `Running|Stop|n Tools|More..`. 
+4. Click on the options from the option list to `Start`/`Stop`/manage the server.
+5. You can now use the Couchbase MCP server in VS Code to query your Couchbase cluster using natural language and perform CRUD operations on documents.
+
+Logs:
+In the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`), 
+- run **MCP: List Servers** command and pick the couchbase server
+- choose “Show Output” to see its logs in the Output tab.
+</details>
+
+<details>
+<summary>JetBrains IDEs</summary>
+
+Follow the steps below to use the Couchbase MCP server with [JetBrains IDEs](https://www.jetbrains.com/)
+1. Install any one of the [JetBrains IDEs](https://www.jetbrains.com/)
+2. Install any one of the JetBrains plugins - [AI Assistant](https://www.jetbrains.com/help/ai-assistant/getting-started-with-ai-assistant.html) or [Junie](https://www.jetbrains.com/help/junie/get-started-with-junie.html)
+3. Navigate to **Settings > Tools > AI Assistant or Junie > MCP Server**
+4. Click "+" to add the Couchbase MCP [configuration](#configuration) and click Save.
+5. You will see the Couchbase MCP server added to the list of servers. Once you click Apply, the Couchbase MCP server starts and on-hover of status, it shows all the tools available.
+6. You can now use the Couchbase MCP server in JetBrains IDEs to query your Couchbase cluster using natural language and perform CRUD operations on documents.
+
+Logs: 
+The log file can be explored at **Help > Show Log in Finder (Explorer) > mcp > couchbase**
+
+</details>
+
 ## Streamable HTTP Transport Mode
 
 The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode which allows multiple clients to connect to the same server instance via HTTP.
