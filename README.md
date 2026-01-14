@@ -245,11 +245,25 @@ Follow the steps below to use the Couchbase MCP server with [VS Code](https://co
     * For the Global server configuration: 
       - Run **MCP: Open User Configuration** in the Command Pallete(`Ctrl+Shift+P` or `Cmd+Shift+P`) 
       - Add the [configuration](#configuration) and save the file. 
+    * **Note**: VS Code uses `servers` as the top-level JSON property in mcp.json files to define MCP (Model Context Protocol) servers, while Cursor uses `mcpServers` for the equivalent configuration. Check the [VS Code client configurations](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for any further changes or details. An example VS Code configuration is provided below. 
+      ```json
+        {
+          "servers": {
+            "couchbase": {
+              "command": "uvx",
+              "args": ["couchbase-mcp-server"],
+              "env": {
+                "CB_CONNECTION_STRING": "couchbases://connection-string",
+                "CB_USERNAME": "username",
+                "CB_PASSWORD": "password"
+              }
+            }
+          }
+        }
+        ```
 3. Once you save the file, the server starts and a small action list appears with `Running|Stop|n Tools|More..`. 
 4. Click on the options from the option list to `Start`/`Stop`/manage the server.
 5. You can now use the Couchbase MCP server in VS Code to query your Couchbase cluster using natural language and perform CRUD operations on documents.
-
-**Note**: VS Code uses `servers` as the top-level JSON property in mcp.json files to define MCP (Model Context Protocol) servers, while Cursor uses `mcpServers` for the equivalent configuration. Check the [VS Code client configurations](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for any further changes or details. 
 
 Logs:
 In the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`), 
