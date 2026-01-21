@@ -306,9 +306,10 @@ async def test_insert_document_fails_if_exists() -> None:
                 "document_content": {"name": "Should Not Be Inserted"},
             },
         )
+        payload = extract_payload(response)
 
-        # The response should indicate an error (isError should be True)
-        assert response.isError is True, "Insert should fail when document exists"
+        # insert returns False when document already exists
+        assert payload is False, "Insert should return False when document exists"
 
         # Clean up
         await session.call_tool(
@@ -411,8 +412,9 @@ async def test_replace_document_fails_if_not_exists() -> None:
                 "document_content": {"name": "Should Not Be Created"},
             },
         )
+        payload = extract_payload(response)
 
-        # The response should indicate an error (isError should be True)
-        assert response.isError is True, (
-            "Replace should fail when document doesn't exist"
+        # replace returns False when document doesn't exist
+        assert payload is False, (
+            "Replace should return False when document doesn't exist"
         )
