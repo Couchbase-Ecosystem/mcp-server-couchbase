@@ -105,7 +105,7 @@ def insert_document_by_id(
         return True
     except Exception as e:
         logger.error(f"Error inserting document {document_id}: {e}")
-        raise
+        return False
 
 
 def replace_document_by_id(
@@ -128,4 +128,4 @@ def replace_document_by_id(
         return True
     except Exception as e:
         logger.error(f"Error replacing document {document_id}: {e}")
-        raise
+        return False
