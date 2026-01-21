@@ -29,6 +29,8 @@ EXPECTED_TOOLS = {
     "get_scopes_in_bucket",
     "get_document_by_id",
     "upsert_document_by_id",
+    "insert_document_by_id",
+    "replace_document_by_id",
     "delete_document_by_id",
     "get_schema_for_collection",
     "run_sql_plus_plus_query",
@@ -59,6 +61,8 @@ TOOLS_BY_CATEGORY = {
     "kv": {
         "get_document_by_id",
         "upsert_document_by_id",
+        "insert_document_by_id",
+        "replace_document_by_id",
         "delete_document_by_id",
     },
     "query": {
@@ -103,6 +107,20 @@ TOOL_REQUIRED_PARAMS = {
         "scope_name",
         "collection_name",
         "document_id",
+    ],
+    "insert_document_by_id": [
+        "bucket_name",
+        "scope_name",
+        "collection_name",
+        "document_id",
+        "document_content",
+    ],
+    "replace_document_by_id": [
+        "bucket_name",
+        "scope_name",
+        "collection_name",
+        "document_id",
+        "document_content",
     ],
     "get_schema_for_collection": ["bucket_name", "scope_name", "collection_name"],
     "run_sql_plus_plus_query": ["bucket_name", "scope_name", "query"],

@@ -11,6 +11,8 @@ from .index import get_index_advisor_recommendations, list_indexes
 from .kv import (
     delete_document_by_id,
     get_document_by_id,
+    insert_document_by_id,
+    replace_document_by_id,
     upsert_document_by_id,
 )
 
@@ -48,6 +50,8 @@ ALL_TOOLS = [
     get_scopes_in_bucket,
     get_document_by_id,
     upsert_document_by_id,
+    insert_document_by_id,
+    replace_document_by_id,
     delete_document_by_id,
     get_schema_for_collection,
     run_sql_plus_plus_query,
@@ -73,6 +77,8 @@ __all__ = [
     "get_buckets_in_cluster",
     "get_document_by_id",
     "upsert_document_by_id",
+    "insert_document_by_id",
+    "replace_document_by_id",
     "delete_document_by_id",
     "get_schema_for_collection",
     "run_sql_plus_plus_query",
