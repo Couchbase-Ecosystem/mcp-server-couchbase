@@ -11,14 +11,14 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 <!-- mcp-name: io.github.Couchbase-Ecosystem/mcp-server-couchbase -->
 
 ## Features/Tools
-### Cluster Setup & Health tools
+### Cluster setup & health tools
 | Tool Name | Description |
 |-----------|-------------|
 | `get_server_configuration_status` | Get the status of the MCP server |
 | `test_cluster_connection` | Check the cluster credentials by connecting to the cluster |
 | `get_cluster_health_and_services` | Get cluster health status and list of all running services |
 
-### Data model & Schema discovery tools
+### Data model & schema discovery tools
 | Tool Name | Description |
 |-----------|-------------|
 | `get_buckets_in_cluster` | Get a list of all the buckets in the cluster |
@@ -27,19 +27,19 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 | `get_scopes_and_collections_in_bucket` | Get a list of all the scopes and collections in the specified bucket |
 | `get_schema_for_collection` | Get the structure for a collection |
 
-### Document data operations tools
+### Document KV operations tools
 | Tool Name | Description |
 |-----------|-------------|
 | `get_document_by_id` | Get a document by ID from a specified scope and collection |
 | `upsert_document_by_id` | Upsert a document by ID to a specified scope and collection |
 | `delete_document_by_id` | Delete a document by ID from a specified scope and collection |
 
-### Query and Indexing tools
+### Query and indexing tools
 | Tool Name | Description |
 |-----------|-------------|
 | `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name. |
 | `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance |
-| `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_QUERY_MODE` is true by default, disabling data/structure-changing queries. Documents can still be updated by ID. |
+| `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_QUERY_MODE` config is true by default, which means that queries that modify data are disabled by default. |
 
 ### Query performance analysis tools
 | Tool Name | Description |
