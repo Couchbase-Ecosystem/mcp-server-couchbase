@@ -159,7 +159,7 @@ The server can be configured using environment variables or command line argumen
 | `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
 | `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to the client key file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
 | `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. This will not be required if you are connecting to Capella | |
-| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries | `true` |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent queries that modify data. Note that data modification would still be possible via document operations tools. | `true` |
 | `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
