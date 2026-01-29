@@ -418,3 +418,64 @@ async def test_replace_document_fails_if_not_exists() -> None:
         assert payload is False, (
             "Replace should return False when document doesn't exist"
         )
+
+
+@pytest.mark.asyncio
+async def test_get_document_fails_if_not_exists() -> None:
+    """Verify get_document_by_id fails when document does not exist."""
+    bucket = require_test_bucket()
+    scope = get_test_scope()
+    collection = get_test_collection()
+
+    # Use a document ID that definitely doesn't exist
+    doc_id = f"test_get_nonexistent_{uuid.uuid4().hex[:8]}"
+
+    async with create_mcp_session() as session:
+        # Try to get a non-existent document - should fail with an error
+        response = await session.call_tool(
+            "get_document_by_id",
+            arguments={
+                "bucket_name": bucket,
+                "scope_name": scope,
+                "collection_name": collection,
+                "document_id": doc_id,
+            },
+        )
+
+        # get_document_by_id raises an exception when document doesn't exist,
+        # which results in an error response (isError=True in MCP)
+        is_error = getattr(response, "isError", None) or getattr(
+            response, "is_error", False
+        )
+        assert is_error is True, (
+            "Get should return an error when document doesn't exist"
+        )
+
+
+@pytest.mark.asyncio
+async def test_delete_document_fails_if_not_exists() -> None:
+    """Verify delete_document_by_id fails when document does not exist."""
+    bucket = require_test_bucket()
+    scope = get_test_scope()
+    collection = get_test_collection()
+
+    # Use a document ID that definitely doesn't exist
+    doc_id = f"test_delete_nonexistent_{uuid.uuid4().hex[:8]}"
+
+    async with create_mcp_session() as session:
+        # Try to delete a non-existent document - should fail
+        response = await session.call_tool(
+            "delete_document_by_id",
+            arguments={
+                "bucket_name": bucket,
+                "scope_name": scope,
+                "collection_name": collection,
+                "document_id": doc_id,
+            },
+        )
+        payload = extract_payload(response)
+
+        # delete returns False when document doesn't exist
+        assert payload is False, (
+            "Delete should return False when document doesn't exist"
+        )
