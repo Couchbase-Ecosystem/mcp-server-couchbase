@@ -51,6 +51,12 @@ def upsert_document_by_id(
     document_content: dict[str, Any],
 ) -> bool:
     """Insert or update a document by its ID.
+
+    IMPORTANT: Only use this tool when the user explicitly requests an 'upsert' operation
+    or explicitly states they want to 'insert or update' a document.
+
+    DO NOT use this as a fallback when insert_document_by_id or replace_document_by_id fails.
+
     Returns True on success, False on failure."""
     cluster = get_cluster_connection(ctx)
     bucket = connect_to_bucket(cluster, bucket_name)
@@ -93,8 +99,11 @@ def insert_document_by_id(
     document_id: str,
     document_content: dict[str, Any],
 ) -> bool:
-    """Insert a new document by its ID.
-    Only creates the document if it does NOT already exist.
+    """Insert a new document by its ID. This operation will FAIL if the document already exists.
+
+    IMPORTANT: If this operation fails, DO NOT automatically try replace or upsert.
+    Report the failure to the user. They can choose to 'replace' or 'upsert' if desired.
+
     Returns True on success, False on failure (including if document already exists)."""
     cluster = get_cluster_connection(ctx)
     bucket = connect_to_bucket(cluster, bucket_name)
@@ -116,8 +125,11 @@ def replace_document_by_id(
     document_id: str,
     document_content: dict[str, Any],
 ) -> bool:
-    """Replace an existing document by its ID.
-    Only replaces the document if it already exists.
+    """Replace an existing document by its ID. This operation will FAIL if the document does not exist.
+
+    IMPORTANT: If this operation fails, DO NOT automatically try insert or upsert.
+    Report the failure to the user. They can choose to 'insert' or 'upsert' if desired.
+
     Returns True on success, False on failure (including if document does not exist)."""
     cluster = get_cluster_connection(ctx)
     bucket = connect_to_bucket(cluster, bucket_name)
