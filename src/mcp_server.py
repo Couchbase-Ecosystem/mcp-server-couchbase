@@ -171,7 +171,7 @@ def main(
 
     # Parse disabled tools from CLI/environment variable
     disabled_tool_names = parse_disabled_tools(
-        disabled_tools_input=disabled_tools_cli if disabled_tools_cli else None,
+        disabled_tools_input=disabled_tools_cli,
     )
 
     # Filter out disabled tools
