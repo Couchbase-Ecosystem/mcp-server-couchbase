@@ -24,7 +24,9 @@ from utils import (
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
+    filter_tools_by_disabled_list,
     get_settings,
+    parse_disabled_tools,
 )
 
 # Configure logging
@@ -127,6 +129,15 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     default=DEFAULT_PORT,
     help="Port to run the server on (default: 8000)",
 )
+@click.option(
+    "--disabled-tools",
+    "disabled_tools_cli",
+    envvar="CB_DISABLED_TOOLS",
+    multiple=True,
+    help="Tools to disable. Can be: tool names separated by space (--disabled-tools tool1 tool2), "
+    "or a file path containing one tool name per line (--disabled-tools disabled_tools.txt). "
+    "Can also be set via CB_DISABLED_TOOLS env var as comma-separated or JSON list.",
+)
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
 def main(
@@ -141,6 +152,7 @@ def main(
     transport,
     host,
     port,
+    disabled_tools_cli,
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -157,6 +169,21 @@ def main(
         "port": port,
     }
 
+    # Parse disabled tools from CLI/environment variable
+    disabled_tool_names = parse_disabled_tools(
+        disabled_tools_input=disabled_tools_cli if disabled_tools_cli else None,
+    )
+
+    # Filter out disabled tools
+    enabled_tools, actually_disabled = filter_tools_by_disabled_list(
+        ALL_TOOLS, disabled_tool_names
+    )
+
+    if actually_disabled:
+        logger.info(
+            f"Disabled {len(actually_disabled)} tool(s): {sorted(actually_disabled)}"
+        )
+
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
 
@@ -172,9 +199,11 @@ def main(
 
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
 
-    # Register all tools
-    for tool in ALL_TOOLS:
+    # Register only enabled tools
+    for tool in enabled_tools:
         mcp.add_tool(tool)
+
+    logger.info(f"Registered {len(enabled_tools)} tool(s)")
 
     # Run the server
     mcp.run(transport=sdk_transport)  # type: ignore

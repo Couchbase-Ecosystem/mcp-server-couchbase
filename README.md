@@ -148,9 +148,78 @@ The server can be configured using environment variables or command line argumen
 | `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
+| `CB_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](#disabling-tools)) | None |
 
 > Note: For authentication, you need either the Username and Password or the Client Certificate and key paths. Optionally, you can specify the CA root certificate path that will be used to validate the server certificates.
 > If both the Client Certificate & key path and the username and password are specified, the client certificates will be used for authentication.
+
+### Disabling Tools
+
+You can disable specific tools to prevent them from being loaded and exposed to the MCP client. Disabled tools will not appear in the tool discovery and cannot be invoked by the LLM.
+
+#### Configuration Formats
+
+**Environment Variable (`CB_DISABLED_TOOLS`):**
+
+```bash
+# Comma-separated list
+CB_DISABLED_TOOLS="upsert_document_by_id,delete_document_by_id"
+
+# JSON array format
+CB_DISABLED_TOOLS='["upsert_document_by_id", "delete_document_by_id", "get_index_advisor_recommendations"]'
+```
+
+**Command Line (`--disabled-tools`):**
+
+```bash
+# Space-separated tool names
+uvx couchbase-mcp-server --disabled-tools upsert_document_by_id delete_document_by_id
+
+# File containing one tool name per line (recommended for many tools)
+uvx couchbase-mcp-server --disabled-tools disabled_tools.txt
+```
+
+**File format (e.g., `disabled_tools.txt`):**
+
+```text
+# Write operations
+upsert_document_by_id
+delete_document_by_id
+
+# Index advisor
+get_index_advisor_recommendations
+```
+
+Lines starting with `#` are treated as comments and ignored.
+
+#### MCP Client Configuration Example
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
+        "CB_DISABLED_TOOLS": "upsert_document_by_id,delete_document_by_id"
+      }
+    }
+  }
+}
+```
+
+#### Important Security Note
+
+> **Warning:** Disabling tools alone does not guarantee that certain operations cannot be performed. The underlying database user's RBAC (Role-Based Access Control) permissions are the authoritative security control.
+>
+> For example, even if you disable `upsert_document_by_id` and `delete_document_by_id`, data modifications can still occur via the `run_sql_plus_plus_query` tool using SQL++ DML statements (INSERT, UPDATE, DELETE, MERGE) unless:
+> - The `CB_MCP_READ_ONLY_QUERY_MODE` is set to `true` (default), OR
+> - The database user lacks the necessary RBAC permissions for data modification
+>
+> **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use tool disabling as an additional layer to guide LLM behavior and reduce the attack surface, not as the sole security control.
 
 You can also check the version of the server using:
 
@@ -233,19 +302,19 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 
 </details>
 
-<details> 
+<details>
 <summary>VS Code</summary>
 
 Follow the steps below to use the Couchbase MCP server with [VS Code](https://code.visualstudio.com/).
 1. Install [VS Code](https://code.visualstudio.com/)
 2. Following are a couple of ways to configure the MCP server.
     * For a Workspace server configuration
-      - Create a new file in workspace as .vscode/mcp.json. 
+      - Create a new file in workspace as .vscode/mcp.json.
       - Add the [configuration](#configuration) and save the file.
-    * For the Global server configuration: 
-      - Run **MCP: Open User Configuration** in the Command Pallete(`Ctrl+Shift+P` or `Cmd+Shift+P`) 
-      - Add the [configuration](#configuration) and save the file. 
-    * **Note**: VS Code uses `servers` as the top-level JSON property in mcp.json files to define MCP (Model Context Protocol) servers, while Cursor uses `mcpServers` for the equivalent configuration. Check the [VS Code client configurations](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for any further changes or details. An example VS Code configuration is provided below. 
+    * For the Global server configuration:
+      - Run **MCP: Open User Configuration** in the Command Pallete(`Ctrl+Shift+P` or `Cmd+Shift+P`)
+      - Add the [configuration](#configuration) and save the file.
+    * **Note**: VS Code uses `servers` as the top-level JSON property in mcp.json files to define MCP (Model Context Protocol) servers, while Cursor uses `mcpServers` for the equivalent configuration. Check the [VS Code client configurations](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for any further changes or details. An example VS Code configuration is provided below.
       ```json
         {
           "servers": {
@@ -261,12 +330,12 @@ Follow the steps below to use the Couchbase MCP server with [VS Code](https://co
           }
         }
         ```
-3. Once you save the file, the server starts and a small action list appears with `Running|Stop|n Tools|More..`. 
+3. Once you save the file, the server starts and a small action list appears with `Running|Stop|n Tools|More..`.
 4. Click on the options from the option list to `Start`/`Stop`/manage the server.
 5. You can now use the Couchbase MCP server in VS Code to query your Couchbase cluster using natural language and perform CRUD operations on documents.
 
 Logs:
-In the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`), 
+In the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`),
 - run **MCP: List Servers** command and pick the couchbase server
 - choose “Show Output” to see its logs in the Output tab.
 </details>
@@ -282,7 +351,7 @@ Follow the steps below to use the Couchbase MCP server with [JetBrains IDEs](htt
 5. You will see the Couchbase MCP server added to the list of servers. Once you click Apply, the Couchbase MCP server starts and on-hover of status, it shows all the tools available.
 6. You can now use the Couchbase MCP server in JetBrains IDEs to query your Couchbase cluster using natural language and perform CRUD operations on documents.
 
-Logs: 
+Logs:
 The log file can be explored at **Help > Show Log in Finder (Explorer) > mcp > couchbase**
 
 </details>
