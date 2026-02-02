@@ -166,7 +166,7 @@ You can disable specific tools to prevent them from being loaded and exposed to 
 CB_DISABLED_TOOLS="upsert_document_by_id,delete_document_by_id"
 
 # JSON array format
-CB_DISABLED_TOOLS='["upsert_document_by_id", "delete_document_by_id", "get_index_advisor_recommendations"]'
+CB_DISABLED_TOOLS=["upsert_document_by_id", "delete_document_by_id"]
 ```
 
 **Command Line (`--disabled-tools`):**
@@ -192,7 +192,9 @@ get_index_advisor_recommendations
 
 Lines starting with `#` are treated as comments and ignored.
 
-#### MCP Client Configuration Example
+#### MCP Client Configuration Examples
+
+**Using environment variable:**
 
 ```json
 {
@@ -205,6 +207,28 @@ Lines starting with `#` are treated as comments and ignored.
         "CB_USERNAME": "username",
         "CB_PASSWORD": "password",
         "CB_DISABLED_TOOLS": "upsert_document_by_id,delete_document_by_id"
+      }
+    }
+  }
+}
+```
+
+**Using command line with file (recommended for many tools):**
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": [
+        "couchbase-mcp-server",
+        "--disabled-tools",
+        "/path/to/disabled_tools.txt"
+      ],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
       }
     }
   }
