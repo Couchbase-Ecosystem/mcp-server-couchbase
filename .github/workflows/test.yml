@@ -149,6 +149,46 @@ jobs:
             -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES ('test-doc-2', {\"type\": \"test\", \"name\": \"Test Document 2\", \"id\": 2})" \
             || echo "Insert may have failed"
 
+      - name: Enable query logging for performance tests
+        run: |
+          echo "Enabling query logging (completed-threshold=0)..."
+          curl -s -X POST http://localhost:8093/admin/settings \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -H "Content-Type: application/json" \
+            -d '{"completed-threshold": 0, "completed-limit": 10000}' \
+            || echo "Could not enable query logging"
+
+      - name: Run queries to populate system:completed_requests
+        run: |
+          echo "Running queries to populate system:completed_requests for performance tests..."
+          
+          # Run several queries so performance analysis tools have data
+          for i in {1..5}; do
+            curl -s -X POST http://localhost:8093/query/service \
+              -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+              -d "statement=SELECT * FROM \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default LIMIT 100" \
+              > /dev/null
+          done
+          
+          # Query with aggregation
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=SELECT COUNT(*) as cnt FROM \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default" \
+            > /dev/null
+          
+          # Query with filter
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=SELECT * FROM \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default WHERE type = 'test'" \
+            > /dev/null
+          
+          # Verify completed_requests has data
+          echo "Verifying system:completed_requests..."
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=SELECT COUNT(*) as cnt FROM system:completed_requests" \
+            | grep -o '"cnt":[0-9]*' || echo "Could not verify"
+
       # ============================================
       # STDIO Transport Tests
       # ============================================
