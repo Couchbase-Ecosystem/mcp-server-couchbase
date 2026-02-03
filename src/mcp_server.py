@@ -174,13 +174,6 @@ def main(
     # Filter out disabled tools using set difference
     all_tool_names = {tool.__name__ for tool in ALL_TOOLS}
     actually_disabled = disabled_tool_names & all_tool_names
-    unknown_tools = disabled_tool_names - all_tool_names
-
-    if unknown_tools:
-        logger.warning(
-            f"Unknown tool(s) specified for disabling: {sorted(unknown_tools)}. "
-            f"Please verify the tool names are correct."
-        )
 
     if actually_disabled:
         logger.info(
