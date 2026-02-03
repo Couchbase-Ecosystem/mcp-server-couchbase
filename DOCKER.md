@@ -101,3 +101,92 @@ The detailed explanation for the environment variables can be found on the [Gith
 | `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
 | `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                                                                              | `8000`                                                         |
 | `CB_MCP_DISABLED_TOOLS`           | Tools to disable                                              |                                                                |
+
+### Disabling Tools
+
+You can disable specific tools to prevent them from being loaded and exposed to the MCP client. Disabled tools will not appear in the tool discovery and cannot be invoked by the LLM.
+
+#### Supported Formats
+
+**Comma-separated list:**
+
+```bash
+# Environment variable
+CB_MCP_DISABLED_TOOLS="upsert_document_by_id, delete_document_by_id"
+
+# Command line
+uvx couchbase-mcp-server --disabled-tools upsert_document_by_id, delete_document_by_id
+```
+
+**File path (one tool name per line):**
+
+```bash
+# Environment variable
+CB_MCP_DISABLED_TOOLS=disabled_tools.txt
+
+# Command line
+uvx couchbase-mcp-server --disabled-tools disabled_tools.txt
+```
+
+**File format (e.g., `disabled_tools.txt`):**
+
+```text
+# Write operations
+upsert_document_by_id
+delete_document_by_id
+
+# Index advisor
+get_index_advisor_recommendations
+```
+
+Lines starting with `#` are treated as comments and ignored.
+
+#### MCP Client Configuration Examples
+
+**Using comma-separated list:**
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
+        "CB_MCP_DISABLED_TOOLS": "upsert_document_by_id,delete_document_by_id"
+      }
+    }
+  }
+}
+```
+
+**Using file path (recommended for many tools):**
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
+        "CB_MCP_DISABLED_TOOLS": "/path/to/disabled_tools.txt"
+      }
+    }
+  }
+}
+```
+
+#### Important Security Note
+
+> **Warning:** Disabling tools alone does not guarantee that certain operations cannot be performed. The underlying database user's RBAC (Role-Based Access Control) permissions are the authoritative security control.
+>
+> For example, even if you disable `upsert_document_by_id` and `delete_document_by_id`, data modifications can still occur via the `run_sql_plus_plus_query` tool using SQL++ DML statements (INSERT, UPDATE, DELETE, MERGE) unless:
+> - The `CB_MCP_READ_ONLY_QUERY_MODE` is set to `true` (default), OR
+> - The database user lacks the necessary RBAC permissions for data modification
+>
+> **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use tool disabling as an additional layer to guide LLM behavior and reduce the attack surface, not as the sole security control.

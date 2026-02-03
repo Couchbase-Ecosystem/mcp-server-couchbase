@@ -172,25 +172,25 @@ The server can be configured using environment variables or command line argumen
 
 You can disable specific tools to prevent them from being loaded and exposed to the MCP client. Disabled tools will not appear in the tool discovery and cannot be invoked by the LLM.
 
-#### Configuration Formats
+#### Supported Formats
 
-**Environment Variable (`CB_MCP_DISABLED_TOOLS`):**
+**Comma-separated list:**
 
 ```bash
-# Comma-separated list
-CB_MCP_DISABLED_TOOLS="upsert_document_by_id,delete_document_by_id"
+# Environment variable
+CB_MCP_DISABLED_TOOLS="upsert_document_by_id, delete_document_by_id"
 
-# JSON array format
-CB_MCP_DISABLED_TOOLS=["upsert_document_by_id", "delete_document_by_id"]
+# Command line
+uvx couchbase-mcp-server --disabled-tools upsert_document_by_id, delete_document_by_id
 ```
 
-**Command Line (`--disabled-tools`):**
+**File path (one tool name per line):**
 
 ```bash
-# Space-separated tool names
-uvx couchbase-mcp-server --disabled-tools upsert_document_by_id delete_document_by_id
+# Environment variable
+CB_MCP_DISABLED_TOOLS=disabled_tools.txt
 
-# File containing one tool name per line (recommended for many tools)
+# Command line
 uvx couchbase-mcp-server --disabled-tools disabled_tools.txt
 ```
 
@@ -209,7 +209,7 @@ Lines starting with `#` are treated as comments and ignored.
 
 #### MCP Client Configuration Examples
 
-**Using environment variable:**
+**Using comma-separated list:**
 
 ```json
 {
@@ -228,22 +228,19 @@ Lines starting with `#` are treated as comments and ignored.
 }
 ```
 
-**Using command line with file (recommended for many tools):**
+**Using file path (recommended for many tools):**
 
 ```json
 {
   "mcpServers": {
     "couchbase": {
       "command": "uvx",
-      "args": [
-        "couchbase-mcp-server",
-        "--disabled-tools",
-        "/path/to/disabled_tools.txt"
-      ],
+      "args": ["couchbase-mcp-server"],
       "env": {
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
-        "CB_PASSWORD": "password"
+        "CB_PASSWORD": "password",
+        "CB_MCP_DISABLED_TOOLS": "/path/to/disabled_tools.txt"
       }
     }
   }
