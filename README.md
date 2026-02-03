@@ -163,7 +163,7 @@ The server can be configured using environment variables or command line argumen
 | `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
-| `CB_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](#disabling-tools)) | None |
+| `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](#disabling-tools)) | None |
 
 > Note: For authentication, you need either the Username and Password or the Client Certificate and key paths. Optionally, you can specify the CA root certificate path that will be used to validate the server certificates.
 > If both the Client Certificate & key path and the username and password are specified, the client certificates will be used for authentication.
@@ -174,14 +174,14 @@ You can disable specific tools to prevent them from being loaded and exposed to 
 
 #### Configuration Formats
 
-**Environment Variable (`CB_DISABLED_TOOLS`):**
+**Environment Variable (`CB_MCP_DISABLED_TOOLS`):**
 
 ```bash
 # Comma-separated list
-CB_DISABLED_TOOLS="upsert_document_by_id,delete_document_by_id"
+CB_MCP_DISABLED_TOOLS="upsert_document_by_id,delete_document_by_id"
 
 # JSON array format
-CB_DISABLED_TOOLS=["upsert_document_by_id", "delete_document_by_id"]
+CB_MCP_DISABLED_TOOLS=["upsert_document_by_id", "delete_document_by_id"]
 ```
 
 **Command Line (`--disabled-tools`):**
@@ -221,7 +221,7 @@ Lines starting with `#` are treated as comments and ignored.
         "CB_CONNECTION_STRING": "couchbases://connection-string",
         "CB_USERNAME": "username",
         "CB_PASSWORD": "password",
-        "CB_DISABLED_TOOLS": "upsert_document_by_id,delete_document_by_id"
+        "CB_MCP_DISABLED_TOOLS": "upsert_document_by_id,delete_document_by_id"
       }
     }
   }

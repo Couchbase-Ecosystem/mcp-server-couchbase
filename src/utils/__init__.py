@@ -6,7 +6,6 @@ This module contains utility functions for configuration, connection, and contex
 
 # Configuration utilities
 from .config import (
-    filter_tools_by_disabled_list,
     get_settings,
     parse_disabled_tools,
 )
@@ -48,7 +47,6 @@ __all__ = [
     # Config
     "get_settings",
     "parse_disabled_tools",
-    "filter_tools_by_disabled_list",
     # Connection
     "connect_to_couchbase_cluster",
     "connect_to_bucket",

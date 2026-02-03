@@ -24,7 +24,6 @@ from utils import (
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
-    filter_tools_by_disabled_list,
     get_settings,
     parse_disabled_tools,
 )
@@ -131,7 +130,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 )
 @click.option(
     "--disabled-tools",
-    "disabled_tools_cli",
+    "disabled_tools",
     envvar="CB_MCP_DISABLED_TOOLS",
     multiple=True,
     help="Tools to disable. Can be: tool names separated by space (--disabled-tools tool1 tool2), "
@@ -152,7 +151,7 @@ def main(
     transport,
     host,
     port,
-    disabled_tools_cli,
+    disabled_tools,
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -170,19 +169,27 @@ def main(
     }
 
     # Parse disabled tools from CLI/environment variable
-    disabled_tool_names = parse_disabled_tools(
-        disabled_tools_input=disabled_tools_cli,
-    )
+    disabled_tool_names = parse_disabled_tools(disabled_tools)
 
-    # Filter out disabled tools
-    enabled_tools, actually_disabled = filter_tools_by_disabled_list(
-        ALL_TOOLS, disabled_tool_names
-    )
+    # Filter out disabled tools using set difference
+    all_tool_names = {tool.__name__ for tool in ALL_TOOLS}
+    actually_disabled = disabled_tool_names & all_tool_names
+    unknown_tools = disabled_tool_names - all_tool_names
+
+    if unknown_tools:
+        logger.warning(
+            f"Unknown tool(s) specified for disabling: {sorted(unknown_tools)}. "
+            f"Please verify the tool names are correct."
+        )
 
     if actually_disabled:
         logger.info(
             f"Disabled {len(actually_disabled)} tool(s): {sorted(actually_disabled)}"
         )
+
+    enabled_tools = [
+        tool for tool in ALL_TOOLS if tool.__name__ not in actually_disabled
+    ]
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
