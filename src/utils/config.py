@@ -133,14 +133,14 @@ def parse_disabled_tools(
     """
     Parse disabled tools from CLI arguments or environment variable.
 
-    Click handles the environment variable (CB_DISABLED_TOOLS) and passes it
+    Click handles the environment variable (CB_MCP_DISABLED_TOOLS) and passes it
     through the same parameter as CLI arguments.
 
     Supports multiple input formats:
     1. CLI: Space-separated tool names: --disabled-tools tool1 tool2
     2. CLI: File path containing one tool name per line: --disabled-tools tools.txt
-    3. ENV: Comma-separated string: CB_DISABLED_TOOLS="tool1,tool2"
-    4. ENV: JSON list: CB_DISABLED_TOOLS='["tool1", "tool2"]'
+    3. ENV: Comma-separated string: CB_MCP_DISABLED_TOOLS="tool1,tool2"
+    4. ENV: JSON list: CB_MCP_DISABLED_TOOLS='["tool1", "tool2"]'
 
     Args:
         disabled_tools_input: Tuple of tool names, file path, or formatted string
@@ -157,7 +157,7 @@ def parse_disabled_tools(
         disabled_tools.update(_parse_single_item(item))
 
     if disabled_tools:
-        logger.debug(f"Total disabled tools: {disabled_tools}")
+        logger.debug(f"Disabled tools: {disabled_tools}")
 
     return disabled_tools
 

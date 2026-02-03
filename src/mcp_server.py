@@ -132,11 +132,11 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 @click.option(
     "--disabled-tools",
     "disabled_tools_cli",
-    envvar="CB_DISABLED_TOOLS",
+    envvar="CB_MCP_DISABLED_TOOLS",
     multiple=True,
     help="Tools to disable. Can be: tool names separated by space (--disabled-tools tool1 tool2), "
     "or a file path containing one tool name per line (--disabled-tools disabled_tools.txt). "
-    "Can also be set via CB_DISABLED_TOOLS env var as comma-separated or JSON list.",
+    "Can also be set via CB_MCP_DISABLED_TOOLS env var as comma-separated or JSON list.",
 )
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
