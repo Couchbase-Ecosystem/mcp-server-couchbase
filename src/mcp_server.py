@@ -168,20 +168,18 @@ def main(
         "port": port,
     }
 
-    # Parse disabled tools from CLI/environment variable
-    disabled_tool_names = parse_disabled_tools(disabled_tools)
-
-    # Filter out disabled tools using set difference
+    # Parse and validate disabled tools from CLI/environment variable
     all_tool_names = {tool.__name__ for tool in ALL_TOOLS}
-    actually_disabled = disabled_tool_names & all_tool_names
+    disabled_tool_names = parse_disabled_tools(disabled_tools, all_tool_names)
 
-    if actually_disabled:
+    if disabled_tool_names:
         logger.info(
-            f"Disabled {len(actually_disabled)} tool(s): {sorted(actually_disabled)}"
+            f"Disabled {len(disabled_tool_names)} tool(s): {sorted(disabled_tool_names)}"
         )
 
+    # Filter out disabled tools
     enabled_tools = [
-        tool for tool in ALL_TOOLS if tool.__name__ not in actually_disabled
+        tool for tool in ALL_TOOLS if tool.__name__ not in disabled_tool_names
     ]
 
     # Map user-friendly transport names to SDK transport names
