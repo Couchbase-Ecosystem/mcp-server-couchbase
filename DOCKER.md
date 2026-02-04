@@ -29,17 +29,26 @@ Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/mai
 | Tool Name | Description |
 |-----------|-------------|
 | `get_document_by_id` | Get a document by ID from a specified scope and collection |
+<<<<<<< DA-1437-mcp-server-readonly-mode-update
 | `upsert_document_by_id` | Upsert a document by ID to a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
 | `insert_document_by_id` | Insert a new document by ID (fails if document exists). **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
 | `replace_document_by_id` | Replace an existing document by ID (fails if document doesn't exist). **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
 | `delete_document_by_id` | Delete a document by ID from a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
+=======
+| `upsert_document_by_id` | Upsert a document by ID to a specified scope and collection |
+| `delete_document_by_id` | Delete a document by ID from a specified scope and collection |
+>>>>>>> main
 
 ### Query and indexing tools
 | Tool Name | Description |
 |-----------|-------------|
 | `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name. |
 | `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance |
+<<<<<<< DA-1437-mcp-server-readonly-mode-update
 | `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_MODE` is `true` by default, which means that **all write operations (KV and Query)** are disabled. When enabled, KV write tools are not loaded and SQL++ queries that modify data are blocked. |
+=======
+| `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_QUERY_MODE` config is true by default, which means that queries that modify data are disabled by default. |
+>>>>>>> main
 
 ### Query performance analysis tools
 | Tool Name | Description |
@@ -98,12 +107,20 @@ The detailed explanation for the environment variables can be found on the [Gith
 | `CB_CLIENT_CERT_PATH`         | Path to the client certificate file for mTLS authentication                                               | **Required if using mTLS (or Username and Password required)** |
 | `CB_CLIENT_KEY_PATH`          | Path to the client key file for mTLS authentication                                                       | **Required if using mTLS (or Username and Password required)** |
 | `CB_CA_CERT_PATH`             | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. |                                                                |
+<<<<<<< DA-1437-mcp-server-readonly-mode-update
 | `CB_MCP_READ_ONLY_MODE`       | Prevent all data modifications (KV and Query). When `true`, write tools are not loaded.                   | `true`                                                         |
 | `CB_MCP_READ_ONLY_QUERY_MODE` | **[DEPRECATED]** Use `CB_MCP_READ_ONLY_MODE` instead. Only prevents query-based writes.                   | `true`                                                         |
 | `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)                                                                           | `stdio`                                                        |
 | `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
 | `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                                                                              | `8000`                                                         |
 | `CB_MCP_DISABLED_TOOLS`       | Tools to disable                                                                                          |                                                                |
+=======
+| `CB_MCP_READ_ONLY_QUERY_MODE` | Prevent queries that modify data. Note that data modification would still be possible via document operations tools                                                              | `true`                                                         |
+| `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)                                                                           | `stdio`                                                        |
+| `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
+| `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                                                                              | `8000`                                                         |
+| `CB_MCP_DISABLED_TOOLS`           | Tools to disable                                              |                                                                |
+>>>>>>> main
 
 ### Disabling Tools
 
@@ -189,7 +206,14 @@ Lines starting with `#` are treated as comments and ignored.
 > **Warning:** Disabling tools alone does not guarantee that certain operations cannot be performed. The underlying database user's RBAC (Role-Based Access Control) permissions are the authoritative security control.
 >
 > For example, even if you disable `upsert_document_by_id` and `delete_document_by_id`, data modifications can still occur via the `run_sql_plus_plus_query` tool using SQL++ DML statements (INSERT, UPDATE, DELETE, MERGE) unless:
+<<<<<<< DA-1437-mcp-server-readonly-mode-update
 > - The `CB_MCP_READ_ONLY_MODE` is set to `true` (default), which disables all write operations (KV and Query), OR
 > - The database user lacks the necessary RBAC permissions for data modification
 >
 > **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use `CB_MCP_READ_ONLY_MODE=true` (the default) for comprehensive write protection, and tool disabling as an additional layer to guide LLM behavior.
+=======
+> - The `CB_MCP_READ_ONLY_QUERY_MODE` is set to `true` (default), OR
+> - The database user lacks the necessary RBAC permissions for data modification
+>
+> **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use tool disabling as an additional layer to guide LLM behavior and reduce the attack surface, not as the sole security control.
+>>>>>>> main
