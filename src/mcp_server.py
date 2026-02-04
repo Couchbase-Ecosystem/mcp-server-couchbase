@@ -25,6 +25,7 @@ from utils import (
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
     get_settings,
+    parse_disabled_tools,
 )
 
 # Configure logging
@@ -127,6 +128,13 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     default=DEFAULT_PORT,
     help="Port to run the server on (default: 8000)",
 )
+@click.option(
+    "--disabled-tools",
+    "disabled_tools",
+    envvar="CB_MCP_DISABLED_TOOLS",
+    help="Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') "
+    "or a file path containing one tool name per line.",
+)
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
 def main(
@@ -141,6 +149,7 @@ def main(
     transport,
     host,
     port,
+    disabled_tools,
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -157,6 +166,20 @@ def main(
         "port": port,
     }
 
+    # Parse and validate disabled tools from CLI/environment variable
+    all_tool_names = {tool.__name__ for tool in ALL_TOOLS}
+    disabled_tool_names = parse_disabled_tools(disabled_tools, all_tool_names)
+
+    if disabled_tool_names:
+        logger.info(
+            f"Disabled {len(disabled_tool_names)} tool(s): {sorted(disabled_tool_names)}"
+        )
+
+    # Filter out disabled tools
+    enabled_tools = [
+        tool for tool in ALL_TOOLS if tool.__name__ not in disabled_tool_names
+    ]
+
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
 
@@ -172,9 +195,11 @@ def main(
 
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
 
-    # Register all tools
-    for tool in ALL_TOOLS:
+    # Register only enabled tools
+    for tool in enabled_tools:
         mcp.add_tool(tool)
+
+    logger.info(f"Registered {len(enabled_tools)} tool(s)")
 
     # Run the server
     mcp.run(transport=sdk_transport)  # type: ignore
