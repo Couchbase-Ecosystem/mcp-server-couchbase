@@ -79,8 +79,6 @@ def parse_disabled_tools(
         return set()
 
     value = disabled_tools_input.strip()
-    if not value:
-        return set()
 
     # Check if it's a file path
     potential_path = Path(value)
