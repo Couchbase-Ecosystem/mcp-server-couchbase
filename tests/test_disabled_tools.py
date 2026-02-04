@@ -126,11 +126,7 @@ class TestParseDisabledToolsFile:
     def test_file_with_comments(self):
         """Test parsing tools from a file with comments."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-<<<<<<< DA-1437-mcp-server-readonly-mode-update
-            f.write("# This is a comment\n")
-=======
             f.write("# delete_document_by_id\n")
->>>>>>> main
             f.write("get_document_by_id\n")
             f.write("# Another comment\n")
             f.write("upsert_document_by_id\n")

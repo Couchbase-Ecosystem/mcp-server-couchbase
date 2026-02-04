@@ -79,11 +79,6 @@ def parse_disabled_tools(
         return set()
 
     value = disabled_tools_input.strip()
-<<<<<<< DA-1437-mcp-server-readonly-mode-update
-    if not value:
-        return set()
-=======
->>>>>>> main
 
     # Check if it's a file path
     potential_path = Path(value)

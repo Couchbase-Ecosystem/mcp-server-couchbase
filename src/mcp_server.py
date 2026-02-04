@@ -181,7 +181,6 @@ def main(
         "port": port,
     }
 
-<<<<<<< DA-1437-mcp-server-readonly-mode-update
     # Get tools based on mode settings
     # When read_only_mode is True, write tools are not loaded
     tools = get_tools(
@@ -190,10 +189,6 @@ def main(
 
     # Parse and validate disabled tools from CLI/environment variable
     all_tool_names = {tool.__name__ for tool in tools}
-=======
-    # Parse and validate disabled tools from CLI/environment variable
-    all_tool_names = {tool.__name__ for tool in ALL_TOOLS}
->>>>>>> main
     disabled_tool_names = parse_disabled_tools(disabled_tools, all_tool_names)
 
     if disabled_tool_names:
@@ -202,13 +197,7 @@ def main(
         )
 
     # Filter out disabled tools
-<<<<<<< DA-1437-mcp-server-readonly-mode-update
     enabled_tools = [tool for tool in tools if tool.__name__ not in disabled_tool_names]
-=======
-    enabled_tools = [
-        tool for tool in ALL_TOOLS if tool.__name__ not in disabled_tool_names
-    ]
->>>>>>> main
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
@@ -225,14 +214,11 @@ def main(
 
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
 
-<<<<<<< DA-1437-mcp-server-readonly-mode-update
     logger.info(
         f"Registering {len(enabled_tools)} tool(s) (read_only_mode={read_only_mode}, "
         f"read_only_query_mode={read_only_query_mode})"
     )
 
-=======
->>>>>>> main
     # Register only enabled tools
     for tool in enabled_tools:
         mcp.add_tool(tool)
