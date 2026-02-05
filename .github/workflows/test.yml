@@ -168,6 +168,33 @@ jobs:
             -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
             -d "statement=CREATE INDEX IF NOT EXISTS idx_airline_country ON \`travel-sample\`.\`inventory\`.\`airline\`(country)" \
             || echo "Secondary index on airline may have failed"
+          
+          # Create secondary indexes for non-selective query tests (performance tools)
+          echo "Creating secondary indexes for performance tests..."
+          
+          # Index on route.sourceairport for non-selective queries
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=CREATE INDEX IF NOT EXISTS idx_route_sourceairport ON \`travel-sample\`.\`inventory\`.\`route\`(sourceairport)" \
+            || echo "Index on route.sourceairport may have failed"
+          
+          # Index on airport.city for non-selective queries
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=CREATE INDEX IF NOT EXISTS idx_airport_city ON \`travel-sample\`.\`inventory\`.\`airport\`(city)" \
+            || echo "Index on airport.city may have failed"
+          
+          # Index on airport.faa for non-selective queries
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=CREATE INDEX IF NOT EXISTS idx_airport_faa ON \`travel-sample\`.\`inventory\`.\`airport\`(faa)" \
+            || echo "Index on airport.faa may have failed"
+          
+          # Index on hotel.city for non-selective queries
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=CREATE INDEX IF NOT EXISTS idx_hotel_city ON \`travel-sample\`.\`inventory\`.\`hotel\`(city)" \
+            || echo "Index on hotel.city may have failed"
 
       - name: Wait for indexes to be built
         run: |
