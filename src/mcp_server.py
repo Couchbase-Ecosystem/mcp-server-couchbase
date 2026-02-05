@@ -49,7 +49,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     # Configuration will be validated when tools are actually used
     logger.info(
         f"MCP server initialized in lazy mode for tool discovery. "
-        f"(read_only_mode={read_only_mode}, read_only_query_mode={read_only_query_mode})"
+        f"Modes: (read_only_mode={read_only_mode}, read_only_query_mode={read_only_query_mode})"
     )
     app_context = None
     try:
@@ -107,7 +107,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     envvar="CB_MCP_READ_ONLY_MODE",
     type=bool,
     default=DEFAULT_READ_ONLY_MODE,
-    help="Enable read-only mode. When True (default), all write operations (KV and Query) are disabled and write tools are not loaded. Set to False to enable write operations.",
+    help="Enable read-only mode. When True (default), all write operations (KV and Query) are disabled and KV write tools are not loaded. Set to False to enable write operations.",
 )
 @click.option(
     "--read-only-query-mode",
@@ -116,6 +116,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         "READ_ONLY_QUERY_MODE",  # Deprecated
     ],
     type=bool,
+    deprecated=True,
     default=DEFAULT_READ_ONLY_MODE,
     help="[DEPRECATED: Use --read-only-mode instead] Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
 )
@@ -182,7 +183,7 @@ def main(
     }
 
     # Get tools based on mode settings
-    # When read_only_mode is True, write tools are not loaded
+    # When read_only_mode is True, KV write tools are not loaded
     tools = get_tools(read_only_mode=read_only_mode)
 
     # Parse and validate disabled tools from CLI/environment variable
@@ -213,7 +214,7 @@ def main(
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
 
     logger.info(
-        f"Registering {len(enabled_tools)} tool(s) (read_only_mode={read_only_mode}, "
+        f"Registering {len(enabled_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
         f"read_only_query_mode={read_only_query_mode})"
     )
 

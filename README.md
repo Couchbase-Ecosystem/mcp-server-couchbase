@@ -161,7 +161,7 @@ The server can be configured using environment variables or command line argumen
 | `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
 | `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to the client key file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
 | `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. This will not be required if you are connecting to Capella | |
-| `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). When enabled, write tools are not loaded. | `true` |
+| `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). When enabled, KV write tools are not loaded. | `true` |
 | `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | **[DEPRECATED]** Prevent queries that modify data. Note that data modification would still be possible via document operations tools. Use `CB_MCP_READ_ONLY_MODE` instead. | `true` |
 | `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
@@ -174,7 +174,7 @@ The MCP server provides two configuration options for controlling write operatio
 
 **`CB_MCP_READ_ONLY_MODE`** (Recommended)
 - When `true` (default): All write operations are disabled. KV write tools (upsert, insert, replace, delete) are **not loaded** and will not be available to the LLM.
-- When `false`: Write tools are loaded and available.
+- When `false`: KV write tools are loaded and available.
 
 **`CB_MCP_READ_ONLY_QUERY_MODE`** (Deprecated)
 - This option only controls SQL++ query-based writes but does not prevent KV write operations.
