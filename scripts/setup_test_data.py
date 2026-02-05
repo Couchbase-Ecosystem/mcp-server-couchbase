@@ -190,9 +190,6 @@ def run_test_queries_inventory(cluster: Cluster, bucket_name: str) -> None:
 
     result = scope.query("SELECT * FROM airport WHERE faa >= 'A' AND faa < 'Z' AND country = 'XXXXXX'")
     list(result)
-    
-    result = scope.query(f"SELECT DISTINCT(name) as collection_name FROM system:all_keyspaces where `bucket`={bucket_name} and `scope`={scope_name}")
-    list(result)
 
     result = scope.query("SELECT * FROM hotel WHERE city >= 'A' AND city < 'Z' AND name LIKE 'ZZZZZZ%'")
     list(result)

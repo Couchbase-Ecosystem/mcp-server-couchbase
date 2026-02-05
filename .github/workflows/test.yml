@@ -144,6 +144,56 @@ jobs:
           echo "Waiting for storage mode to be applied..."
           sleep 5
 
+      - name: Create indexes for travel-sample
+        run: |
+          echo "Creating indexes for travel-sample..."
+          
+          # Create primary index on _default._default for tests that use default scope
+          echo "Creating primary index on _default._default..."
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=CREATE PRIMARY INDEX IF NOT EXISTS ON \`travel-sample\`.\`_default\`.\`_default\`" \
+            || echo "Primary index creation may have failed"
+          
+          # Create primary index on inventory.airline for index tests
+          echo "Creating primary index on inventory.airline..."
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=CREATE PRIMARY INDEX IF NOT EXISTS ON \`travel-sample\`.\`inventory\`.\`airline\`" \
+            || echo "Primary index on airline may have failed"
+          
+          # Create secondary index on inventory.airline for better test coverage
+          echo "Creating secondary index on inventory.airline..."
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=CREATE INDEX IF NOT EXISTS idx_airline_country ON \`travel-sample\`.\`inventory\`.\`airline\`(country)" \
+            || echo "Secondary index on airline may have failed"
+
+      - name: Wait for indexes to be built
+        run: |
+          echo "Waiting for indexes to be built..."
+          for i in {1..60}; do
+            # Check if any indexes are still building
+            BUILDING=$(curl -s -X POST http://localhost:8093/query/service \
+              -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+              -d "statement=SELECT COUNT(*) as cnt FROM system:indexes WHERE state != 'online'" \
+              | grep -o '"cnt":[0-9]*' | grep -o '[0-9]*' || echo "0")
+            
+            if [ "$BUILDING" = "0" ]; then
+              echo "All indexes are online"
+              break
+            fi
+            echo "Waiting for indexes to be built... ($BUILDING still building, attempt $i/60)"
+            sleep 3
+          done
+          
+          # List all indexes for debugging
+          echo "Listing all indexes:"
+          curl -s -X POST http://localhost:8093/query/service \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d "statement=SELECT name, bucket_id, scope_id, keyspace_id, state FROM system:indexes" \
+            | python3 -m json.tool 2>/dev/null || echo "Could not list indexes"
+
       - name: Verify travel-sample data loaded
         run: |
           echo "Verifying travel-sample data..."
@@ -177,6 +227,8 @@ jobs:
         env:
           CB_CONNECTION_STRING: couchbase://localhost
           CB_MCP_TRANSPORT: stdio
+          CB_MCP_TEST_SCOPE: inventory
+          CB_MCP_TEST_COLLECTION: airline
           PYTHONPATH: src
         run: |
           echo "Running tests with STDIO transport..."
@@ -218,6 +270,8 @@ jobs:
           CB_MCP_HOST: 127.0.0.1
           CB_MCP_PORT: 8000
           MCP_SERVER_URL: http://127.0.0.1:8000/mcp
+          CB_MCP_TEST_SCOPE: inventory
+          CB_MCP_TEST_COLLECTION: airline
           PYTHONPATH: src
         run: |
           echo "Running tests with HTTP transport..."
@@ -266,6 +320,8 @@ jobs:
           CB_MCP_HOST: 127.0.0.1
           CB_MCP_PORT: 8000
           MCP_SERVER_URL: http://127.0.0.1:8000/sse
+          CB_MCP_TEST_SCOPE: inventory
+          CB_MCP_TEST_COLLECTION: airline
           PYTHONPATH: src
         run: |
           echo "Running tests with SSE transport..."
