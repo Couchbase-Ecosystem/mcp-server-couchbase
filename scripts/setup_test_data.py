@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-Setup script to populate system:completed_requests for performance analysis tests.
+Setup script for integration tests.
 
 This script:
-1. Enables query logging in Couchbase (sets completed-threshold to 0)
-2. Runs various queries to populate system:completed_requests
-3. Ensures performance analysis tests have data to validate against
+1. Creates required indexes for travel-sample bucket
+2. Waits for indexes to be built
+3. Enables query logging in Couchbase (sets completed-threshold to 0)
+4. Runs various queries to populate system:completed_requests
+5. Ensures performance analysis tests have data to validate against
 
 Usage:
     python scripts/setup_test_data.py
@@ -16,11 +18,12 @@ Environment variables required:
     CB_PASSWORD - Couchbase password
     CB_MCP_TEST_BUCKET - Test bucket name (e.g., travel-sample)
 
-This script should be run before pytest to ensure performance tests don't skip.
+This script should be run before pytest to ensure tests don't skip.
 """
 
 import os
 import sys
+import time
 import urllib.request
 import urllib.error
 import base64
@@ -74,6 +77,112 @@ def enable_query_logging(connection_string: str, username: str, password: str) -
         print(f"  - Warning: Error enabling query logging: {e}")
 
     return False
+
+
+def create_indexes(cluster: Cluster, bucket_name: str) -> None:
+    """Create required indexes for tests."""
+    print("\n2. Creating indexes...")
+
+    # Define indexes to create
+    indexes = [
+        # Primary index on _default._default for tests that use default scope
+        (
+            f"CREATE PRIMARY INDEX IF NOT EXISTS ON `{bucket_name}`.`_default`.`_default`",
+            "primary index on _default._default",
+        ),
+        # Primary index on inventory.airline for index tests
+        (
+            f"CREATE PRIMARY INDEX IF NOT EXISTS ON `{bucket_name}`.`inventory`.`airline`",
+            "primary index on inventory.airline",
+        ),
+        # Secondary index on inventory.airline for better test coverage
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_airline_country ON `{bucket_name}`.`inventory`.`airline`(country)",
+            "idx_airline_country on airline",
+        ),
+        # Index on route.sourceairport for non-selective queries
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_route_sourceairport ON `{bucket_name}`.`inventory`.`route`(sourceairport)",
+            "idx_route_sourceairport on route",
+        ),
+        # Index on airport.city for non-selective queries
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_airport_city ON `{bucket_name}`.`inventory`.`airport`(city)",
+            "idx_airport_city on airport",
+        ),
+        # Index on airport.faa for non-selective queries
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_airport_faa ON `{bucket_name}`.`inventory`.`airport`(faa)",
+            "idx_airport_faa on airport",
+        ),
+        # Index on hotel.city for non-selective queries
+        (
+            f"CREATE INDEX IF NOT EXISTS idx_hotel_city ON `{bucket_name}`.`inventory`.`hotel`(city)",
+            "idx_hotel_city on hotel",
+        ),
+    ]
+
+    for statement, description in indexes:
+        try:
+            cluster.query(statement).execute()
+            print(f"  - Created {description}")
+        except Exception as e:
+            # Index may already exist or scope/collection may not exist
+            error_msg = str(e)
+            if "already exists" in error_msg.lower():
+                print(f"  - {description} already exists")
+            elif "not found" in error_msg.lower() or "does not exist" in error_msg.lower():
+                print(f"  - Skipped {description} (scope/collection not found)")
+            else:
+                print(f"  - Warning: Could not create {description}: {e}")
+
+
+def wait_for_indexes(cluster: Cluster, timeout_seconds: int = 180) -> bool:
+    """Wait for all indexes to be built (online state)."""
+    print("\n3. Waiting for indexes to be built...")
+
+    start_time = time.time()
+    while time.time() - start_time < timeout_seconds:
+        try:
+            result = cluster.query(
+                "SELECT COUNT(*) as cnt FROM system:indexes WHERE state != 'online'"
+            )
+            rows = list(result)
+            building_count = rows[0].get("cnt", 0) if rows else 0
+
+            if building_count == 0:
+                print("  - All indexes are online")
+                return True
+
+            elapsed = int(time.time() - start_time)
+            print(f"  - Waiting for {building_count} indexes to be built... ({elapsed}s elapsed)")
+            time.sleep(3)
+
+        except Exception as e:
+            print(f"  - Warning: Could not check index status: {e}")
+            time.sleep(3)
+
+    print(f"  - Warning: Timed out waiting for indexes after {timeout_seconds}s")
+    return False
+
+
+def list_indexes(cluster: Cluster, bucket_name: str) -> None:
+    """List all indexes for debugging."""
+    print("\n  Index status:")
+    try:
+        result = cluster.query(
+            "SELECT name, bucket_id, scope_id, keyspace_id, state "
+            "FROM system:indexes "
+            f"WHERE bucket_id = '{bucket_name}' OR bucket_id IS MISSING"
+        )
+        for row in result:
+            name = row.get("name", "unknown")
+            scope = row.get("scope_id", "_default")
+            keyspace = row.get("keyspace_id", "unknown")
+            state = row.get("state", "unknown")
+            print(f"    - {name} on {scope}.{keyspace}: {state}")
+    except Exception as e:
+        print(f"    Could not list indexes: {e}")
 
 
 def check_scope_exists(bucket, scope_name: str) -> bool:
@@ -266,7 +375,7 @@ def run_test_queries(cluster: Cluster, bucket_name: str) -> None:
     """Run various queries to populate system:completed_requests."""
     bucket = cluster.bucket(bucket_name)
 
-    print("\n2. Running queries to populate system:completed_requests...")
+    print("\n4. Running queries to populate system:completed_requests...")
 
     # Check if inventory scope exists (travel-sample with full data)
     if check_scope_exists(bucket, "inventory"):
@@ -290,7 +399,7 @@ def verify_completed_requests(cluster: Cluster) -> int:
 
 def main() -> int:
     """Main entry point."""
-    print("Setting up test data for performance analysis tests...")
+    print("Setting up test data for integration tests...")
 
     # Get required environment variables
     connection_string = get_env_or_exit("CB_CONNECTION_STRING")
@@ -301,7 +410,7 @@ def main() -> int:
     print(f"\nConnecting to {connection_string}...")
     print(f"Using bucket: {bucket_name}")
 
-    # Enable query logging
+    # Enable query logging first (before connecting with SDK)
     print("\n1. Enabling query logging...")
     enable_query_logging(connection_string, username, password)
 
@@ -313,11 +422,20 @@ def main() -> int:
         cluster.wait_until_ready(timedelta(seconds=30))
         print("  - Connected to cluster")
 
+        # Create indexes
+        create_indexes(cluster, bucket_name)
+
+        # Wait for indexes to be built
+        wait_for_indexes(cluster)
+
+        # List indexes for debugging
+        list_indexes(cluster, bucket_name)
+
         # Run test queries
         run_test_queries(cluster, bucket_name)
 
         # Verify data
-        print("\n3. Verifying system:completed_requests...")
+        print("\n5. Verifying system:completed_requests...")
         count = verify_completed_requests(cluster)
         print(f"  - Found {count} completed requests")
 
