@@ -8,7 +8,7 @@ Tool Categories:
 - KV_WRITE_TOOLS: KV tools that modify data (disabled when READ_ONLY_MODE=True)
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 # Index tools
 from .index import get_index_advisor_recommendations, list_indexes
@@ -86,13 +86,11 @@ KV_WRITE_TOOLS = [
 ALL_TOOLS = READ_ONLY_TOOLS + KV_WRITE_TOOLS
 
 
-def get_tools(
-    read_only_mode: bool = True, read_only_query_mode: bool = True
-) -> list[Callable]:
+def get_tools(read_only_mode: bool = True) -> list[Callable]:
     """Get the list of tools based on the mode settings.
 
     This function determines which tools should be loaded based on the
-    READ_ONLY_MODE and READ_ONLY_QUERY_MODE settings.
+    READ_ONLY_MODE setting. When read_only_mode is True, write tools are excluded.
     """
     tools = list(READ_ONLY_TOOLS)
 
@@ -101,6 +99,7 @@ def get_tools(
         tools.extend(KV_WRITE_TOOLS)
 
     return tools
+
 
 __all__ = [
     # Individual tools

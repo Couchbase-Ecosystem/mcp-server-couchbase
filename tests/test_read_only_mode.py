@@ -10,7 +10,8 @@ This module tests:
 import sys
 from pathlib import Path
 
-import pytest
+from utils.constants import DEFAULT_READ_ONLY_MODE
+from utils.context import AppContext
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -92,20 +93,21 @@ class TestToolCategories:
 
 
 class TestGetToolsTruthTable:
-    """Tests for get_tools() function following the truth table.
+    """Tests for get_tools() function.
 
-    Truth Table:
-    | READ_ONLY_MODE | READ_ONLY_QUERY_MODE | KV Write Tools Loaded |
-    |----------------|----------------------|-----------------------|
-    | True           | True                 | No                    |
-    | True           | False                | No                    |
-    | False          | True                 | Yes                   |
-    | False          | False                | Yes                   |
+    Tool Loading Behavior:
+    | READ_ONLY_MODE | KV Write Tools Loaded |
+    |----------------|-----------------------|
+    | True           | No                    |
+    | False          | Yes                   |
+
+    Note: READ_ONLY_QUERY_MODE is handled at runtime by the query tool itself,
+    not at tool loading time.
     """
 
-    def test_read_only_mode_true_query_mode_true(self):
-        """READ_ONLY_MODE=True, READ_ONLY_QUERY_MODE=True: No KV write tools."""
-        tools = get_tools(read_only_mode=True, read_only_query_mode=True)
+    def test_read_only_mode_true(self):
+        """READ_ONLY_MODE=True: No KV write tools."""
+        tools = get_tools(read_only_mode=True)
         tool_names = {tool.__name__ for tool in tools}
 
         # Should only have read-only tools
@@ -115,37 +117,9 @@ class TestGetToolsTruthTable:
         for kv_write_name in KV_WRITE_TOOL_NAMES:
             assert kv_write_name not in tool_names
 
-    def test_read_only_mode_true_query_mode_false(self):
-        """READ_ONLY_MODE=True, READ_ONLY_QUERY_MODE=False: No KV write tools.
-
-        READ_ONLY_MODE takes precedence.
-        """
-        tools = get_tools(read_only_mode=True, read_only_query_mode=False)
-        tool_names = {tool.__name__ for tool in tools}
-
-        # Should only have read-only tools
-        assert tool_names == READ_ONLY_TOOL_NAMES
-
-        # KV write tools should NOT be present
-        for kv_write_name in KV_WRITE_TOOL_NAMES:
-            assert kv_write_name not in tool_names
-
-    def test_read_only_mode_false_query_mode_true(self):
-        """READ_ONLY_MODE=False, READ_ONLY_QUERY_MODE=True: KV write tools loaded."""
-        tools = get_tools(read_only_mode=False, read_only_query_mode=True)
-        tool_names = {tool.__name__ for tool in tools}
-
-        # Should have all tools (read-only + KV write)
-        expected_names = READ_ONLY_TOOL_NAMES | KV_WRITE_TOOL_NAMES
-        assert tool_names == expected_names
-
-        # KV write tools should be present
-        for kv_write_name in KV_WRITE_TOOL_NAMES:
-            assert kv_write_name in tool_names
-
-    def test_read_only_mode_false_query_mode_false(self):
-        """READ_ONLY_MODE=False, READ_ONLY_QUERY_MODE=False: All tools loaded."""
-        tools = get_tools(read_only_mode=False, read_only_query_mode=False)
+    def test_read_only_mode_false(self):
+        """READ_ONLY_MODE=False: All tools loaded including KV write tools."""
+        tools = get_tools(read_only_mode=False)
         tool_names = {tool.__name__ for tool in tools}
 
         # Should have all tools (read-only + KV write)
@@ -174,8 +148,8 @@ class TestGetToolsDefaults:
 
     def test_default_read_only_mode_is_true(self):
         """Verify read_only_mode defaults to True."""
-        # Calling with only read_only_query_mode should still filter KV write tools
-        tools = get_tools(read_only_query_mode=False)
+        # Default should filter KV write tools
+        tools = get_tools()
         tool_names = {tool.__name__ for tool in tools}
 
         # Should only have read-only tools (read_only_mode defaults to True)
@@ -187,13 +161,13 @@ class TestToolCounts:
 
     def test_read_only_mode_tool_count(self):
         """Verify correct number of tools in read-only mode."""
-        tools = get_tools(read_only_mode=True, read_only_query_mode=True)
+        tools = get_tools(read_only_mode=True)
         assert len(tools) == len(READ_ONLY_TOOLS)
         assert len(tools) == 19  # Expected count of read-only tools
 
     def test_all_tools_mode_tool_count(self):
         """Verify correct number of tools when all write tools are enabled."""
-        tools = get_tools(read_only_mode=False, read_only_query_mode=False)
+        tools = get_tools(read_only_mode=False)
         assert len(tools) == len(ALL_TOOLS)
         assert len(tools) == 23  # Expected total count (19 read-only + 4 KV write)
 
@@ -262,35 +236,30 @@ class TestAppContext:
 
     def test_app_context_has_read_only_mode_field(self):
         """Verify AppContext has read_only_mode field."""
-        from utils.context import AppContext
 
         context = AppContext()
         assert hasattr(context, "read_only_mode")
 
     def test_app_context_read_only_mode_default_true(self):
         """Verify AppContext.read_only_mode defaults to True."""
-        from utils.context import AppContext
 
         context = AppContext()
         assert context.read_only_mode is True
 
     def test_app_context_read_only_query_mode_default_true(self):
         """Verify AppContext.read_only_query_mode defaults to True."""
-        from utils.context import AppContext
 
         context = AppContext()
         assert context.read_only_query_mode is True
 
     def test_app_context_can_set_read_only_mode_false(self):
         """Verify AppContext.read_only_mode can be set to False."""
-        from utils.context import AppContext
 
         context = AppContext(read_only_mode=False)
         assert context.read_only_mode is False
 
     def test_app_context_can_set_both_modes(self):
         """Verify both mode fields can be set independently."""
-        from utils.context import AppContext
 
         context = AppContext(read_only_mode=False, read_only_query_mode=True)
         assert context.read_only_mode is False
@@ -302,6 +271,5 @@ class TestConstantsDefault:
 
     def test_default_read_only_mode_constant(self):
         """Verify DEFAULT_READ_ONLY_MODE constant is True."""
-        from utils.constants import DEFAULT_READ_ONLY_MODE
 
         assert DEFAULT_READ_ONLY_MODE is True

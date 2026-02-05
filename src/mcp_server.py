@@ -183,9 +183,7 @@ def main(
 
     # Get tools based on mode settings
     # When read_only_mode is True, write tools are not loaded
-    tools = get_tools(
-        read_only_mode=read_only_mode, read_only_query_mode=read_only_query_mode
-    )
+    tools = get_tools(read_only_mode=read_only_mode)
 
     # Parse and validate disabled tools from CLI/environment variable
     all_tool_names = {tool.__name__ for tool in tools}
