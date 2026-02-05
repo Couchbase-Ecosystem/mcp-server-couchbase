@@ -31,15 +31,17 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 | Tool Name | Description |
 |-----------|-------------|
 | `get_document_by_id` | Get a document by ID from a specified scope and collection |
-| `upsert_document_by_id` | Upsert a document by ID to a specified scope and collection |
-| `delete_document_by_id` | Delete a document by ID from a specified scope and collection |
+| `upsert_document_by_id` | Upsert a document by ID to a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
+| `insert_document_by_id` | Insert a new document by ID (fails if document exists). **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
+| `replace_document_by_id` | Replace an existing document by ID (fails if document doesn't exist). **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
+| `delete_document_by_id` | Delete a document by ID from a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
 
 ### Query and indexing tools
 | Tool Name | Description |
 |-----------|-------------|
 | `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name. |
 | `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance |
-| `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_QUERY_MODE` config is true by default, which means that queries that modify data are disabled by default. |
+| `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_MODE` is `true` by default, which means that **all write operations (KV and Query)** are disabled. When enabled, KV write tools are not loaded and SQL++ queries that modify data are blocked. |
 
 ### Query performance analysis tools
 | Tool Name | Description |
@@ -159,11 +161,35 @@ The server can be configured using environment variables or command line argumen
 | `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
 | `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to the client key file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
 | `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. This will not be required if you are connecting to Capella | |
-| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent queries that modify data. Note that data modification would still be possible via document operations tools. | `true` |
+| `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). When enabled, KV write tools are not loaded. | `true` |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | **[DEPRECATED]** Prevent queries that modify data. Note that data modification would still be possible via document operations tools. Use `CB_MCP_READ_ONLY_MODE` instead. | `true` |
 | `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
 | `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](#disabling-tools)) | None |
+
+#### Read-Only Mode Configuration
+
+The MCP server provides two configuration options for controlling write operations:
+
+**`CB_MCP_READ_ONLY_MODE`** (Recommended)
+- When `true` (default): All write operations are disabled. KV write tools (upsert, insert, replace, delete) are **not loaded** and will not be available to the LLM.
+- When `false`: KV write tools are loaded and available.
+
+**`CB_MCP_READ_ONLY_QUERY_MODE`** (Deprecated)
+- This option only controls SQL++ query-based writes but does not prevent KV write operations.
+- **Deprecated**: Use `CB_MCP_READ_ONLY_MODE` instead for comprehensive protection.
+
+**Mode Behavior Truth Table:**
+
+| `READ_ONLY_MODE` | `READ_ONLY_QUERY_MODE` | Result |
+|------------------|------------------------|--------|
+| `true` | `true` | Read-only KV and Query operations. All writes disabled. |
+| `true` | `false` | Read-only KV and Query operations. All writes disabled. |
+| `false` | `true` | Only Query writes disabled. KV writes allowed. |
+| `false` | `false` | All KV and Query operations allowed. |
+
+> **Important**: When `READ_ONLY_MODE` is `true`, it takes precedence and disables all write operations regardless of `READ_ONLY_QUERY_MODE` setting. This is the recommended safe default to prevent inadvertent data modifications by LLMs.
 
 > Note: For authentication, you need either the Username and Password or the Client Certificate and key paths. Optionally, you can specify the CA root certificate path that will be used to validate the server certificates.
 > If both the Client Certificate & key path and the username and password are specified, the client certificates will be used for authentication.
@@ -252,7 +278,7 @@ Lines starting with `#` are treated as comments and ignored.
 > **Warning:** Disabling tools alone does not guarantee that certain operations cannot be performed. The underlying database user's RBAC (Role-Based Access Control) permissions are the authoritative security control.
 >
 > For example, even if you disable `upsert_document_by_id` and `delete_document_by_id`, data modifications can still occur via the `run_sql_plus_plus_query` tool using SQL++ DML statements (INSERT, UPDATE, DELETE, MERGE) unless:
-> - The `CB_MCP_READ_ONLY_QUERY_MODE` is set to `true` (default), OR
+> - The `CB_MCP_READ_ONLY_MODE` is set to `true` (default), OR
 > - The database user lacks the necessary RBAC permissions for data modification
 >
 > **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use tool disabling as an additional layer to guide LLM behavior and reduce the attack surface, not as the sole security control.
@@ -408,7 +434,7 @@ uvx couchbase-mcp-server \
   --connection-string='<couchbase_connection_string>' \
   --username='<database_username>' \
   --password='<database_password>' \
-  --read-only-query-mode=true \
+  --read-only-mode=true \
   --transport=http
 ```
 
@@ -441,7 +467,7 @@ uvx couchbase-mcp-server \
   --connection-string='<couchbase_connection_string>' \
   --username='<database_username>' \
   --password='<database_password>' \
-  --read-only-query-mode=true \
+  --read-only-mode=true \
   --transport=sse
 ```
 

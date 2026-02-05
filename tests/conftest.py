@@ -153,6 +153,9 @@ def _build_env() -> dict[str, str]:
 
     # Force stdio transport for the test server to match stdio_client
     env["CB_MCP_TRANSPORT"] = "stdio"
+    # Disable read-only mode for integration tests so all tools are available
+    # This allows testing of KV write tools (upsert, insert, replace, delete)
+    env["CB_MCP_READ_ONLY_MODE"] = "false"
     # Ensure unbuffered output to avoid stdout/stderr buffering surprises
     env.setdefault("PYTHONUNBUFFERED", "1")
     return env

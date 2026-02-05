@@ -53,15 +53,20 @@ def run_sql_plus_plus_query(
     bucket = connect_to_bucket(cluster, bucket_name)
 
     app_context = ctx.request_context.lifespan_context
+    read_only_mode = app_context.read_only_mode
     read_only_query_mode = app_context.read_only_query_mode
-    logger.info(f"Running SQL++ queries in read-only mode: {read_only_query_mode}")
+
+    # Block query writes if either read_only_mode OR read_only_query_mode is True
+    # READ_ONLY_MODE takes precedence and blocks all writes (KV and Query)
+    # READ_ONLY_QUERY_MODE (deprecated) only blocks query writes
+    block_query_writes = read_only_mode or read_only_query_mode
 
     try:
         scope = bucket.scope(scope_name)
 
         results = []
         # If read-only mode is enabled, check if the query is a data or structure modification query
-        if read_only_query_mode:
+        if block_query_writes:
             parsed_query = parse_sqlpp(query)
             data_modification_query = modifies_data(parsed_query)
             structure_modification_query = modifies_structure(parsed_query)

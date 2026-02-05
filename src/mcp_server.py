@@ -10,7 +10,7 @@ import click
 from mcp.server.fastmcp import FastMCP
 
 # Import tools
-from tools import ALL_TOOLS
+from tools import get_tools
 
 # Import utilities
 from utils import (
@@ -42,14 +42,20 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Initialize the MCP server context without establishing database connections."""
     # Get configuration from Click context
     settings = get_settings()
+    read_only_mode = settings.get("read_only_mode", True)
     read_only_query_mode = settings.get("read_only_query_mode", True)
 
     # Note: We don't validate configuration here to allow tool discovery
     # Configuration will be validated when tools are actually used
-    logger.info("MCP server initialized in lazy mode for tool discovery.")
+    logger.info(
+        f"MCP server initialized in lazy mode for tool discovery. "
+        f"Modes: (read_only_mode={read_only_mode}, read_only_query_mode={read_only_query_mode})"
+    )
     app_context = None
     try:
-        app_context = AppContext(read_only_query_mode=read_only_query_mode)
+        app_context = AppContext(
+            read_only_mode=read_only_mode, read_only_query_mode=read_only_query_mode
+        )
         yield app_context
 
     except Exception as e:
@@ -97,14 +103,22 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     help="Path to the client certificate key file used for mTLS authentication.",
 )
 @click.option(
+    "--read-only-mode",
+    envvar="CB_MCP_READ_ONLY_MODE",
+    type=bool,
+    default=DEFAULT_READ_ONLY_MODE,
+    help="Enable read-only mode. When True (default), all write operations (KV and Query) are disabled and KV write tools are not loaded. Set to False to enable write operations.",
+)
+@click.option(
     "--read-only-query-mode",
     envvar=[
         "CB_MCP_READ_ONLY_QUERY_MODE",
         "READ_ONLY_QUERY_MODE",  # Deprecated
     ],
     type=bool,
+    deprecated=True,
     default=DEFAULT_READ_ONLY_MODE,
-    help="Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
+    help="[DEPRECATED: Use --read-only-mode instead] Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
 )
 @click.option(
     "--transport",
@@ -145,6 +159,7 @@ def main(
     ca_cert_path,
     client_cert_path,
     client_key_path,
+    read_only_mode,
     read_only_query_mode,
     transport,
     host,
@@ -160,14 +175,19 @@ def main(
         "ca_cert_path": ca_cert_path,
         "client_cert_path": client_cert_path,
         "client_key_path": client_key_path,
+        "read_only_mode": read_only_mode,
         "read_only_query_mode": read_only_query_mode,
         "transport": transport,
         "host": host,
         "port": port,
     }
 
+    # Get tools based on mode settings
+    # When read_only_mode is True, KV write tools are not loaded
+    tools = get_tools(read_only_mode=read_only_mode)
+
     # Parse and validate disabled tools from CLI/environment variable
-    all_tool_names = {tool.__name__ for tool in ALL_TOOLS}
+    all_tool_names = {tool.__name__ for tool in tools}
     disabled_tool_names = parse_disabled_tools(disabled_tools, all_tool_names)
 
     if disabled_tool_names:
@@ -176,9 +196,7 @@ def main(
         )
 
     # Filter out disabled tools
-    enabled_tools = [
-        tool for tool in ALL_TOOLS if tool.__name__ not in disabled_tool_names
-    ]
+    enabled_tools = [tool for tool in tools if tool.__name__ not in disabled_tool_names]
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
@@ -194,6 +212,11 @@ def main(
     )
 
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
+
+    logger.info(
+        f"Registering {len(enabled_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
+        f"read_only_query_mode={read_only_query_mode})"
+    )
 
     # Register only enabled tools
     for tool in enabled_tools:
