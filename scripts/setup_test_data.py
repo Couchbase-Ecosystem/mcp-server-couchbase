@@ -76,12 +76,21 @@ def enable_query_logging(connection_string: str, username: str, password: str) -
     return False
 
 
-def run_test_queries(cluster: Cluster, bucket_name: str) -> None:
-    """Run various queries to populate system:completed_requests."""
+def check_scope_exists(bucket, scope_name: str) -> bool:
+    """Check if a scope exists in the bucket."""
+    try:
+        scopes = bucket.collections().get_all_scopes()
+        return any(s.name == scope_name for s in scopes)
+    except Exception:
+        return False
+
+
+def run_test_queries_inventory(cluster: Cluster, bucket_name: str) -> None:
+    """Run queries against travel-sample inventory scope (full sample data)."""
     bucket = cluster.bucket(bucket_name)
     scope = bucket.scope("inventory")
 
-    print("\n2. Running queries to populate system:completed_requests...")
+    print("  Using inventory scope (travel-sample with sample data)...")
 
     # Regular SELECT queries (for longest running, most frequent, response sizes)
     print("  - Running regular SELECT queries...")
@@ -172,6 +181,87 @@ def run_test_queries(cluster: Cluster, bucket_name: str) -> None:
 
     result = scope.query("SELECT name, country FROM airline ORDER BY name LIMIT 20")
     list(result)
+
+
+def run_test_queries_default(cluster: Cluster, bucket_name: str) -> None:
+    """Run queries against _default scope (CI environment with basic bucket)."""
+    bucket = cluster.bucket(bucket_name)
+    scope = bucket.scope("_default")
+    collection_name = "_default"
+
+    print("  Using _default scope (CI environment)...")
+
+    # Regular SELECT queries (for longest running, most frequent, response sizes)
+    print("  - Running regular SELECT queries...")
+    for _ in range(5):
+        try:
+            result = scope.query(f"SELECT * FROM `{collection_name}` LIMIT 100")
+            list(result)
+        except Exception:
+            pass
+
+    # Queries using PRIMARY index
+    print("  - Running queries using primary index...")
+    try:
+        result = scope.query(
+            f"SELECT META().id, * FROM `{collection_name}` LIMIT 10"
+        )
+        list(result)
+    except Exception:
+        pass
+
+    # Queries with filters
+    print("  - Running queries with filters...")
+    try:
+        result = scope.query(
+            f"SELECT * FROM `{collection_name}` WHERE type = 'test' LIMIT 50"
+        )
+        list(result)
+    except Exception:
+        pass
+
+    for _ in range(3):
+        try:
+            result = scope.query(
+                f"SELECT * FROM `{collection_name}` WHERE id > 0"
+            )
+            list(result)
+        except Exception:
+            pass
+
+    # Additional varied queries
+    print("  - Running additional varied queries...")
+    try:
+        result = scope.query(f"SELECT COUNT(*) as cnt FROM `{collection_name}`")
+        list(result)
+    except Exception:
+        pass
+
+    try:
+        result = scope.query(f"SELECT DISTINCT type FROM `{collection_name}`")
+        list(result)
+    except Exception:
+        pass
+
+    try:
+        result = scope.query(f"SELECT * FROM `{collection_name}` ORDER BY META().id LIMIT 20")
+        list(result)
+    except Exception:
+        pass
+
+
+def run_test_queries(cluster: Cluster, bucket_name: str) -> None:
+    """Run various queries to populate system:completed_requests."""
+    bucket = cluster.bucket(bucket_name)
+
+    print("\n2. Running queries to populate system:completed_requests...")
+
+    # Check if inventory scope exists (travel-sample with full data)
+    if check_scope_exists(bucket, "inventory"):
+        run_test_queries_inventory(cluster, bucket_name)
+    else:
+        # Fall back to _default scope (CI environment)
+        run_test_queries_default(cluster, bucket_name)
 
 
 def verify_completed_requests(cluster: Cluster) -> int:

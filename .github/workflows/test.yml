@@ -100,32 +100,34 @@ jobs:
 
           echo "Cluster initialization complete"
 
-      - name: Create test bucket
+      - name: Load travel-sample bucket
         run: |
-          echo "Creating test bucket..."
+          echo "Loading travel-sample bucket..."
 
           # Wait for cluster to be fully initialized
           sleep 5
 
-          # Create travel-sample bucket (or a test bucket)
-          curl -s -X POST http://localhost:8091/pools/default/buckets \
+          # Load the travel-sample sample bucket (includes inventory scope with airline, route, hotel, airport collections)
+          curl -s -X POST http://localhost:8091/sampleBuckets/install \
             -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -d 'name=${{ env.CB_MCP_TEST_BUCKET }}' \
-            -d 'bucketType=couchbase' \
-            -d 'ramQuota=256' \
-            -d 'flushEnabled=1'
+            -H "Content-Type: application/json" \
+            -d '["travel-sample"]'
 
-          # Wait for bucket to be ready
-          echo "Waiting for bucket to be ready..."
-          for i in {1..30}; do
+          # Wait for bucket to be ready (sample buckets take longer to load)
+          echo "Waiting for travel-sample bucket to be ready..."
+          for i in {1..60}; do
             if curl -s -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-               http://localhost:8091/pools/default/buckets/${{ env.CB_MCP_TEST_BUCKET }} | grep -q '"status":"healthy"'; then
+               http://localhost:8091/pools/default/buckets/travel-sample 2>/dev/null | grep -q '"status":"healthy"'; then
               echo "Bucket is healthy"
               break
             fi
-            echo "Waiting for bucket... ($i/30)"
-            sleep 2
+            echo "Waiting for bucket... ($i/60)"
+            sleep 3
           done
+
+          # Additional wait for data to be fully loaded
+          echo "Waiting for sample data to be fully loaded..."
+          sleep 10
 
       - name: Set indexer storage mode
         run: |
@@ -142,27 +144,19 @@ jobs:
           echo "Waiting for storage mode to be applied..."
           sleep 5
 
-      - name: Create primary index
+      - name: Verify travel-sample data loaded
         run: |
-          echo "Creating primary index..."
-          sleep 5
+          echo "Verifying travel-sample data..."
+          # Check that inventory scope exists with data
           curl -s -X POST http://localhost:8093/query/service \
             -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -d "statement=CREATE PRIMARY INDEX ON \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default" \
-            || echo "Primary index may already exist or query service not ready"
-
-      - name: Insert test documents
-        run: |
-          echo "Inserting test documents..."
+            -d "statement=SELECT COUNT(*) as cnt FROM \`travel-sample\`.\`inventory\`.\`airline\`" \
+            | grep -o '"cnt":[0-9]*' || echo "Could not verify airline count"
+          
           curl -s -X POST http://localhost:8093/query/service \
             -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES {\"type\": \"test\", \"name\": \"Test Document 1\", \"id\": 1})" \
-            || echo "Insert may have failed"
-
-          curl -s -X POST http://localhost:8093/query/service \
-            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES ('test-doc-2', {\"type\": \"test\", \"name\": \"Test Document 2\", \"id\": 2})" \
-            || echo "Insert may have failed"
+            -d "statement=SELECT COUNT(*) as cnt FROM \`travel-sample\`.\`inventory\`.\`route\`" \
+            | grep -o '"cnt":[0-9]*' || echo "Could not verify route count"
 
       - name: Setup test data for performance tests
         env:
