@@ -127,6 +127,21 @@ jobs:
             sleep 2
           done
 
+      - name: Set indexer storage mode
+        run: |
+          echo "Setting indexer storage mode..."
+          # Wait for indexer service to be ready
+          sleep 5
+          # Set storage mode to plasma (Couchbase 7.1+)
+          # Use cluster settings API which is more reliable
+          curl -s -X POST http://localhost:8091/settings/indexes \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d 'storageMode=plasma' \
+            || echo "Storage mode may already be set or indexer not ready"
+          # Wait for storage mode to be applied
+          echo "Waiting for storage mode to be applied..."
+          sleep 5
+
       - name: Create primary index
         run: |
           echo "Creating primary index..."
@@ -149,45 +164,16 @@ jobs:
             -d "statement=INSERT INTO \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default (KEY, VALUE) VALUES ('test-doc-2', {\"type\": \"test\", \"name\": \"Test Document 2\", \"id\": 2})" \
             || echo "Insert may have failed"
 
-      - name: Enable query logging for performance tests
+      - name: Setup test data for performance tests
+        env:
+          CB_CONNECTION_STRING: couchbase://localhost
+          CB_USERNAME: ${{ env.CB_USERNAME }}
+          CB_PASSWORD: ${{ env.CB_PASSWORD }}
+          CB_MCP_TEST_BUCKET: ${{ env.CB_MCP_TEST_BUCKET }}
+          PYTHONPATH: src
         run: |
-          echo "Enabling query logging (completed-threshold=0)..."
-          curl -s -X POST http://localhost:8093/admin/settings \
-            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -H "Content-Type: application/json" \
-            -d '{"completed-threshold": 0, "completed-limit": 10000}' \
-            || echo "Could not enable query logging"
-
-      - name: Run queries to populate system:completed_requests
-        run: |
-          echo "Running queries to populate system:completed_requests for performance tests..."
-          
-          # Run several queries so performance analysis tools have data
-          for i in {1..5}; do
-            curl -s -X POST http://localhost:8093/query/service \
-              -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-              -d "statement=SELECT * FROM \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default LIMIT 100" \
-              > /dev/null
-          done
-          
-          # Query with aggregation
-          curl -s -X POST http://localhost:8093/query/service \
-            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -d "statement=SELECT COUNT(*) as cnt FROM \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default" \
-            > /dev/null
-          
-          # Query with filter
-          curl -s -X POST http://localhost:8093/query/service \
-            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -d "statement=SELECT * FROM \`${{ env.CB_MCP_TEST_BUCKET }}\`._default._default WHERE type = 'test'" \
-            > /dev/null
-          
-          # Verify completed_requests has data
-          echo "Verifying system:completed_requests..."
-          curl -s -X POST http://localhost:8093/query/service \
-            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
-            -d "statement=SELECT COUNT(*) as cnt FROM system:completed_requests" \
-            | grep -o '"cnt":[0-9]*' || echo "Could not verify"
+          echo "Setting up test data for performance analysis tests..."
+          uv run python scripts/setup_test_data.py
 
       # ============================================
       # STDIO Transport Tests
