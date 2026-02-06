@@ -115,13 +115,11 @@ git push origin v0.5.2
 Once the tag is pushed, three GitHub Actions workflows run **in parallel/sequence**:
 
 1. **PyPI Release**
-
    - Builds Python package
    - Publishes to PyPI as `couchbase-mcp-server`
    - Creates GitHub Release with changelog
 
 2. **Docker Build**
-
    - Builds multi-architecture images (amd64, arm64)
    - Pushes to Docker Hub as `couchbaseecosystem/mcp-server-couchbase`
    - Updates Docker Hub description
@@ -132,6 +130,8 @@ Once the tag is pushed, three GitHub Actions workflows run **in parallel/sequenc
    - Publishes to MCP Registry
 
 > **Note:** Version validation happens in the MCP Registry workflow, which runs **after** PyPI and Docker have already published. This is why local validation (step 2) is critical!
+
+> **Note:** The MCP registry entry can be validated using this [third party option](https://registry.teamspark.ai/tester) before releasing or for debugging.
 
 ### 5. Verify Release
 

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Couchbase-Ecosystem/mcp-server-couchbase",
   "description": "Couchbase Model Context Protocol Server to interact with Couchbase clusters",
   "repository": {
@@ -59,8 +59,15 @@
           "isSecret": false
         },
         {
+          "name": "CB_MCP_READ_ONLY_MODE",
+          "description": "Couchbase read only mode. Set to true to allow disable write operations across both KV and query. KV write tools are not loaded and SQL++ queries that modify data are blocked. Set to false to allow data modification queries and tools.",
+          "isRequired": false,
+          "format": "boolean",
+          "isSecret": false
+        },
+        {
           "name": "CB_MCP_READ_ONLY_QUERY_MODE",
-          "description": "Couchbase read only query mode. Set to true to allow only read-only queries. Set to false to allow data modification queries.",
+          "description": "[Deprecated] Couchbase read only query mode. Set to true to allow only read-only queries. Set to false to allow data modification queries. Use CB_MCP_READ_ONLY_MODE instead.",
           "isRequired": false,
           "format": "boolean",
           "isSecret": false
@@ -84,6 +91,13 @@
           "description": "Port to run the MCP server on (default: 8000). Used only for HTTP and SSE transport modes.",
           "isRequired": false,
           "format": "number",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_DISABLED_TOOLS",
+          "description": "Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') or a file path containing one tool name per line.",
+          "isRequired": false,
+          "format": "string",
           "isSecret": false
         }
       ],
@@ -138,8 +152,16 @@
         },
         {
           "type": "named",
+          "name": "--read-only-mode",
+          "description": "Couchbase read only mode. Set to true to disable write operations across both KV and query. KV write tools are not loaded and SQL++ queries that modify data are blocked. Set to false to allow data modification queries and tools.",
+          "isRequired": false,
+          "format": "boolean",
+          "isSecret": false
+        },
+        {
+          "type": "named",
           "name": "--read-only-query-mode",
-          "description": "Couchbase read only query mode. Set to true to allow only read-only queries. Set to false to allow data modification queries.",
+          "description": "[Deprecated] Couchbase read only query mode. Set to true to allow only read-only queries. Set to false to allow data modification queries. Use --read-only-mode instead.",
           "isRequired": false,
           "format": "boolean",
           "isSecret": false
@@ -166,6 +188,14 @@
           "description": "Port to run the MCP server on (default: 8000). Used only for HTTP and SSE transport modes.",
           "isRequired": false,
           "format": "number",
+          "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--disabled-tools",
+          "description": "Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') or a file path containing one tool name per line.",
+          "isRequired": false,
+          "format": "string",
           "isSecret": false
         }
       ]
@@ -220,8 +250,15 @@
           "isSecret": false
         },
         {
+          "name": "CB_MCP_READ_ONLY_MODE",
+          "description": "Couchbase read only mode. Set to true to disable write operations across both KV and query. KV write tools are not loaded and SQL++ queries that modify data are blocked. Set to false to allow data modification queries and tools.",
+          "isRequired": false,
+          "format": "boolean",
+          "isSecret": false
+        },
+        {
           "name": "CB_MCP_READ_ONLY_QUERY_MODE",
-          "description": "Couchbase read only query mode. Set to true to allow only read-only queries. Set to false to allow data modification queries.",
+          "description": "[Deprecated] Couchbase read only query mode. Set to true to allow only read-only queries. Set to false to allow data modification queries. Use CB_MCP_READ_ONLY_MODE instead.",
           "isRequired": false,
           "format": "boolean",
           "isSecret": false
@@ -245,6 +282,13 @@
           "description": "Port to run the MCP server on (default: 8000). Used only for HTTP and SSE transport modes.",
           "isRequired": false,
           "format": "number",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_DISABLED_TOOLS",
+          "description": "Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') or a file path containing one tool name per line.",
+          "isRequired": false,
+          "format": "string",
           "isSecret": false
         }
       ]
