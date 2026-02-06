@@ -60,7 +60,7 @@
         },
         {
           "name": "CB_MCP_READ_ONLY_MODE",
-          "description": "Couchbase read only query mode. Set to true to allow disable write operations across both KV and query. KV write tools are not loaded and SQL++ queries that modify data are blocked. Set to false to allow data modification queries and tools.",
+          "description": "Couchbase read only mode. Set to true to allow disable write operations across both KV and query. KV write tools are not loaded and SQL++ queries that modify data are blocked. Set to false to allow data modification queries and tools.",
           "isRequired": false,
           "format": "boolean",
           "isSecret": false

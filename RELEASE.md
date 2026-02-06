@@ -131,7 +131,7 @@ Once the tag is pushed, three GitHub Actions workflows run **in parallel/sequenc
 
 > **Note:** Version validation happens in the MCP Registry workflow, which runs **after** PyPI and Docker have already published. This is why local validation (step 2) is critical!
 
-> **Note:** The MCP regsitry entry can be validated using this [third party option](https://registry.teamspark.ai/tester) before releasing or for debugging.
+> **Note:** The MCP registry entry can be validated using this [third party option](https://registry.teamspark.ai/tester) before releasing or for debugging.
 
 ### 5. Verify Release
 
