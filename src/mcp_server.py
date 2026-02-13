@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import click
-from fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
 
 # Import tools
 from tools import get_tools
@@ -220,7 +220,7 @@ def main(
 
     # Register only enabled tools
     for tool in enabled_tools:
-        mcp.tool()(tool)
+        mcp.add_tool(tool)
 
     logger.info(f"Registered {len(enabled_tools)} tool(s)")
 
