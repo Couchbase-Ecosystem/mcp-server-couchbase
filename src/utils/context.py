@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 
 from couchbase.cluster import Cluster
-from mcp.server.fastmcp import Context
+from fastmcp.server.context import Context
 
 from utils.config import get_settings
 from utils.connection import connect_to_couchbase_cluster

@@ -7,8 +7,8 @@ This module contains tools for getting the schema for a collection and running S
 import logging
 from typing import Any
 
+from fastmcp.server.context import Context
 from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
-from mcp.server.fastmcp import Context
 
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
