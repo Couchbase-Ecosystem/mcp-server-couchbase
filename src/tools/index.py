@@ -7,7 +7,7 @@ This module contains tools for listing and managing indexes in the Couchbase clu
 import logging
 from typing import Any
 
-from mcp.server.fastmcp import Context
+from fastmcp.server.context import Context
 
 from tools.query import run_sql_plus_plus_query
 from utils.config import get_settings

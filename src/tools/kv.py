@@ -12,7 +12,7 @@ This module contains tools for document operations by ID:
 import logging
 from typing import Any
 
-from mcp.server.fastmcp import Context
+from fastmcp.server.context import Context
 
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
