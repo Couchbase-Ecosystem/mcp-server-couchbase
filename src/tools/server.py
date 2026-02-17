@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Any
 
-from fastmcp.server.context import Context
+from fastmcp import Context
 
 from tools.query import run_cluster_query
 from utils.config import get_settings
