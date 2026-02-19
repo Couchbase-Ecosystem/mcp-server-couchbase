@@ -9,13 +9,13 @@ request and returns the answer.
 """
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated
 
 from mcp.server.fastmcp import Context
 from pydantic import Field
 
-from utils.constants import MCP_SERVER_NAME
 from utils.agent import call_agent, extract_answer
+from utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.docs")
 

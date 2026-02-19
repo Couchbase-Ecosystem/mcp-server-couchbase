@@ -36,6 +36,7 @@ EXPECTED_TOOLS = {
     "run_sql_plus_plus_query",
     "get_index_advisor_recommendations",
     "list_indexes",
+    "generate_query",
     "get_cluster_health_and_services",
     # Performance analysis tools
     "get_longest_running_queries",
@@ -45,6 +46,8 @@ EXPECTED_TOOLS = {
     "get_queries_using_primary_index",
     "get_queries_not_using_covering_index",
     "get_queries_not_selective",
+    # Docs tools
+    "search_couchbase_docs",
 }
 
 # Tools organized by category for validation
@@ -68,6 +71,7 @@ TOOLS_BY_CATEGORY = {
     "query": {
         "get_schema_for_collection",
         "run_sql_plus_plus_query",
+        "generate_query",
     },
     "index": {
         "list_indexes",
@@ -81,6 +85,9 @@ TOOLS_BY_CATEGORY = {
         "get_queries_using_primary_index",
         "get_queries_not_using_covering_index",
         "get_queries_not_selective",
+    },
+    "docs": {
+        "search_couchbase_docs",
     },
 }
 
@@ -125,6 +132,8 @@ TOOL_REQUIRED_PARAMS = {
     "get_schema_for_collection": ["bucket_name", "scope_name", "collection_name"],
     "run_sql_plus_plus_query": ["bucket_name", "scope_name", "query"],
     "get_index_advisor_recommendations": ["bucket_name", "scope_name", "query"],
+    "generate_query": ["bucket_name", "scope_name", "query"],
+    "search_couchbase_docs": ["question"],
 }
 
 # Minimum configuration needed to talk to a demo cluster

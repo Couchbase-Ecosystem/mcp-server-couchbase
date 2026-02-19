@@ -107,23 +107,23 @@ def call_agent(
     try:
         response = requests.post(url, json=body, timeout=_REQUEST_TIMEOUT_SECONDS)
         response.raise_for_status()
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as exc:
         logger.error("Could not connect to agent service at %s", url)
         raise ConnectionError(
             f"Could not connect to the agent service at {url}. "
             "Ensure the service is running."
-        )
-    except requests.exceptions.Timeout:
+        ) from exc
+    except requests.exceptions.Timeout as exc:
         logger.error("Request to %s timed out after %ss", url, _REQUEST_TIMEOUT_SECONDS)
         raise RuntimeError(
             f"Request to the agent service at {url} timed out after "
             f"{_REQUEST_TIMEOUT_SECONDS}s. The service may be overloaded."
-        )
+        ) from exc
     except requests.exceptions.RequestException as exc:
         logger.error("Request to agent service failed: %s", exc)
         raise RuntimeError(
             f"Request to the agent service failed: {exc}"
-        )
+        ) from exc
 
     try:
         resp_body = response.json()
@@ -131,7 +131,7 @@ def call_agent(
         logger.error("Invalid JSON from agent service: %s", exc)
         raise RuntimeError(
             f"The agent service returned an invalid JSON response: {exc}"
-        )
+        ) from exc
 
     # Surface server-side errors
     if resp_body.get("error"):

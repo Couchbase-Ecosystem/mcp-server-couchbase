@@ -27,6 +27,7 @@ from .kv import (
 
 # Query tools
 from .query import (
+    generate_query,
     get_longest_running_queries,
     get_most_frequent_queries,
     get_queries_not_selective,
@@ -36,7 +37,6 @@ from .query import (
     get_queries_with_largest_response_sizes,
     get_schema_for_collection,
     run_sql_plus_plus_query,
-    generate_query,
 )
 
 # Server tools
@@ -49,7 +49,6 @@ from .server import (
     get_server_configuration_status,
     test_cluster_connection,
 )
-
 
 # Read-only tools - always available regardless of mode settings
 READ_ONLY_TOOLS = [

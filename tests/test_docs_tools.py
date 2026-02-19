@@ -7,8 +7,6 @@ Tests for:
 
 from __future__ import annotations
 
-import os
-
 import pytest
 from conftest import (
     create_mcp_session,

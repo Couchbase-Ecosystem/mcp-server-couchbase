@@ -8,8 +8,9 @@ Tests for:
 
 from __future__ import annotations
 
-import pytest
 import re
+
+import pytest
 from conftest import (
     create_mcp_session,
     ensure_list,

@@ -12,10 +12,10 @@ from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 from mcp.server.fastmcp import Context
 from pydantic import Field
 
+from utils.agent import call_agent, extract_answer
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
-from utils.agent import call_agent, extract_answer
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
 
@@ -687,7 +687,7 @@ def generate_query(
         # Schema via INFER (includes per-field samples automatically)
         try:
             infer_result = scope.query(f"INFER `{escaped}`")
-            schema = [row for row in infer_result]
+            schema = list(infer_result)
             #schema = _compact_infer_schema(raw_schema)
         except Exception as e:
             logger.warning("INFER failed for %s: %s", coll, e)
