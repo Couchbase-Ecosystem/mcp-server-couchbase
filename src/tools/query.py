@@ -15,6 +15,7 @@ from pydantic import Field
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
+from utils.agent import call_agent, extract_answer
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
 
@@ -710,8 +711,6 @@ def generate_query(
 
     # ── Call the agent backend ─────────────────────────────────────
     try:
-        from utils.agent import call_agent, extract_answer
-
         resp_body = call_agent(
             content=prompt,
             extra_payload={"collection_names": ",".join(collection_names)},
