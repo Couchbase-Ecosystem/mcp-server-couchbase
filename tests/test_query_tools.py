@@ -159,7 +159,7 @@ async def test_run_sql_plus_plus_query_meta() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gernerate_sql_plus_plus_query() -> None:
+async def test_generate_sql_plus_plus_query() -> None:
     """Verify run_sql_plus_plus_query can retrieve document metadata."""
     bucket = require_test_bucket()
     scope = get_test_scope()
