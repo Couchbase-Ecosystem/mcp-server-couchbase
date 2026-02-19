@@ -132,7 +132,7 @@ TOOL_REQUIRED_PARAMS = {
     "get_schema_for_collection": ["bucket_name", "scope_name", "collection_name"],
     "run_sql_plus_plus_query": ["bucket_name", "scope_name", "query"],
     "get_index_advisor_recommendations": ["bucket_name", "scope_name", "query"],
-    "generate_query": ["bucket_name", "scope_name", "query"],
+    "generate_query": ["message","bucket_name", "scope_name", "collection_names"],
     "search_couchbase_docs": ["question"],
 }
 
