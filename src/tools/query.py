@@ -4,11 +4,13 @@ Tools for querying the Couchbase database.
 This module contains tools for getting the schema for a collection and running SQL++ queries.
 """
 
+import json
 import logging
-from typing import Any
+from typing import Annotated, Any
 
 from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 from mcp.server.fastmcp import Context
+from pydantic import Field
 
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
@@ -363,3 +365,357 @@ def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, A
             "No non-selective queries were found in system:completed_requests."
         ),
     )
+
+
+
+def _compact_property(prop_name: str, prop_info: dict[str, Any]) -> dict[str, Any]:
+    """Compact a single INFER property into an LLM-friendly dict.
+
+    Keeps: field name, type, %docs (presence percentage), samples,
+    and recursively compacts nested objects and array items.
+
+    To keep the prompt size manageable, ``samples`` are only included on
+    *leaf* fields (string, number, boolean, null).  For object and array
+    fields we already recurse into their ``properties`` / ``items``, so
+    the full-document samples would be redundant.
+    """
+    entry: dict[str, Any] = {"field": prop_name}
+    field_type = prop_info.get("type")
+
+    if field_type is not None:
+        entry["type"] = field_type
+
+    if "%docs" in prop_info:
+        entry["%docs"] = prop_info["%docs"]
+
+    # ── Nested object properties ─────────────────────────────────────
+    has_nested = False
+    if "properties" in prop_info:
+        has_nested = True
+        entry["properties"] = [
+            _compact_property(k, v)
+            for k, v in prop_info["properties"].items()
+        ]
+
+    # ── Array items ──────────────────────────────────────────────────
+    items_raw = prop_info.get("items")
+    if items_raw is not None:
+        if isinstance(items_raw, dict):
+            # Homogeneous array — items is a single object schema
+            has_nested = True
+            if "properties" in items_raw:
+                entry["items"] = [
+                    _compact_property(k, v)
+                    for k, v in items_raw["properties"].items()
+                ]
+            else:
+                # Scalar array (e.g. items: {type: "number"})
+                entry["item_type"] = items_raw.get("type")
+        elif isinstance(items_raw, list):
+            # Tuple-style (positional) array — items is a list of schemas
+            has_nested = True
+            compact_items: list[dict[str, Any]] = []
+            for idx, item_schema in enumerate(items_raw):
+                if isinstance(item_schema, dict) and "properties" in item_schema:
+                    # Object element at this position
+                    compact_items.append({
+                        "index": idx,
+                        "type": item_schema.get("type", "object"),
+                        "properties": [
+                            _compact_property(k, v)
+                            for k, v in item_schema["properties"].items()
+                        ],
+                    })
+                elif isinstance(item_schema, dict):
+                    compact_items.append({
+                        "index": idx,
+                        "type": item_schema.get("type"),
+                    })
+            if compact_items:
+                entry["items"] = compact_items
+
+        if "minItems" in prop_info:
+            entry["minItems"] = prop_info["minItems"]
+        if "maxItems" in prop_info:
+            entry["maxItems"] = prop_info["maxItems"]
+
+    # ── Samples — only on leaf types to avoid bloat ──────────────────
+    if "samples" in prop_info and not has_nested:
+        entry["samples"] = prop_info["samples"]
+
+    return entry
+
+
+def _compact_infer_schema(infer_result: list[Any]) -> list[dict[str, Any]]:
+    """Compact the raw INFER output into an LLM-friendly representation.
+
+    INFER returns ``[[flavor_1, flavor_2, ...]]`` — an array wrapping an
+    array of schema "flavors".  Each flavor is a JSON-Schema-like object
+    with a ``properties`` dict where every property already carries:
+
+    - ``type`` — data type (string, number, boolean, array, object, null)
+    - ``#docs`` / ``%docs`` — how many / what % of sampled docs contain it
+    - ``samples`` — example values drawn from the sample population
+
+    This helper keeps the useful bits (field, type, %docs, samples) and
+    recursively compacts nested objects and array items, stripping verbose
+    JSON-Schema metadata the downstream agent doesn't need.
+
+    Samples are only preserved on leaf-level fields to avoid massive
+    redundancy — for compound types the nested schema already conveys
+    the structure.
+    """
+    # INFER returns [[flavor, ...]] — unwrap the outer array
+    flavors = infer_result[0] if infer_result else []
+    if isinstance(flavors, dict):
+        # Single flavor returned without inner list wrapping
+        flavors = [flavors]
+
+    compacted: list[dict[str, Any]] = []
+    for flavor in flavors:
+        flavor_entry: dict[str, Any] = {}
+        if "Flavor" in flavor:
+            flavor_entry["flavor"] = flavor["Flavor"]
+        if "#docs" in flavor:
+            flavor_entry["docs_sampled"] = flavor["#docs"]
+
+        props = flavor.get("properties", {})
+        flavor_entry["fields"] = [
+            _compact_property(k, v)
+            for k, v in props.items()
+            if k != "~meta"  # skip internal meta field
+        ]
+        compacted.append(flavor_entry)
+
+    return compacted
+
+
+def _fetch_collection_indexes(
+    scope: Any, bucket_name: str, scope_name: str, collection_name: str
+) -> list[dict[str, Any]]:
+    """Return GSI index definitions relevant to a single collection."""
+    try:
+        query = (
+            "SELECT raw idx "
+            "FROM system:indexes AS idx "
+            "WHERE idx.bucket_id = $bucket "
+            "  AND idx.scope_id = $scope "
+            "  AND idx.keyspace_id = $collection"
+        )
+        result = scope.query(
+            query,
+            bucket=bucket_name,
+            scope=scope_name,
+            collection=collection_name,
+        )
+        indexes: list[dict[str, Any]] = []
+        for row in result:
+            indexes.append({
+                "name": row.get("name"),
+                "index_key": row.get("index_key"),
+                "condition": row.get("condition"),
+                "is_primary": row.get("is_primary", False),
+            })
+        return indexes
+    except Exception as e:
+        logger.warning(
+            "Could not fetch indexes for %s: %s", collection_name, e
+        )
+        return []
+
+
+def _build_query_generation_prompt(
+    *,
+    user_question: str,
+    bucket_name: str,
+    scope_name: str,
+    collection_metadata: dict[str, dict[str, Any]],
+) -> str:
+    """Build a structured, multi-section prompt for the query-generation agent.
+
+    Sections
+    --------
+    1. Target keyspace — bucket / scope context so the agent knows the query
+       scope is already set and collection names should be used directly.
+    2. Per-collection metadata — schema, indexes, and sample docs.
+    3. SQL++ guidelines — concise rules that prevent common mistakes.
+    4. User question — the natural-language request.
+    """
+    lines: list[str] = []
+
+    # ── 1. Keyspace context ──────────────────────────────────────────────
+    lines.append("## Target Keyspace")
+    lines.append(f"- **Bucket:** `{bucket_name}`")
+    lines.append(f"- **Scope:** `{scope_name}`")
+    lines.append(
+        "- The query will be executed with the scope context already set. "
+        "Use collection names directly — do NOT prefix with bucket or scope."
+    )
+    lines.append("")
+
+    # ── 2. Per-collection metadata ───────────────────────────────────────
+    for coll_name, meta in collection_metadata.items():
+        lines.append(f"## Collection: `{coll_name}`")
+
+        # Schema (includes per-field sample values from INFER)
+        schema = meta.get("schema")
+        if schema:
+            lines.append("### Schema (from INFER — includes field types, prevalence, and sample values)")
+            lines.append("```json")
+            lines.append(json.dumps(schema, indent=2))
+            lines.append("```")
+        else:
+            lines.append("_No schema available._")
+
+        # Indexes
+        # indexes = meta.get("indexes")
+        # if indexes:
+        #     lines.append("### Indexes")
+        #     lines.append("```json")
+        #     lines.append(json.dumps(indexes, indent=2))
+        #     lines.append("```")
+        # else:
+        #     lines.append("_No secondary indexes defined._")
+        # lines.append("")
+
+    # ── 3. SQL++ guidelines ──────────────────────────────────────────────
+    # lines.append("## SQL++ Guidelines")
+    # lines.append(
+    #     "- Use backtick-quoted identifiers for collection and field names "
+    #     "that contain special characters.\n"
+    #     "- Prefer indexed fields in WHERE / JOIN predicates when indexes exist.\n"
+    #     "- Use UNNEST for querying inside arrays.\n"
+    #     "- Use META().id to retrieve the document key.\n"
+    #     "- Always add a LIMIT clause unless the user explicitly wants all results.\n"
+    #     "- For JOINs across collections in the same scope, use ANSI JOIN syntax.\n"
+    #     "- Return only the SQL++ query without explanation unless the user asks for one."
+    # )
+    # lines.append("")
+
+    # ── 4. User question ─────────────────────────────────────────────────
+    lines.append("## User Question")
+    lines.append(user_question)
+
+    return "\n".join(lines)
+
+
+def generate_query(
+    ctx: Context,
+    message: Annotated[
+        str,
+        Field(
+            description=(
+                "The user's natural-language request describing the data they "
+                "want to retrieve or modify. Be as specific as possible — "
+                "include field names, filter conditions, sort order, and "
+                "result limits when known."
+            ),
+        ),
+    ],
+    bucket_name: Annotated[
+        str,
+        Field(
+            description=(
+                "Couchbase bucket that contains the target scope and "
+                "collections. Must already exist on the cluster."
+            ),
+        ),
+    ],
+    scope_name: Annotated[
+        str,
+        Field(
+            description=(
+                "Scope inside the bucket where the target collections reside."
+            ),
+        ),
+    ],
+    collection_names: Annotated[
+        list[str],
+        Field(
+            description=(
+                "One or more collection names involved in the query. "
+                "Include all collections needed for JOINs. "
+                "Use get_scopes_and_collections_in_bucket to discover names "
+                "if unsure."
+            ),
+        ),
+    ],
+) -> str:
+    """Generate a SQL++ query from a natural-language description.
+
+    Use this tool when the user wants to **create a SQL++ query** from a
+    plain-English description. The tool introspects the target collections
+    (schema, sample data) and delegates to a specialised
+    query-generation agent that returns a ready-to-run SQL++ statement.
+
+    Args:
+        message: Natural-language description of the desired query.
+        bucket_name: Target bucket name.
+        scope_name: Target scope name.
+        collection_names: Collections involved in the query.
+
+    Returns:
+        A SQL++ query string ready to execute, or an error message.
+    """
+    logger.info(
+        "generate_query — message=%s, collections=%s, bucket=%s, scope=%s",
+        message,
+        collection_names,
+        bucket_name,
+        scope_name,
+    )
+
+    if not collection_names:
+        return (
+            "Error: At least one collection name is required. "
+            "Use get_scopes_and_collections_in_bucket to discover available collections."
+        )
+
+    if not message or not message.strip():
+        return "Error: A natural-language message describing the desired query is required."
+
+    # ── Gather metadata for each collection ──────────────────────────────
+    cluster = get_cluster_connection(ctx=ctx)
+    bucket = connect_to_bucket(cluster, bucket_name)
+    scope = bucket.scope(scope_name)
+
+    collection_metadata: dict[str, dict[str, Any]] = {}
+    for coll in collection_names:
+        escaped = coll.replace("`", "``")
+
+        # Schema via INFER (includes per-field samples automatically)
+        try:
+            infer_result = scope.query(f"INFER `{escaped}`")
+            schema = [row for row in infer_result]
+            #schema = _compact_infer_schema(raw_schema)
+        except Exception as e:
+            logger.warning("INFER failed for %s: %s", coll, e)
+            schema = []
+
+        # Indexes
+        #indexes = _fetch_collection_indexes(scope, bucket_name, scope_name, coll)
+
+        collection_metadata[coll] = {
+            "schema": schema,
+            #"indexes": indexes,
+        }
+
+    # ── Build structured prompt ──────────────────────────────────────────
+    prompt = _build_query_generation_prompt(
+        user_question=message,
+        bucket_name=bucket_name,
+        scope_name=scope_name,
+        collection_metadata=collection_metadata,
+    )
+
+    # ── Call the agent backend ─────────────────────────────────────
+    try:
+        from utils.agent import call_agent, extract_answer
+
+        resp_body = call_agent(
+            content=prompt,
+            extra_payload={"collection_names": ",".join(collection_names)},
+        )
+        return extract_answer(resp_body)
+    except (ConnectionError, RuntimeError) as exc:
+        return f"Error: {exc}"

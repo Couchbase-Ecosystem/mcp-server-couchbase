@@ -10,6 +10,9 @@ Tool Categories:
 
 from collections.abc import Callable
 
+# Docs / API reference tools
+from .docs import search_couchbase_docs
+
 # Index tools
 from .index import get_index_advisor_recommendations, list_indexes
 
@@ -33,6 +36,7 @@ from .query import (
     get_queries_with_largest_response_sizes,
     get_schema_for_collection,
     run_sql_plus_plus_query,
+    generate_query,
 )
 
 # Server tools
@@ -45,6 +49,7 @@ from .server import (
     get_server_configuration_status,
     test_cluster_connection,
 )
+
 
 # Read-only tools - always available regardless of mode settings
 READ_ONLY_TOOLS = [
@@ -72,6 +77,9 @@ READ_ONLY_TOOLS = [
     get_queries_with_largest_response_sizes,
     get_longest_running_queries,
     get_most_frequent_queries,
+    generate_query,
+    # Docs / API reference tools
+    search_couchbase_docs,
 ]
 
 # KV write tools - disabled when READ_ONLY_MODE is True
@@ -126,6 +134,8 @@ __all__ = [
     "get_queries_with_largest_response_sizes",
     "get_longest_running_queries",
     "get_most_frequent_queries",
+    "generate_query",
+    "search_couchbase_docs",
     # Tool categories
     "READ_ONLY_TOOLS",
     "KV_WRITE_TOOLS",
