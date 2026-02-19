@@ -175,7 +175,8 @@ async def test_gernerate_sql_plus_plus_query() -> None:
             },
         )
         m = re.search(r"```(?:sql)?\s*\n(.*?)\n```", extract_payload(response), flags=re.IGNORECASE | re.DOTALL)
-        sql = m.group(1).strip() if m else None
+        assert m, "Could not extract SQL query from agent response"
+        sql = m.group(1).strip()
 
         actual_result = await session.call_tool(
             "run_sql_plus_plus_query",
