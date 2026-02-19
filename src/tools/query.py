@@ -649,12 +649,6 @@ def generate_query(
     (schema, sample data) and delegates to a specialised
     query-generation agent that returns a ready-to-run SQL++ statement.
 
-    Args:
-        message: Natural-language description of the desired query.
-        bucket_name: Target bucket name.
-        scope_name: Target scope name.
-        collection_names: Collections involved in the query.
-
     Returns:
         A SQL++ query string ready to execute, or an error message.
     """
