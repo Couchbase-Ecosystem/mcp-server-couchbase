@@ -657,7 +657,7 @@ def generate_query(
     Returns:
         A SQL++ query string ready to execute, or an error message.
     """
-    logger.info(
+    logger.debug(
         "generate_query — message=%s, collections=%s, bucket=%s, scope=%s",
         message,
         collection_names,
