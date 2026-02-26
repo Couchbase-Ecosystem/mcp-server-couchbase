@@ -160,14 +160,14 @@ async def test_run_sql_plus_plus_query_meta() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_sql_plus_plus_query() -> None:
+async def test_generate_or_modify_sql_plus_plus_query() -> None:
     """Verify run_sql_plus_plus_query can retrieve document metadata."""
     bucket = require_test_bucket()
     scope = get_test_scope()
     collection = get_test_collection()
     async with create_mcp_session() as session:
         response = await session.call_tool(
-            "generate_query",
+            "generate_or_modify_sql_plus_plus_query",
             arguments={
                 "bucket_name": bucket,
                 "scope_name": scope,

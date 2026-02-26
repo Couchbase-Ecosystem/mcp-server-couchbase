@@ -40,7 +40,7 @@ def get_schema_for_collection(
 
 
 def run_sql_plus_plus_query(
-    ctx: Context, bucket_name: str, scope_name: str, query: str
+    ctx: Context, bucket_name: str, scope_name: str, query: Annotated[str, Field(description="Requires sql++ query to be generated using generate_or_modify_sql_plus_plus_query tool from natural language for the query parameter.")]
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects.
 
@@ -368,163 +368,6 @@ def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, A
     )
 
 
-
-def _compact_property(prop_name: str, prop_info: dict[str, Any]) -> dict[str, Any]:
-    """Compact a single INFER property into an LLM-friendly dict.
-
-    Keeps: field name, type, %docs (presence percentage), samples,
-    and recursively compacts nested objects and array items.
-
-    To keep the prompt size manageable, ``samples`` are only included on
-    *leaf* fields (string, number, boolean, null).  For object and array
-    fields we already recurse into their ``properties`` / ``items``, so
-    the full-document samples would be redundant.
-    """
-    entry: dict[str, Any] = {"field": prop_name}
-    field_type = prop_info.get("type")
-
-    if field_type is not None:
-        entry["type"] = field_type
-
-    if "%docs" in prop_info:
-        entry["%docs"] = prop_info["%docs"]
-
-    # ── Nested object properties ─────────────────────────────────────
-    has_nested = False
-    if "properties" in prop_info:
-        has_nested = True
-        entry["properties"] = [
-            _compact_property(k, v)
-            for k, v in prop_info["properties"].items()
-        ]
-
-    # ── Array items ──────────────────────────────────────────────────
-    items_raw = prop_info.get("items")
-    if items_raw is not None:
-        if isinstance(items_raw, dict):
-            # Homogeneous array — items is a single object schema
-            has_nested = True
-            if "properties" in items_raw:
-                entry["items"] = [
-                    _compact_property(k, v)
-                    for k, v in items_raw["properties"].items()
-                ]
-            else:
-                # Scalar array (e.g. items: {type: "number"})
-                entry["item_type"] = items_raw.get("type")
-        elif isinstance(items_raw, list):
-            # Tuple-style (positional) array — items is a list of schemas
-            has_nested = True
-            compact_items: list[dict[str, Any]] = []
-            for idx, item_schema in enumerate(items_raw):
-                if isinstance(item_schema, dict) and "properties" in item_schema:
-                    # Object element at this position
-                    compact_items.append({
-                        "index": idx,
-                        "type": item_schema.get("type", "object"),
-                        "properties": [
-                            _compact_property(k, v)
-                            for k, v in item_schema["properties"].items()
-                        ],
-                    })
-                elif isinstance(item_schema, dict):
-                    compact_items.append({
-                        "index": idx,
-                        "type": item_schema.get("type"),
-                    })
-            if compact_items:
-                entry["items"] = compact_items
-
-        if "minItems" in prop_info:
-            entry["minItems"] = prop_info["minItems"]
-        if "maxItems" in prop_info:
-            entry["maxItems"] = prop_info["maxItems"]
-
-    # ── Samples — only on leaf types to avoid bloat ──────────────────
-    if "samples" in prop_info and not has_nested:
-        entry["samples"] = prop_info["samples"]
-
-    return entry
-
-
-def _compact_infer_schema(infer_result: list[Any]) -> list[dict[str, Any]]:
-    """Compact the raw INFER output into an LLM-friendly representation.
-
-    INFER returns ``[[flavor_1, flavor_2, ...]]`` — an array wrapping an
-    array of schema "flavors".  Each flavor is a JSON-Schema-like object
-    with a ``properties`` dict where every property already carries:
-
-    - ``type`` — data type (string, number, boolean, array, object, null)
-    - ``#docs`` / ``%docs`` — how many / what % of sampled docs contain it
-    - ``samples`` — example values drawn from the sample population
-
-    This helper keeps the useful bits (field, type, %docs, samples) and
-    recursively compacts nested objects and array items, stripping verbose
-    JSON-Schema metadata the downstream agent doesn't need.
-
-    Samples are only preserved on leaf-level fields to avoid massive
-    redundancy — for compound types the nested schema already conveys
-    the structure.
-    """
-    # INFER returns [[flavor, ...]] — unwrap the outer array
-    flavors = infer_result[0] if infer_result else []
-    if isinstance(flavors, dict):
-        # Single flavor returned without inner list wrapping
-        flavors = [flavors]
-
-    compacted: list[dict[str, Any]] = []
-    for flavor in flavors:
-        flavor_entry: dict[str, Any] = {}
-        if "Flavor" in flavor:
-            flavor_entry["flavor"] = flavor["Flavor"]
-        if "#docs" in flavor:
-            flavor_entry["docs_sampled"] = flavor["#docs"]
-
-        props = flavor.get("properties", {})
-        flavor_entry["fields"] = [
-            _compact_property(k, v)
-            for k, v in props.items()
-            if k != "~meta"  # skip internal meta field
-        ]
-        compacted.append(flavor_entry)
-
-    return compacted
-
-
-def _fetch_collection_indexes(
-    scope: Any, bucket_name: str, scope_name: str, collection_name: str
-) -> list[dict[str, Any]]:
-    """Return GSI index definitions relevant to a single collection."""
-    try:
-        query = (
-            "SELECT raw idx "
-            "FROM system:indexes AS idx "
-            "WHERE idx.bucket_id = $bucket "
-            "  AND idx.scope_id = $scope "
-            "  AND idx.keyspace_id = $collection"
-        )
-        result = scope.query(
-            query,
-            bucket=bucket_name,
-            scope=scope_name,
-            collection=collection_name,
-        )
-        indexes: list[dict[str, Any]] = []
-        for row in result:
-            indexes.append({
-                "name": row.get("name"),
-                "index_key": row.get("index_key"),
-                "condition": row.get("condition"),
-                "is_primary": row.get("is_primary", False),
-            })
-        return indexes
-    except Exception as e:
-        logger.warning(
-            "Could not fetch indexes for %s: %s", collection_name, e
-        )
-        return []
-
-
 def _build_query_generation_prompt(
     *,
     user_question: str,
@@ -538,9 +381,8 @@ def _build_query_generation_prompt(
     --------
     1. Target keyspace — bucket / scope context so the agent knows the query
        scope is already set and collection names should be used directly.
-    2. Per-collection metadata — schema, indexes, and sample docs.
-    3. SQL++ guidelines — concise rules that prevent common mistakes.
-    4. User question — the natural-language request.
+    2. Per-collection metadata — schema, and sample docs.
+    3. User question — the natural-language request.
     """
     lines: list[str] = []
 
@@ -568,48 +410,22 @@ def _build_query_generation_prompt(
         else:
             lines.append("_No schema available._")
 
-        # Indexes
-        # indexes = meta.get("indexes")
-        # if indexes:
-        #     lines.append("### Indexes")
-        #     lines.append("```json")
-        #     lines.append(json.dumps(indexes, indent=2))
-        #     lines.append("```")
-        # else:
-        #     lines.append("_No secondary indexes defined._")
-        # lines.append("")
-
-    # ── 3. SQL++ guidelines ──────────────────────────────────────────────
-    # lines.append("## SQL++ Guidelines")
-    # lines.append(
-    #     "- Use backtick-quoted identifiers for collection and field names "
-    #     "that contain special characters.\n"
-    #     "- Prefer indexed fields in WHERE / JOIN predicates when indexes exist.\n"
-    #     "- Use UNNEST for querying inside arrays.\n"
-    #     "- Use META().id to retrieve the document key.\n"
-    #     "- Always add a LIMIT clause unless the user explicitly wants all results.\n"
-    #     "- For JOINs across collections in the same scope, use ANSI JOIN syntax.\n"
-    #     "- Return only the SQL++ query without explanation unless the user asks for one."
-    # )
-    # lines.append("")
-
-    # ── 4. User question ─────────────────────────────────────────────────
+    # ── 3. User question ─────────────────────────────────────────────────
     lines.append("## User Question")
     lines.append(user_question)
 
     return "\n".join(lines)
 
 
-def generate_query(
+def generate_or_modify_sql_plus_plus_query(
     ctx: Context,
     message: Annotated[
         str,
         Field(
             description=(
-                "The user's natural-language request describing the data they "
-                "want to retrieve or modify. Be as specific as possible — "
-                "include field names, filter conditions, sort order, and "
-                "result limits when known."
+                "Natural-language request to create or modify a SQL++ query. "
+                "Include field names, filters, sort order, and limits when known. "
+                "Incorporate relevant context from the user's prior conversation."
             ),
         ),
     ],
@@ -634,26 +450,25 @@ def generate_query(
         list[str],
         Field(
             description=(
-                "One or more collection names involved in the query. "
-                "Include all collections needed for JOINs. "
-                "Use get_scopes_and_collections_in_bucket to discover names "
-                "if unsure."
+                "Target collection(s) for the query, including JOIN collections."
             ),
         ),
     ],
 ) -> str:
-    """Generate a SQL++ query from a natural-language description.
+    """Create or modify a SQL++ query from a natural-language description.
 
-    Use this tool when the user wants to **create a SQL++ query** from a
-    plain-English description. The tool introspects the target collections
-    (schema, sample data) and delegates to a specialised
-    query-generation agent that returns a ready-to-run SQL++ statement.
+    Converts a plain-English request into a ready-to-run SQL++ statement by
+    introspecting target collection schemas and sample data. Consider the
+    user's prior conversation context when constructing the message.
+
+    Resolve unknown bucket, scope, or collection names via
+    get_scopes_and_collections_in_bucket before calling this tool.
 
     Returns:
-        A SQL++ query string ready to execute, or an error message.
+        A SQL++ query string ready to execute.
     """
     logger.debug(
-        "generate_query — message=%s, collections=%s, bucket=%s, scope=%s",
+        "generate_or_modify_sql_plus_plus_query — message=%s, collections=%s, bucket=%s, scope=%s",
         message,
         collection_names,
         bucket_name,

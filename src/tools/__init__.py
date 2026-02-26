@@ -27,7 +27,7 @@ from .kv import (
 
 # Query tools
 from .query import (
-    generate_query,
+    generate_or_modify_sql_plus_plus_query,
     get_longest_running_queries,
     get_most_frequent_queries,
     get_queries_not_selective,
@@ -76,7 +76,7 @@ READ_ONLY_TOOLS = [
     get_queries_with_largest_response_sizes,
     get_longest_running_queries,
     get_most_frequent_queries,
-    generate_query,
+    generate_or_modify_sql_plus_plus_query,
     # Docs / API reference tools
     search_couchbase_docs,
 ]
@@ -133,7 +133,7 @@ __all__ = [
     "get_queries_with_largest_response_sizes",
     "get_longest_running_queries",
     "get_most_frequent_queries",
-    "generate_query",
+    "generate_or_modify_sql_plus_plus_query",
     "search_couchbase_docs",
     # Tool categories
     "READ_ONLY_TOOLS",

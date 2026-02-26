@@ -36,7 +36,7 @@ EXPECTED_TOOLS = {
     "run_sql_plus_plus_query",
     "get_index_advisor_recommendations",
     "list_indexes",
-    "generate_query",
+    "generate_or_modify_sql_plus_plus_query",
     "get_cluster_health_and_services",
     # Performance analysis tools
     "get_longest_running_queries",
@@ -71,7 +71,7 @@ TOOLS_BY_CATEGORY = {
     "query": {
         "get_schema_for_collection",
         "run_sql_plus_plus_query",
-        "generate_query",
+        "generate_or_modify_sql_plus_plus_query",
     },
     "index": {
         "list_indexes",
@@ -132,7 +132,7 @@ TOOL_REQUIRED_PARAMS = {
     "get_schema_for_collection": ["bucket_name", "scope_name", "collection_name"],
     "run_sql_plus_plus_query": ["bucket_name", "scope_name", "query"],
     "get_index_advisor_recommendations": ["bucket_name", "scope_name", "query"],
-    "generate_query": ["message","bucket_name", "scope_name", "collection_names"],
+    "generate_or_modify_sql_plus_plus_query": ["message","bucket_name", "scope_name", "collection_names"],
     "search_couchbase_docs": ["question"],
 }
 

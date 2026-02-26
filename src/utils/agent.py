@@ -61,6 +61,7 @@ def call_agent(
     thread_id: str | None = None,
     user_id: str = "",
     run_id: str | None = None,
+    extra_data: dict[str, Any] | None = None,
     extra_payload: dict[str, Any] | None = None,
     base_url: str | None = None,
 ) -> dict[str, Any]:
@@ -101,6 +102,8 @@ def call_agent(
     }
     if extra_payload:
         body.update(extra_payload)
+    if extra_data:
+        body["data"].update(extra_data)
 
     logger.debug("POST %s — thread=%s run=%s", url, thread_id, run_id)
 

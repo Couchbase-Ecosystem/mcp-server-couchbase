@@ -3,9 +3,9 @@ Tools for querying Couchbase documentation and API reference.
 
 This module provides an MCP tool that routes user questions about Couchbase
 documentation, SDK usage, configuration, best practices, and API reference
-to an agent backend service. The backend determines the appropriate
-agent (e.g., RAG-based docs agent, query generation agent) to handle the
-request and returns the answer.
+to an agent backend service.  The backend uses the question text to identify
+the relevant product categories and versions, so the question must be
+self-contained.
 """
 
 import logging
@@ -30,30 +30,15 @@ def search_couchbase_docs(
         str,
         Field(
             description=(
-                "A clear, specific natural-language question about Couchbase. — e.g. documentation, "
-                "Include relevant keywords such as SDK names, API methods, "
-                "SQL++ functions, or configuration parameters to get the "
-                "most accurate answer."
+                "Self-contained question about Couchbase. "
+                "MUST preserve every product name and version the user mentioned "
+                "(e.g. 'Python SDK 4.3', 'Sync Gateway 3.2 and Couchbase Lite 3.1')."
             ),
         ),
     ],
 ) -> str:
-    """Search Couchbase documentation and API reference to answer a question.
-
-    Use this tool when the user asks about:
-      - Couchbase concepts, architecture, or features
-      - SDK usage (Python, Java, Node.js, .NET, Go, etc.)
-      - SQL++ (N1QL) syntax, functions, or operators
-      - Cluster configuration, tuning, or administration
-      - Best practices, design patterns, or troubleshooting
-      - REST API / Management API reference
-      - Method signatures, parameters, or return types
-      - Code examples for a specific API call
-
-    Returns:
-        A detailed answer with optional source references.
-    """
-    logger.info("Docs search — question: %s", question)
+    """Search Couchbase documentation for any product, SDK, connector, tutorials, or feature."""
+    logger.info("Docs search - question: %s", question)
 
     cleaned = question.strip() if question else ""
     if not cleaned:
@@ -68,11 +53,4 @@ def search_couchbase_docs(
         logger.error("Agent call failed: %s", exc)
         return f"Error: {exc}"
 
-    answer = extract_answer(resp_body)
-    # sources = format_sources(resp_body)
-
-    # Include agent metadata when available for transparency
-    #agent_used = resp_body.get("agent_used", "")
-    #prefix = f"[Answered by **{agent_used}** agent]\n\n" if agent_used else ""
-
-    return f"{answer}"
+    return extract_answer(resp_body)
