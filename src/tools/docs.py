@@ -38,7 +38,7 @@ def search_couchbase_docs(
     ],
 ) -> str:
     """Search Couchbase documentation for any product, SDK, connector, tutorials, or feature."""
-    logger.info("Docs search - question: %s", question)
+    logger.debug("Docs search - question: %s", question)
 
     cleaned = question.strip() if question else ""
     if not cleaned:
