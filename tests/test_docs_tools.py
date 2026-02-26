@@ -21,7 +21,7 @@ async def test_search_couchbase_docs_returns_string() -> None:
         response = await session.call_tool(
             "search_couchbase_docs",
             arguments={
-                "question": "What is Couchbase?",
+                "question": "How to create a bucket in Couchbase?",
             },
         )
         payload = extract_payload(response)
