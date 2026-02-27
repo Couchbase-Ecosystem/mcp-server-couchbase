@@ -11,7 +11,7 @@ Tool Categories:
 from collections.abc import Callable
 
 # Docs / API reference tools
-from .docs import search_couchbase_docs
+from .docs import ask_couchbase_docs
 
 # Index tools
 from .index import get_index_advisor_recommendations, list_indexes
@@ -78,7 +78,7 @@ READ_ONLY_TOOLS = [
     get_most_frequent_queries,
     generate_or_modify_sql_plus_plus_query,
     # Docs / API reference tools
-    search_couchbase_docs,
+    ask_couchbase_docs,
 ]
 
 # KV write tools - disabled when READ_ONLY_MODE is True
@@ -134,7 +134,7 @@ __all__ = [
     "get_longest_running_queries",
     "get_most_frequent_queries",
     "generate_or_modify_sql_plus_plus_query",
-    "search_couchbase_docs",
+    "ask_couchbase_docs",
     # Tool categories
     "READ_ONLY_TOOLS",
     "KV_WRITE_TOOLS",

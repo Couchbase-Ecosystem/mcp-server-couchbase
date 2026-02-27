@@ -24,20 +24,21 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.docs")
 # Public MCP tool
 # ---------------------------------------------------------------------------
 
-def search_couchbase_docs(
+def ask_couchbase_docs(
     ctx: Context,
     question: Annotated[
         str,
         Field(
             description=(
-                "Self-contained question about Couchbase. "
-                "MUST preserve every product name and version the user mentioned "
-                "(e.g. 'Python SDK 4.3', 'Sync Gateway 3.2 and Couchbase Lite 3.1')."
-            ),
+                "A complete, self-contained question about Couchbase products, SDKs, "
+                "or services. Must include necessary context like product name, version, "
+                "or programming language since the agent called by this tool lacks conversation history."
+            ).strip(),
         ),
     ],
 ) -> str:
-    """Search Couchbase documentation for any product, SDK, connector, tutorials, or feature."""
+    """Search Couchbase documentation to answer questions about any Couchbase product, feature, SDK, service, tutorials or examples.
+    Use this tool for all Couchbase how-to, conceptual, and reference questions. Not for direct cluster operations."""
     logger.debug("Docs search - question: %s", question)
 
     cleaned = question.strip() if question else ""

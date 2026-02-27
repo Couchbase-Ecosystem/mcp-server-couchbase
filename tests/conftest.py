@@ -47,7 +47,7 @@ EXPECTED_TOOLS = {
     "get_queries_not_using_covering_index",
     "get_queries_not_selective",
     # Docs tools
-    "search_couchbase_docs",
+    "ask_couchbase_docs",
 }
 
 # Tools organized by category for validation
@@ -87,7 +87,7 @@ TOOLS_BY_CATEGORY = {
         "get_queries_not_selective",
     },
     "docs": {
-        "search_couchbase_docs",
+        "ask_couchbase_docs",
     },
 }
 
@@ -133,7 +133,7 @@ TOOL_REQUIRED_PARAMS = {
     "run_sql_plus_plus_query": ["bucket_name", "scope_name", "query"],
     "get_index_advisor_recommendations": ["bucket_name", "scope_name", "query"],
     "generate_or_modify_sql_plus_plus_query": ["message","bucket_name", "scope_name", "collection_names"],
-    "search_couchbase_docs": ["question"],
+    "ask_couchbase_docs": ["question"],
 }
 
 # Minimum configuration needed to talk to a demo cluster

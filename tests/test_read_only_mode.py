@@ -59,7 +59,7 @@ READ_ONLY_TOOL_NAMES = {
     "get_most_frequent_queries",
     # Multi-agent tools (2)
     "generate_or_modify_sql_plus_plus_query",
-    "search_couchbase_docs",
+    "ask_couchbase_docs",
 }
 
 
