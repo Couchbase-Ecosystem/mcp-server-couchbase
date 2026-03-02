@@ -40,7 +40,10 @@ def get_schema_for_collection(
 
 
 def run_sql_plus_plus_query(
-    ctx: Context, bucket_name: str, scope_name: str, query: Annotated[str, Field(description="Requires sql++ query to be generated using generate_or_modify_sql_plus_plus_query tool from natural language for the query parameter.")]
+    ctx: Context, 
+    bucket_name: str, 
+    scope_name: str, 
+    query: Annotated[str, Field(description="Requires sql++ query to be generated using generate_or_modify_sql_plus_plus_query tool from natural language for the query parameter.")]
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects.
 
