@@ -423,46 +423,31 @@ def generate_or_modify_sql_plus_plus_query(
         str,
         Field(
             description=(
-                "Natural-language request to create or modify a SQL++ query. "
-                "Include field names, filters, sort order, and limits when known. "
-                "Incorporate relevant context from the user's prior conversation."
+                "Natural-language request for the desired SQL++ query. "
+                "Include field names, filters, sort order, limits, and "
+                "relevant prior conversation context."
             ),
         ),
     ],
     bucket_name: Annotated[
         str,
-        Field(
-            description=(
-                "Couchbase bucket that contains the target scope and "
-                "collections. Must already exist on the cluster."
-            ),
-        ),
+        Field(description="Couchbase bucket containing the target collections."),
     ],
     scope_name: Annotated[
         str,
-        Field(
-            description=(
-                "Scope inside the bucket where the target collections reside."
-            ),
-        ),
+        Field(description="Scope where target collections reside."),
     ],
     collection_names: Annotated[
         list[str],
-        Field(
-            description=(
-                "Target collection(s) for the query, including JOIN collections."
-            ),
-        ),
+        Field(description="Target collection(s), including any JOIN collections."),
     ],
 ) -> str:
     """Create or modify a SQL++ query from a natural-language description.
 
-    Converts a plain-English request into a ready-to-run SQL++ statement by
-    introspecting target collection schemas and sample data. Consider the
-    user's prior conversation context when constructing the message.
+    Introspects collection schemas and generates a ready-to-run SQL++ statement.
 
     Resolve unknown bucket, scope, or collection names via
-    get_scopes_and_collections_in_bucket before calling this tool.
+    get_scopes_and_collections_in_bucket, get_schema_for_collection before calling this tool.
 
     Returns:
         A SQL++ query string ready to execute.
