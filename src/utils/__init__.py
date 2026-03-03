@@ -19,6 +19,7 @@ from .connection import (
 # Constants
 from .constants import (
     ALLOWED_TRANSPORTS,
+    DEFAULT_ENABLE_QUERY_GENERATION,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
@@ -58,6 +59,7 @@ __all__ = [
     # Constants
     "MCP_SERVER_NAME",
     "DEFAULT_READ_ONLY_MODE",
+    "DEFAULT_ENABLE_QUERY_GENERATION",
     "DEFAULT_TRANSPORT",
     "DEFAULT_LOG_LEVEL",
     "DEFAULT_HOST",

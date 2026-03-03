@@ -40,10 +40,10 @@ def get_schema_for_collection(
 
 
 def run_sql_plus_plus_query(
-    ctx: Context, 
-    bucket_name: str, 
-    scope_name: str, 
-    query: Annotated[str, Field(description="Requires sql++ query to be generated using generate_or_modify_sql_plus_plus_query tool from natural language for the query parameter.")]
+    ctx: Context,
+    bucket_name: str,
+    scope_name: str,
+    query: str,
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects.
 
@@ -515,3 +515,23 @@ def generate_or_modify_sql_plus_plus_query(
         return extract_answer(resp_body)
     except (ConnectionError, RuntimeError) as exc:
         return f"Error: {exc}"
+
+
+def update_query_function_annotation(enable_query_generation: bool) -> None:
+    """Update the annotation for the query parameter in run_sql_plus_plus_query.
+
+    When enable_query_generation is True, adds the detailed annotation with reference to
+    the generate_or_modify_sql_plus_plus_query tool. When False, keeps it as a simple str type.
+
+    Args:
+        enable_query_generation: Whether query generation is enabled.
+    """
+    if enable_query_generation:
+        # Add detailed annotation when query generation is enabled
+        run_sql_plus_plus_query.__annotations__['query'] = Annotated[
+            str,
+            Field(description="Requires sql++ query to be generated using generate_or_modify_sql_plus_plus_query tool from natural language for the query parameter.")
+        ]
+    else:
+        # Reset to simple str type when query generation is disabled
+        run_sql_plus_plus_query.__annotations__['query'] = str

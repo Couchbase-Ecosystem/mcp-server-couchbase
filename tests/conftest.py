@@ -36,7 +36,6 @@ EXPECTED_TOOLS = {
     "run_sql_plus_plus_query",
     "get_index_advisor_recommendations",
     "list_indexes",
-    "generate_or_modify_sql_plus_plus_query",
     "get_cluster_health_and_services",
     # Performance analysis tools
     "get_longest_running_queries",
@@ -71,7 +70,6 @@ TOOLS_BY_CATEGORY = {
     "query": {
         "get_schema_for_collection",
         "run_sql_plus_plus_query",
-        "generate_or_modify_sql_plus_plus_query",
     },
     "index": {
         "list_indexes",
