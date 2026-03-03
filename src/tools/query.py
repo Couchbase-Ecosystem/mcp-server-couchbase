@@ -5,6 +5,7 @@ This module contains tools for getting the schema for a collection and running S
 """
 
 import logging
+import re
 from collections import Counter
 from typing import Any
 
@@ -38,8 +39,14 @@ def get_schema_for_collection(
 
 
 def _is_explain_statement(query: str) -> bool:
-    """Check if the query is an EXPLAIN statement."""
-    return query.lstrip().upper().startswith("EXPLAIN ")
+    """Check if the query is an EXPLAIN statement.
+
+    Handles multi-line queries where EXPLAIN is followed by newline or tab,
+    e.g., "EXPLAIN\nSELECT ..." or "EXPLAIN\tSELECT ...".
+    """
+    # Match "EXPLAIN" followed by any whitespace (space, tab, newline, etc.)
+    normalized = query.lstrip().upper()
+    return re.match(r"^EXPLAIN\s", normalized) is not None
 
 
 def run_sql_plus_plus_query(
