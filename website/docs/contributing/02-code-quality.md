@@ -12,11 +12,11 @@ The project uses [Ruff](https://docs.astral.sh/ruff/) for fast linting and code 
 ```bash
 # Check code quality (no changes made)
 ./scripts/lint.sh
-# or: uv run ruff check src/
+# Runs: ruff check src/ --diff && ruff format src/ --diff --check
 
 # Auto-fix issues
 ./scripts/lint_fix.sh
-# or: uv run ruff check src/ --fix && uv run ruff format src/
+# Runs: ruff check src/ --fix && ruff format src/
 ```
 
 ## Automatic Linting

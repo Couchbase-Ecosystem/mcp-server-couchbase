@@ -13,9 +13,10 @@ Tools for analyzing query performance using data from the Couchbase `system:comp
 All performance analysis tools query `system:completed_requests`. If no completed queries are available, they return a message indicating no data was found.
 
 **Filtering varies by tool:**
-- `get_longest_running_queries`, `get_most_frequent_queries`, `get_queries_with_largest_response_sizes`, `get_queries_with_large_result_count` — exclude INFER, CREATE INDEX, and system keyspace queries
+- `get_longest_running_queries`, `get_queries_with_largest_response_sizes`, `get_queries_with_large_result_count` — exclude INFER, CREATE INDEX, and system keyspace queries
+- `get_most_frequent_queries` — excludes INFER, CREATE INDEX, EXPLAIN, ADVISE, and system keyspace queries
 - `get_queries_using_primary_index`, `get_queries_not_using_covering_index` — exclude system keyspace queries only
-- `get_queries_not_selective` — no built-in query filtering (filters by selectivity ratio only)
+- `get_queries_not_selective` — no INFER/CREATE INDEX/system keyspace filtering; selects only queries where `phaseCounts.indexScan > resultCount`
 :::
 
 ---
