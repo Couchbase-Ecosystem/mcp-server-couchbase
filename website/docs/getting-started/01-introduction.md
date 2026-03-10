@@ -11,7 +11,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation that allows Lar
 
 ## What is this?
 
-The Couchbase MCP Server bridges the gap between LLMs and your Couchbase database. It exposes 24 tools across 5 categories that let AI assistants query, explore, and manage your Couchbase clusters using natural language.
+The Couchbase MCP Server bridges the gap between LLMs and your Couchbase database. It exposes 23 tools across 5 categories that let AI assistants query, explore, and manage your Couchbase clusters using natural language.
 
 ## Features
 

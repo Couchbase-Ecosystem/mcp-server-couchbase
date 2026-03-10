@@ -15,7 +15,7 @@ The project uses [Ruff](https://docs.astral.sh/ruff/) for fast linting and code 
 # or: uv run ruff check src/
 
 # Auto-fix issues
-./scripts/fix_lint.sh
+./scripts/lint_fix.sh
 # or: uv run ruff check src/ --fix && uv run ruff format src/
 ```
 

@@ -7,7 +7,7 @@ import styles from './index.module.css';
 
 const FeatureList = [
   {
-    title: '24 Tools, 5 Categories',
+    title: '23 Tools, 5 Categories',
     description:
       'Cluster health monitoring, schema discovery, KV operations, SQL++ queries, index management, and query performance analysis.',
   },

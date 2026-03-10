@@ -29,7 +29,7 @@ The simplest method. Provide a Couchbase username and password:
 
 ## mTLS (Mutual TLS)
 
-For environments requiring certificate-based authentication:
+For environments requiring certificate-based authentication. Note that **username and password are still required** even when using mTLS, because some tools (e.g. `list_indexes`) communicate with Couchbase REST APIs using HTTP Basic Auth:
 
 ```json
 {
@@ -39,6 +39,8 @@ For environments requiring certificate-based authentication:
       "args": ["couchbase-mcp-server"],
       "env": {
         "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
         "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
         "CB_CLIENT_KEY_PATH": "/path/to/client.key"
       }
@@ -63,7 +65,7 @@ If your Couchbase server uses a self-signed or untrusted certificate, provide th
 ```
 
 :::note
-Capella connections do not require a custom CA certificate — the bundled Capella root CA is used automatically.
+For Capella connections using the Index Service REST API (e.g. `list_indexes`), the bundled Capella root CA is applied automatically. For the main SDK connection, Capella's public certificates are typically trusted by the system trust store. If you encounter TLS errors, set `CB_CA_CERT_PATH` explicitly.
 :::
 
 ## Priority
