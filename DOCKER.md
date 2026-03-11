@@ -69,6 +69,8 @@ Add the configuration specified below to the MCP configuration in your MCP clien
 - Claude Desktop: <https://modelcontextprotocol.io/quickstart/user>
 - Cursor: <https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers>
 - Windsurf: <https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin>
+- VS Code: <https://code.visualstudio.com/docs/copilot/customization/mcp-servers>
+- JetBrains IDEs: <https://www.jetbrains.com/help/ai-assistant/model-context-protocol.html>
 
 ```json
 {
