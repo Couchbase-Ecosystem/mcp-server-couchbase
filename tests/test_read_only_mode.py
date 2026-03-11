@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from tools import (
     ALL_TOOLS,
     KV_WRITE_TOOLS,
+    QUERY_GENERATION_TOOLS,
     READ_ONLY_TOOLS,
     get_tools,
 )
@@ -31,7 +32,7 @@ KV_WRITE_TOOL_NAMES = {
     "delete_document_by_id",
 }
 
-# Read-only tool names that should always be available (19 tools)
+# Read-only tool names that should always be available (20 tools)
 READ_ONLY_TOOL_NAMES = {
     # Server/Cluster management tools (7)
     "get_buckets_in_cluster",
@@ -57,6 +58,13 @@ READ_ONLY_TOOL_NAMES = {
     "get_queries_with_largest_response_sizes",
     "get_longest_running_queries",
     "get_most_frequent_queries",
+    # Docs tools (1)
+    "ask_couchbase_docs",
+}
+
+# Query generation tool names - disabled by default
+QUERY_GENERATION_TOOL_NAMES = {
+    "generate_or_modify_sql_plus_plus_query",
 }
 
 
@@ -75,21 +83,29 @@ class TestToolCategories:
         tool_names = {tool.__name__ for tool in KV_WRITE_TOOLS}
         assert tool_names == KV_WRITE_TOOL_NAMES
 
+    def test_query_generation_tools_defined(self):
+        """Verify QUERY_GENERATION_TOOLS list is properly defined."""
+        assert len(QUERY_GENERATION_TOOLS) == 1
+        tool_names = {tool.__name__ for tool in QUERY_GENERATION_TOOLS}
+        assert tool_names == QUERY_GENERATION_TOOL_NAMES
+
     def test_all_tools_is_union(self):
-        """Verify ALL_TOOLS is the union of READ_ONLY_TOOLS and KV_WRITE_TOOLS."""
-        expected_count = len(READ_ONLY_TOOLS) + len(KV_WRITE_TOOLS)
+        """Verify ALL_TOOLS is the union of READ_ONLY_TOOLS, KV_WRITE_TOOLS, and QUERY_GENERATION_TOOLS."""
+        expected_count = len(READ_ONLY_TOOLS) + len(KV_WRITE_TOOLS) + len(QUERY_GENERATION_TOOLS)
         assert len(ALL_TOOLS) == expected_count
 
         all_tool_names = {tool.__name__ for tool in ALL_TOOLS}
-        expected_names = READ_ONLY_TOOL_NAMES | KV_WRITE_TOOL_NAMES
+        expected_names = READ_ONLY_TOOL_NAMES | KV_WRITE_TOOL_NAMES | QUERY_GENERATION_TOOL_NAMES
         assert all_tool_names == expected_names
 
     def test_no_overlap_between_categories(self):
-        """Verify there's no overlap between READ_ONLY_TOOLS and KV_WRITE_TOOLS."""
+        """Verify there's no overlap between tool categories."""
         read_only_names = {tool.__name__ for tool in READ_ONLY_TOOLS}
         kv_write_names = {tool.__name__ for tool in KV_WRITE_TOOLS}
-        overlap = read_only_names & kv_write_names
-        assert overlap == set(), f"Unexpected overlap: {overlap}"
+        query_gen_names = {tool.__name__ for tool in QUERY_GENERATION_TOOLS}
+        assert read_only_names & kv_write_names == set()
+        assert read_only_names & query_gen_names == set()
+        assert kv_write_names & query_gen_names == set()
 
 
 class TestGetToolsTruthTable:
@@ -106,7 +122,7 @@ class TestGetToolsTruthTable:
     """
 
     def test_read_only_mode_true(self):
-        """READ_ONLY_MODE=True: No KV write tools."""
+        """READ_ONLY_MODE=True: No KV write tools, no query generation tools."""
         tools = get_tools(read_only_mode=True)
         tool_names = {tool.__name__ for tool in tools}
 
@@ -117,12 +133,16 @@ class TestGetToolsTruthTable:
         for kv_write_name in KV_WRITE_TOOL_NAMES:
             assert kv_write_name not in tool_names
 
+        # Query generation tools should NOT be present by default
+        for qg_name in QUERY_GENERATION_TOOL_NAMES:
+            assert qg_name not in tool_names
+
     def test_read_only_mode_false(self):
-        """READ_ONLY_MODE=False: All tools loaded including KV write tools."""
+        """READ_ONLY_MODE=False: KV write tools loaded, but not query generation."""
         tools = get_tools(read_only_mode=False)
         tool_names = {tool.__name__ for tool in tools}
 
-        # Should have all tools (read-only + KV write)
+        # Should have read-only + KV write tools
         expected_names = READ_ONLY_TOOL_NAMES | KV_WRITE_TOOL_NAMES
         assert tool_names == expected_names
 
@@ -130,29 +150,53 @@ class TestGetToolsTruthTable:
         for kv_write_name in KV_WRITE_TOOL_NAMES:
             assert kv_write_name in tool_names
 
+        # Query generation tools should NOT be present by default
+        for qg_name in QUERY_GENERATION_TOOL_NAMES:
+            assert qg_name not in tool_names
+
+    def test_query_generation_enabled(self):
+        """enable_query_generation=True: Query generation tools loaded."""
+        tools = get_tools(read_only_mode=True, enable_query_generation=True)
+        tool_names = {tool.__name__ for tool in tools}
+
+        expected_names = READ_ONLY_TOOL_NAMES | QUERY_GENERATION_TOOL_NAMES
+        assert tool_names == expected_names
+
+    def test_all_tools_enabled(self):
+        """READ_ONLY_MODE=False, enable_query_generation=True: All tools loaded."""
+        tools = get_tools(read_only_mode=False, enable_query_generation=True)
+        tool_names = {tool.__name__ for tool in tools}
+
+        expected_names = READ_ONLY_TOOL_NAMES | KV_WRITE_TOOL_NAMES | QUERY_GENERATION_TOOL_NAMES
+        assert tool_names == expected_names
+
 
 class TestGetToolsDefaults:
     """Tests for get_tools() default parameter values."""
 
     def test_default_is_read_only(self):
-        """Verify default behavior is read-only (no KV write tools)."""
+        """Verify default behavior is read-only (no KV write tools, no query generation)."""
         tools = get_tools()  # Using defaults
         tool_names = {tool.__name__ for tool in tools}
 
-        # Default should be read-only mode
+        # Default should be read-only mode with query generation disabled
         assert tool_names == READ_ONLY_TOOL_NAMES
 
         # KV write tools should NOT be present by default
         for kv_write_name in KV_WRITE_TOOL_NAMES:
             assert kv_write_name not in tool_names
 
+        # Query generation tools should NOT be present by default
+        for qg_name in QUERY_GENERATION_TOOL_NAMES:
+            assert qg_name not in tool_names
+
     def test_default_read_only_mode_is_true(self):
-        """Verify read_only_mode defaults to True."""
-        # Default should filter KV write tools
+        """Verify read_only_mode defaults to True and query generation defaults to False."""
+        # Default should filter KV write tools and query generation tools
         tools = get_tools()
         tool_names = {tool.__name__ for tool in tools}
 
-        # Should only have read-only tools (read_only_mode defaults to True)
+        # Should only have read-only tools
         assert tool_names == READ_ONLY_TOOL_NAMES
 
 
@@ -163,17 +207,21 @@ class TestToolCounts:
         """Verify correct number of tools in read-only mode."""
         tools = get_tools(read_only_mode=True)
         assert len(tools) == len(READ_ONLY_TOOLS)
-        assert len(tools) == 19  # Expected count of read-only tools
+        assert len(tools) == 20  # Expected count of read-only tools
 
     def test_all_tools_mode_tool_count(self):
-        """Verify correct number of tools when all write tools are enabled."""
-        tools = get_tools(read_only_mode=False)
+        """Verify correct number of tools when all options are enabled."""
+        tools = get_tools(read_only_mode=False, enable_query_generation=True)
         assert len(tools) == len(ALL_TOOLS)
-        assert len(tools) == 23  # Expected total count (19 read-only + 4 KV write)
+        assert len(tools) == 25  # Expected total count (20 read-only + 4 KV write + 1 query generation)
 
     def test_kv_write_tools_count(self):
         """Verify exactly 4 KV write tools exist."""
         assert len(KV_WRITE_TOOLS) == 4
+
+    def test_query_generation_tools_count(self):
+        """Verify exactly 1 query generation tool exists."""
+        assert len(QUERY_GENERATION_TOOLS) == 1
 
 
 class TestReadOnlyModeToolFiltering:
@@ -229,6 +277,41 @@ class TestReadOnlyModeToolFiltering:
         tools_write = get_tools(read_only_mode=False)
         tool_names_write = {tool.__name__ for tool in tools_write}
         assert "run_sql_plus_plus_query" in tool_names_write
+
+
+class TestQueryAnnotation:
+    """Tests for querying function annotation based on enable_query_generation flag."""
+
+    def test_query_annotation_str_when_generation_disabled(self):
+        """Verify that query parameter annotation is simple str when generation is disabled."""
+        from typing import Annotated, get_origin
+        from tools.query import run_sql_plus_plus_query
+
+        # Call get_tools with enable_query_generation=False (default)
+        tools = get_tools(read_only_mode=True, enable_query_generation=False)
+
+        # Check that the query annotation is just str, not Annotated
+        query_annotation = run_sql_plus_plus_query.__annotations__.get('query')
+        assert query_annotation is str
+        assert get_origin(query_annotation) is not Annotated
+
+    def test_query_annotation_annotated_when_generation_enabled(self):
+        """Verify that query parameter annotation is Annotated with description when generation is enabled."""
+        from typing import Annotated, get_origin
+        from pydantic import Field
+        from tools.query import run_sql_plus_plus_query
+
+        # Call get_tools with enable_query_generation=True
+        tools = get_tools(read_only_mode=True, enable_query_generation=True)
+
+        # Check that the query annotation is Annotated[str, Field(...)]
+        query_annotation = run_sql_plus_plus_query.__annotations__.get('query')
+        assert get_origin(query_annotation) is Annotated
+
+        # Verify the Field has a description
+        annotated_args = get_origin(query_annotation).__args__(query_annotation)
+        field_description = query_annotation.__metadata__[0].description
+        assert "generate_or_modify_sql_plus_plus_query" in field_description
 
 
 class TestAppContext:

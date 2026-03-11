@@ -4,12 +4,15 @@ Tools for querying the Couchbase database.
 This module contains tools for getting the schema for a collection and running SQL++ queries.
 """
 
+import json
 import logging
-from typing import Any
+from typing import Annotated, Any
 
 from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 from mcp.server.fastmcp import Context
+from pydantic import Field
 
+from utils.agent import call_agent, extract_answer
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
@@ -37,7 +40,10 @@ def get_schema_for_collection(
 
 
 def run_sql_plus_plus_query(
-    ctx: Context, bucket_name: str, scope_name: str, query: str
+    ctx: Context,
+    bucket_name: str,
+    scope_name: str,
+    query: str,
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects.
 
@@ -363,3 +369,169 @@ def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, A
             "No non-selective queries were found in system:completed_requests."
         ),
     )
+
+
+def _build_query_generation_prompt(
+    *,
+    user_question: str,
+    bucket_name: str,
+    scope_name: str,
+    collection_metadata: dict[str, dict[str, Any]],
+) -> str:
+    """Build a structured, multi-section prompt for the query-generation agent.
+
+    Sections
+    --------
+    1. Target keyspace — bucket / scope context so the agent knows the query
+       scope is already set and collection names should be used directly.
+    2. Per-collection metadata — schema, and sample docs.
+    3. User question — the natural-language request.
+    """
+    lines: list[str] = []
+
+    # ── 1. Keyspace context ──────────────────────────────────────────────
+    lines.append("## Target Keyspace")
+    lines.append(f"- **Bucket:** `{bucket_name}`")
+    lines.append(f"- **Scope:** `{scope_name}`")
+    lines.append(
+        "- The query will be executed with the scope context already set. "
+        "Use collection names directly — do NOT prefix with bucket or scope."
+    )
+    lines.append("")
+
+    # ── 2. Per-collection metadata ───────────────────────────────────────
+    for coll_name, meta in collection_metadata.items():
+        lines.append(f"## Collection: `{coll_name}`")
+
+        # Schema (includes per-field sample values from INFER)
+        schema = meta.get("schema")
+        if schema:
+            lines.append("### Schema (from INFER — includes field types, prevalence, and sample values)")
+            lines.append("```json")
+            lines.append(json.dumps(schema, indent=2))
+            lines.append("```")
+        else:
+            lines.append("_No schema available._")
+
+    # ── 3. User question ─────────────────────────────────────────────────
+    lines.append("## User Question")
+    lines.append(user_question)
+
+    return "\n".join(lines)
+
+
+def generate_or_modify_sql_plus_plus_query(
+    ctx: Context,
+    message: Annotated[
+        str,
+        Field(
+            description=(
+                "Natural-language request for the desired SQL++ query. "
+                "Include field names, filters, sort order, limits, and "
+                "relevant prior conversation context."
+            ),
+        ),
+    ],
+    bucket_name: Annotated[
+        str,
+        Field(description="Couchbase bucket containing the target collections."),
+    ],
+    scope_name: Annotated[
+        str,
+        Field(description="Scope where target collections reside."),
+    ],
+    collection_names: Annotated[
+        list[str],
+        Field(description="Target collection(s), including any JOIN collections."),
+    ],
+) -> str:
+    """Create or modify a SQL++ query from a natural-language description.
+
+    Introspects collection schemas and generates a ready-to-run SQL++ statement.
+
+    Resolve unknown bucket, scope, or collection names via
+    get_scopes_and_collections_in_bucket, get_schema_for_collection before calling this tool.
+
+    Returns:
+        A SQL++ query string ready to execute.
+    """
+    logger.debug(
+        "generate_or_modify_sql_plus_plus_query — message=%s, collections=%s, bucket=%s, scope=%s",
+        message,
+        collection_names,
+        bucket_name,
+        scope_name,
+    )
+
+    if not collection_names:
+        return (
+            "Error: At least one collection name is required. "
+            "Use get_scopes_and_collections_in_bucket to discover available collections."
+        )
+
+    if not message or not message.strip():
+        return "Error: A natural-language message describing the desired query is required."
+
+    # ── Gather metadata for each collection ──────────────────────────────
+    cluster = get_cluster_connection(ctx=ctx)
+    bucket = connect_to_bucket(cluster, bucket_name)
+    scope = bucket.scope(scope_name)
+
+    collection_metadata: dict[str, dict[str, Any]] = {}
+    for coll in collection_names:
+        escaped = coll.replace("`", "``")
+
+        # Schema via INFER (includes per-field samples automatically)
+        try:
+            infer_result = scope.query(f"INFER `{escaped}`")
+            schema = list(infer_result)
+            #schema = _compact_infer_schema(raw_schema)
+        except Exception as e:
+            logger.warning("INFER failed for %s: %s", coll, e)
+            schema = []
+
+        # Indexes
+        #indexes = _fetch_collection_indexes(scope, bucket_name, scope_name, coll)
+
+        collection_metadata[coll] = {
+            "schema": schema,
+            #"indexes": indexes,
+        }
+
+    # ── Build structured prompt ──────────────────────────────────────────
+    prompt = _build_query_generation_prompt(
+        user_question=message,
+        bucket_name=bucket_name,
+        scope_name=scope_name,
+        collection_metadata=collection_metadata,
+    )
+
+    # ── Call the agent backend ─────────────────────────────────────
+    try:
+        resp_body = call_agent(
+            content=prompt,
+            extra_payload={"collection_names": ",".join(collection_names)},
+        )
+        return extract_answer(resp_body)
+    except (ConnectionError, RuntimeError) as exc:
+        return f"Error: {exc}"
+
+
+def update_query_function_annotation(enable_query_generation: bool) -> None:
+    """Update the annotation for the query parameter in run_sql_plus_plus_query.
+
+    When enable_query_generation is True, adds the detailed annotation with reference to
+    the generate_or_modify_sql_plus_plus_query tool. When False, keeps it as a simple str type.
+
+    Args:
+        enable_query_generation: Whether query generation is enabled.
+    """
+    if enable_query_generation:
+        # Add detailed annotation when query generation is enabled
+        run_sql_plus_plus_query.__annotations__['query'] = Annotated[
+            str,
+            Field(description="Requires sql++ query to be generated using generate_or_modify_sql_plus_plus_query tool from natural language for the query parameter.")
+        ]
+    else:
+        # Reset to simple str type when query generation is disabled
+        run_sql_plus_plus_query.__annotations__['query'] = str

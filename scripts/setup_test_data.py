@@ -21,21 +21,22 @@ Environment variables required:
 This script should be run before pytest to ensure tests don't skip.
 """
 
+import base64
+import json
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
-import base64
-import json
+import urllib.request
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+from datetime import timedelta
+
+from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions
-from couchbase.auth import PasswordAuthenticator
-from datetime import timedelta
 
 
 def get_env_or_exit(var_name: str) -> str:
