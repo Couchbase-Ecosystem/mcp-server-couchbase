@@ -34,15 +34,7 @@ const sidebars = {
         'client-guides/jetbrains',
       ],
     },
-    {
-      type: 'category',
-      label: 'Transport Modes',
-      items: [
-        'transport-modes/stdio',
-        'transport-modes/http',
-        'transport-modes/sse',
-      ],
-    },
+    'transport-modes',
     {
       type: 'category',
       label: 'Tool Reference',
