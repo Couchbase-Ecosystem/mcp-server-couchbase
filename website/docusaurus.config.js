@@ -13,7 +13,7 @@ const config = {
   },
 
   url: 'https://Couchbase-Ecosystem.github.io',
-  baseUrl: '/mcp-server-couchbase/',
+  baseUrl: process.env.BASE_URL || '/mcp-server-couchbase/',
 
   organizationName: 'Couchbase-Ecosystem',
   projectName: 'mcp-server-couchbase',
