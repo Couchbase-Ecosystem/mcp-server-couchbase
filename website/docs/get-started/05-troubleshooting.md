@@ -1,11 +1,11 @@
 ---
-sidebar_position: 9
+sidebar_position: 5
 title: Troubleshooting
 ---
 
 # Troubleshooting
 
-Common issues and solutions when using the Couchbase MCP Server.
+Common issues and solutions when setting up the Couchbase MCP Server.
 
 ## Connection Issues
 
@@ -19,11 +19,6 @@ Common issues and solutions when using the Couchbase MCP Server.
 - **Confirm `uv` is installed** and accessible. You may need to provide the absolute path to `uv`/`uvx` in the `command` field of your MCP client configuration.
 - **After updating the repo**, run `uv sync` to update [dependencies](https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment).
 
-## Transport Mode Issues
-
-- **stdio** — Ensure the MCP client is configured to launch the server as a subprocess. Check that no other process is already using stdin/stdout.
-- **HTTP/SSE** — Check that the configured port is not in use. Verify the URL matches the transport mode (`/mcp` for HTTP, `/sse` for SSE).
-
 ## Read-Only Mode
 
 - If write operations fail unexpectedly, check whether `CB_MCP_READ_ONLY_MODE=true` (the default). See [Read-Only Mode](/docs/configuration/read-only-mode).
@@ -36,3 +31,5 @@ Check the MCP client logs for errors or warnings. Log locations vary by client:
 - **Cursor**: Bottom panel > Output > "Cursor MCP"
 - **VS Code**: Command Palette > "MCP: List Servers" > Show Output
 - **JetBrains**: Help > Show Log in Finder/Explorer > mcp > couchbase
+
+For configuration-specific issues (transport modes, read-only mode), see the [Configuration Troubleshooting](/docs/configuration/troubleshooting) guide.

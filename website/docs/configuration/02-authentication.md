@@ -49,6 +49,43 @@ For environments requiring certificate-based authentication. Note that **usernam
 }
 ```
 
+## Capella vs Self-Managed Server
+
+The authentication setup differs depending on your Couchbase deployment type.
+
+### Couchbase Capella
+
+- **Connection string**: Use `couchbases://` (with `s`) — TLS is always enabled.
+- **TLS certificates**: The bundled Capella root CA is used automatically. You do not need to set `CB_CA_CERT_PATH`.
+- **IP allowlisting**: Ensure the machine running the MCP server has its IP [allowed](https://docs.couchbase.com/cloud/clusters/allow-ip-address.html) in the Capella cluster settings.
+
+```json
+{
+  "env": {
+    "CB_CONNECTION_STRING": "couchbases://cb.your-capella-endpoint.cloud.couchbase.com",
+    "CB_USERNAME": "username",
+    "CB_PASSWORD": "password"
+  }
+}
+```
+
+### Self-Managed Couchbase Server
+
+- **Connection string**: Use `couchbase://` for unencrypted connections or `couchbases://` for TLS.
+- **TLS certificates**: If using TLS with self-signed or untrusted certificates, set `CB_CA_CERT_PATH` to your CA root certificate.
+- **mTLS**: Optionally configure mutual TLS with `CB_CLIENT_CERT_PATH` and `CB_CLIENT_KEY_PATH`.
+
+```json
+{
+  "env": {
+    "CB_CONNECTION_STRING": "couchbases://your-server-hostname",
+    "CB_USERNAME": "username",
+    "CB_PASSWORD": "password",
+    "CB_CA_CERT_PATH": "/path/to/ca-certificate.pem"
+  }
+}
+```
+
 ## Custom CA Certificate
 
 If your Couchbase server uses a self-signed or untrusted certificate, provide the CA root certificate:

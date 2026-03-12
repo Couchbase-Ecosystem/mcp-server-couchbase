@@ -1,48 +1,26 @@
 ---
-sidebar_position: 3
-title: Installation
+sidebar_position: 2
+title: Source
 ---
 
-# Installation
+# Install from Source
 
-The Couchbase MCP Server can be installed from PyPI or run from source.
+Clone the repository and run directly with `uv`.
 
-## Install from PyPI (Recommended)
+## Prerequisites
 
-The pre-built [PyPI package](https://pypi.org/project/couchbase-mcp-server/) is the easiest way to get started.
+- **Python 3.10+** installed
+- **[uv](https://docs.astral.sh/uv/)** installed
+- **Git** installed
 
-No manual installation is needed — `uvx` runs the package directly:
-
-```bash
-uvx couchbase-mcp-server --version
-```
-
-When configuring an MCP client, use this command format:
-
-```json
-{
-  "mcpServers": {
-    "couchbase": {
-      "command": "uvx",
-      "args": ["couchbase-mcp-server"],
-      "env": {
-        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
-        "CB_USERNAME": "username",
-        "CB_PASSWORD": "password"
-      }
-    }
-  }
-}
-```
-
-## Install from Source
-
-Clone the repository and run directly with `uv`:
+## Clone the Repository
 
 ```bash
 git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
 cd mcp-server-couchbase
 ```
+
+## MCP Client Configuration
 
 When configuring an MCP client, use this command format:
 
@@ -74,3 +52,7 @@ When configuring an MCP client, use this command format:
 :::tip
 If you have other MCP servers configured, add the `couchbase` entry to the existing `mcpServers` object.
 :::
+
+## Next Steps
+
+See the [Setup](/docs/get-started/setup) page for client-specific configuration instructions, or jump to the [Quick Start](/docs/get-started/quickstart) to start using the server.

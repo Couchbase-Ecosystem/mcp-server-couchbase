@@ -13,6 +13,14 @@ An [MCP](https://modelcontextprotocol.io/) server implementation that allows Lar
 
 The Couchbase MCP Server bridges the gap between LLMs and your Couchbase database. It exposes 23 tools across 5 categories that let AI assistants query, explore, and manage your Couchbase clusters using natural language.
 
+## Use Cases
+
+- **Database exploration** — Ask an LLM to list buckets, discover schemas, and understand your data model without writing queries.
+- **Query assistance** — Have an AI assistant write and run SQL++ queries against your cluster using natural language.
+- **Performance analysis** — Identify slow queries, missing indexes, and optimization opportunities through conversation.
+- **Cluster monitoring** — Check cluster health, running services, and connection status through your AI assistant.
+- **Document operations** — Read, insert, update, and delete documents using natural language (when write mode is enabled).
+
 ## Features
 
 ### Cluster Setup & Health Tools
@@ -62,9 +70,3 @@ The Couchbase MCP Server bridges the gap between LLMs and your Couchbase databas
 | `get_queries_using_primary_index` | Get queries that use a primary index (potential performance concern) |
 | `get_queries_not_using_covering_index` | Get queries that don't use a covering index |
 | `get_queries_not_selective` | Get queries that are not selective |
-
-## Support Policy
-
-This project is **Couchbase community-maintained** — not officially supported by Couchbase support. Engineers actively monitor and maintain this repo and will resolve issues on a best-effort basis.
-
-For help or bug reports, [open a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues).

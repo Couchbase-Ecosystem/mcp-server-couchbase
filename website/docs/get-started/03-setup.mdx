@@ -1,0 +1,393 @@
+---
+sidebar_position: 3
+title: Setup
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Setup
+
+Choose your MCP client and deployment method to get the correct configuration.
+
+<Tabs groupId="mcp-client">
+  <TabItem value="cursor" label="Cursor" default>
+
+Go to **Cursor > Cursor Settings > Tools & Integrations > MCP Tools**. See the [Cursor MCP documentation](https://cursor.com/docs/mcp) for details.
+
+Add the Couchbase MCP Server configuration. You may need to add the server configuration under a parent key of `mcpServers`.
+
+<Tabs groupId="deploy-method">
+  <TabItem value="uv" label="UV (PyPI)" default>
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="source" label="Source">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/mcp-server-couchbase/",
+        "run",
+        "src/mcp_server.py"
+      ],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=username",
+        "-e", "CB_PASSWORD=password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
+
+  </TabItem>
+  <TabItem value="claude-desktop" label="Claude Desktop">
+
+Open the Claude Desktop configuration file:
+- **Mac**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+For detailed instructions, see the [MCP quickstart guide](https://modelcontextprotocol.io/quickstart/user).
+
+<Tabs groupId="deploy-method">
+  <TabItem value="uv" label="UV (PyPI)" default>
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="source" label="Source">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/mcp-server-couchbase/",
+        "run",
+        "src/mcp_server.py"
+      ],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=username",
+        "-e", "CB_PASSWORD=password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
+
+  </TabItem>
+  <TabItem value="vscode" label="VS Code">
+
+Configure the MCP server using one of these methods:
+
+**Workspace configuration:** Create a new file at `.vscode/mcp.json` in your workspace.
+
+**Global configuration:** Run **MCP: Open User Configuration** in the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
+
+:::note
+VS Code uses `servers` as the top-level JSON property, while other clients use `mcpServers`.
+:::
+
+<Tabs groupId="deploy-method">
+  <TabItem value="uv" label="UV (PyPI)" default>
+
+```json
+{
+  "servers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="source" label="Source">
+
+```json
+{
+  "servers": {
+    "couchbase": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/mcp-server-couchbase/",
+        "run",
+        "src/mcp_server.py"
+      ],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "servers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=username",
+        "-e", "CB_PASSWORD=password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
+
+  </TabItem>
+  <TabItem value="windsurf" label="Windsurf">
+
+Navigate to **Command Palette > Windsurf MCP Configuration Panel** or **Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers**. See the [official documentation](https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin) for details.
+
+Click on **Add Server** and then **Add custom server**.
+
+<Tabs groupId="deploy-method">
+  <TabItem value="uv" label="UV (PyPI)" default>
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="source" label="Source">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/mcp-server-couchbase/",
+        "run",
+        "src/mcp_server.py"
+      ],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=username",
+        "-e", "CB_PASSWORD=password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
+
+  </TabItem>
+  <TabItem value="jetbrains" label="JetBrains">
+
+Install one of the JetBrains plugins:
+- [AI Assistant](https://www.jetbrains.com/help/ai-assistant/getting-started-with-ai-assistant.html)
+- [Junie](https://www.jetbrains.com/help/junie/get-started-with-junie.html)
+
+Navigate to **Settings > Tools > AI Assistant or Junie > MCP Server**. Click **"+"** to add the configuration and click **Save**.
+
+<Tabs groupId="deploy-method">
+  <TabItem value="uv" label="UV (PyPI)" default>
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="source" label="Source">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/mcp-server-couchbase/",
+        "run",
+        "src/mcp_server.py"
+      ],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=username",
+        "-e", "CB_PASSWORD=password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
+
+  </TabItem>
+</Tabs>
+
+:::tip
+Replace the placeholder values with your actual Couchbase cluster credentials. See [Environment Variables](/docs/configuration/environment-variables) for all available options.
+:::

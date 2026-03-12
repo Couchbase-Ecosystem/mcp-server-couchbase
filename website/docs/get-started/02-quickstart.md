@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 2
 title: Quick Start
 ---
 
@@ -36,7 +36,12 @@ Add the following to your MCP client's configuration file:
 
 Replace the environment variable values with your actual Couchbase cluster credentials.
 
-For client-specific configuration file locations, see the [MCP Client Guides](/docs/client-guides/claude-desktop).
+For client-specific configuration, see the environment setup guides:
+- [Cursor](/docs/environments/cursor)
+- [Claude Desktop](/docs/environments/claude-desktop)
+- [VS Code](/docs/environments/vscode)
+- [Windsurf](/docs/environments/windsurf)
+- [JetBrains](/docs/environments/jetbrains)
 
 ## 3. Start Using It
 

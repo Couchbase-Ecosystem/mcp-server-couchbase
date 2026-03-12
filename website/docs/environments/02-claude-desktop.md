@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 title: Claude Desktop
 ---
 
@@ -15,7 +15,7 @@ Follow these steps to use the Couchbase MCP Server with [Claude Desktop](https:/
 
    For detailed instructions, see the [MCP quickstart guide](https://modelcontextprotocol.io/quickstart/user).
 
-2. Add the Couchbase MCP Server [configuration](/docs/getting-started/installation):
+2. Add the Couchbase MCP Server [configuration](/docs/installation/uv):
 
    ```json
    {

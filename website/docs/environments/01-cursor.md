@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 1
 title: Cursor
 ---
 
@@ -13,7 +13,7 @@ Follow these steps to use the Couchbase MCP Server with [Cursor](https://cursor.
 
 2. Go to **Cursor > Cursor Settings > Tools & Integrations > MCP Tools**. See the [Cursor MCP documentation](https://cursor.com/docs/mcp) for details.
 
-3. Add the Couchbase MCP Server [configuration](/docs/getting-started/installation). You may need to add the server configuration under a parent key of `mcpServers`.
+3. Add the Couchbase MCP Server [configuration](/docs/installation/uv). You may need to add the server configuration under a parent key of `mcpServers`.
 
 4. Save the configuration.
 

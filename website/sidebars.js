@@ -5,13 +5,24 @@ const sidebars = {
   docsSidebar: [
     {
       type: 'category',
-      label: 'Getting Started',
+      label: 'Home',
+      items: ['home/introduction', 'home/tutorials'],
+    },
+    {
+      type: 'category',
+      label: 'Get Started',
       items: [
-        'getting-started/introduction',
-        'getting-started/prerequisites',
-        'getting-started/installation',
-        'getting-started/quickstart',
+        'get-started/prerequisites',
+        'get-started/quickstart',
+        'get-started/setup',
+        'get-started/test-and-usage',
+        'get-started/troubleshooting',
       ],
+    },
+    {
+      type: 'category',
+      label: 'Installation Methods',
+      items: ['installation/uv', 'installation/source', 'installation/docker'],
     },
     {
       type: 'category',
@@ -21,23 +32,13 @@ const sidebars = {
         'configuration/authentication',
         'configuration/read-only-mode',
         'configuration/disabling-tools',
+        'configuration/transport-modes',
+        'configuration/troubleshooting',
       ],
     },
     {
       type: 'category',
-      label: 'MCP Client Guides',
-      items: [
-        'client-guides/claude-desktop',
-        'client-guides/cursor',
-        'client-guides/vscode',
-        'client-guides/windsurf',
-        'client-guides/jetbrains',
-      ],
-    },
-    'transport-modes',
-    {
-      type: 'category',
-      label: 'Tool Reference',
+      label: 'Tools',
       items: [
         'tools/cluster-health',
         'tools/data-model',
@@ -46,19 +47,22 @@ const sidebars = {
         'tools/performance-analysis',
       ],
     },
-    'docker',
-    'security',
     {
       type: 'category',
-      label: 'Contributing',
+      label: 'Environments / IDEs',
       items: [
-        'contributing/development-setup',
-        'contributing/code-quality',
-        'contributing/adding-tools',
-        'contributing/testing',
+        'environments/cursor',
+        'environments/claude-desktop',
+        'environments/windsurf',
+        'environments/vscode',
+        'environments/jetbrains',
       ],
     },
-    'troubleshooting',
+    'registries',
+    'contributing',
+    'support-policy',
+    'security',
+    'release-notes',
   ],
 };
 

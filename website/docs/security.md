@@ -1,11 +1,18 @@
 ---
-sidebar_position: 7
 title: Security
 ---
 
 # Security
 
 The Couchbase MCP Server provides multiple layers of security to protect your data when used with LLMs.
+
+## Best Practices Quick Reference
+
+- **Always configure RBAC** — Create a dedicated database user with least-privilege permissions.
+- **Keep read-only mode enabled** — `CB_MCP_READ_ONLY_MODE=true` (default) blocks all write operations.
+- **Use TLS** — Use `couchbases://` connection strings for encrypted connections.
+- **Disable unnecessary tools** — Reduce the attack surface by removing tools you don't need.
+- **Don't rely on a single layer** — Combine RBAC, read-only mode, tool disabling, and TLS for defense in depth.
 
 ## Read-Only Mode (Default)
 

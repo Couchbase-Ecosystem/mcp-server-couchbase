@@ -60,10 +60,35 @@ const config = {
         title: 'Couchbase MCP Server',
         items: [
           {
-            type: 'docSidebar',
-            sidebarId: 'docsSidebar',
-            position: 'left',
+            type: 'dropdown',
             label: 'Docs',
+            position: 'left',
+            items: [
+              {
+                label: 'Home',
+                to: '/docs/home/introduction',
+              },
+              {
+                label: 'Get Started',
+                to: '/docs/get-started/quickstart',
+              },
+              {
+                label: 'Installation',
+                to: '/docs/installation/uv',
+              },
+              {
+                label: 'Configuration',
+                to: '/docs/configuration/environment-variables',
+              },
+              {
+                label: 'Tools',
+                to: '/docs/tools/cluster-health',
+              },
+              {
+                label: 'Environments / IDEs',
+                to: '/docs/environments/cursor',
+              },
+            ],
           },
           {
             href: 'https://pypi.org/project/couchbase-mcp-server/',
@@ -90,7 +115,7 @@ const config = {
             items: [
               {
                 label: 'Getting Started',
-                to: '/docs/getting-started/introduction',
+                to: '/docs/home/introduction',
               },
               {
                 label: 'Tool Reference',
@@ -132,7 +157,7 @@ const config = {
               },
               {
                 label: 'Contributing',
-                to: '/docs/contributing/development-setup',
+                to: '/docs/contributing',
               },
             ],
           },

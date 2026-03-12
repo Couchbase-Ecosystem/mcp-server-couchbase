@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 3
 title: Docker
 ---
 
@@ -85,7 +85,3 @@ The Docker image can be used in `stdio` transport mode with MCP clients:
 
 - If your Couchbase server is running on the host machine, the connection string would typically be `couchbase://host.docker.internal`. See the [Docker networking documentation](https://docs.docker.com/desktop/features/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host).
 - You can specify the container's networking with `--network=<your_network>`. The default is `bridge`. See [Docker network drivers](https://docs.docker.com/engine/network/drivers/).
-
-## Managed MCP Server
-
-The Couchbase MCP Server can also be used as a managed server via [Smithery.ai](https://smithery.ai/server/@Couchbase-Ecosystem/mcp-server-couchbase).
