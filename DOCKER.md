@@ -79,7 +79,7 @@ Add the configuration specified below to the MCP configuration in your MCP clien
         "CB_USERNAME=<database_username>",
         "-e",
         "CB_PASSWORD=<database_password>",
-        "couchbaseecosystem/mcp-server-couchbase:latest"
+        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
       ]
     }
   }
