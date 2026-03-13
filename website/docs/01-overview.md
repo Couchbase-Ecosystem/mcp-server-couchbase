@@ -32,8 +32,7 @@ The server exposes 23 tools across 5 categories. See the [Tools](/tools/cluster-
 
 ## Tutorials
 
-- [Building a LangChain Agent with Couchbase MCP Server](https://developer.couchbase.com/tutorial-langchain-mcp-agent)
-- [Building a LangGraph Agent with Couchbase MCP Server](https://developer.couchbase.com/tutorial-langgraph-mcp-agent)
+Browse MCP tutorials on the [Couchbase Developer Portal](https://developer.couchbase.com/tutorials/?search=model%20context%20protocol).
 
 ## Releases
 
