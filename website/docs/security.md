@@ -21,7 +21,7 @@ By default, `CB_MCP_READ_ONLY_MODE=true`. This:
 - **Prevents KV write tools** from being loaded — they won't appear in tool discovery.
 - **Blocks SQL++ write queries** — INSERT, UPDATE, DELETE, MERGE, and DDL statements are rejected.
 
-See [Read-Only Mode](/docs/configuration/read-only-mode) for the full configuration reference.
+See [Read-Only Mode](/configuration/read-only-mode) for the full configuration reference.
 
 ## RBAC Best Practices
 
@@ -38,7 +38,7 @@ Recommendations:
 
 ## Tool Disabling
 
-You can [disable specific tools](/docs/configuration/disabling-tools) to reduce the attack surface. However:
+You can [disable specific tools](/configuration/disabling-tools) to reduce the attack surface. However:
 
 :::warning
 Disabling tools alone does not guarantee operations cannot be performed. For example, even with KV write tools disabled, data modifications can still occur via `run_sql_plus_plus_query` using SQL++ DML statements — unless `CB_MCP_READ_ONLY_MODE=true` or the database user lacks RBAC permissions.

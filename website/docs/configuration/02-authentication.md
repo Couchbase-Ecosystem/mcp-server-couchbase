@@ -29,7 +29,7 @@ The simplest method. Provide a Couchbase username and password:
 
 ## mTLS (Mutual TLS)
 
-For environments requiring certificate-based authentication. Note that **username and password are still required** even when using mTLS, because some tools (e.g. `list_indexes`) communicate with Couchbase REST APIs using HTTP Basic Auth:
+For environments requiring certificate-based authentication:
 
 ```json
 {
@@ -39,8 +39,6 @@ For environments requiring certificate-based authentication. Note that **usernam
       "args": ["couchbase-mcp-server"],
       "env": {
         "CB_CONNECTION_STRING": "couchbases://your-connection-string",
-        "CB_USERNAME": "username",
-        "CB_PASSWORD": "password",
         "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
         "CB_CLIENT_KEY_PATH": "/path/to/client.key"
       }
@@ -73,7 +71,9 @@ The authentication setup differs depending on your Couchbase deployment type.
 
 - **Connection string**: Use `couchbase://` for unencrypted connections or `couchbases://` for TLS.
 - **TLS certificates**: If using TLS with self-signed or untrusted certificates, set `CB_CA_CERT_PATH` to your CA root certificate.
-- **mTLS**: Optionally configure mutual TLS with `CB_CLIENT_CERT_PATH` and `CB_CLIENT_KEY_PATH`.
+- **mTLS**: For certificate-based authentication, use `CB_CLIENT_CERT_PATH` and `CB_CLIENT_KEY_PATH` instead of username/password.
+
+**Basic auth with custom CA:**
 
 ```json
 {
@@ -81,6 +81,19 @@ The authentication setup differs depending on your Couchbase deployment type.
     "CB_CONNECTION_STRING": "couchbases://your-server-hostname",
     "CB_USERNAME": "username",
     "CB_PASSWORD": "password",
+    "CB_CA_CERT_PATH": "/path/to/ca-certificate.pem"
+  }
+}
+```
+
+**mTLS (no username/password):**
+
+```json
+{
+  "env": {
+    "CB_CONNECTION_STRING": "couchbases://your-server-hostname",
+    "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
+    "CB_CLIENT_KEY_PATH": "/path/to/client.key",
     "CB_CA_CERT_PATH": "/path/to/ca-certificate.pem"
   }
 }
@@ -107,4 +120,4 @@ For Capella connections using the Index Service REST API (e.g. `list_indexes`), 
 
 ## Priority
 
-If both username/password **and** client certificate/key are provided, the client certificates are used for authentication.
+mTLS and basic authentication are mutually exclusive. Use either username/password **or** client certificates — not both.

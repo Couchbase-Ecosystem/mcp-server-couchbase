@@ -55,4 +55,4 @@ If you have other MCP servers configured, add the `couchbase` entry to the exist
 
 ## Next Steps
 
-See the [Setup](/docs/get-started/setup) page for client-specific configuration instructions, or jump to the [Quick Start](/docs/get-started/quickstart) to start using the server.
+See the [Quick Start](/get-started/quickstart) for client-specific configuration instructions.

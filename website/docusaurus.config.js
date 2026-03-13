@@ -39,6 +39,7 @@ const config = {
       ({
         docs: {
           sidebarPath: './sidebars.js',
+          routeBasePath: '/',
           editUrl:
             'https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/tree/main/website/',
         },
@@ -60,35 +61,10 @@ const config = {
         title: 'Couchbase MCP Server',
         items: [
           {
-            type: 'dropdown',
+            type: 'docSidebar',
+            sidebarId: 'docsSidebar',
             label: 'Docs',
             position: 'left',
-            items: [
-              {
-                label: 'Home',
-                to: '/docs/home/introduction',
-              },
-              {
-                label: 'Get Started',
-                to: '/docs/get-started/quickstart',
-              },
-              {
-                label: 'Installation',
-                to: '/docs/installation/uv',
-              },
-              {
-                label: 'Configuration',
-                to: '/docs/configuration/environment-variables',
-              },
-              {
-                label: 'Tools',
-                to: '/docs/tools/cluster-health',
-              },
-              {
-                label: 'Environments / IDEs',
-                to: '/docs/environments/cursor',
-              },
-            ],
           },
           {
             href: 'https://pypi.org/project/couchbase-mcp-server/',
@@ -114,16 +90,16 @@ const config = {
             title: 'Documentation',
             items: [
               {
-                label: 'Getting Started',
-                to: '/docs/home/introduction',
+                label: 'Overview',
+                to: '/',
               },
               {
-                label: 'Tool Reference',
-                to: '/docs/tools/cluster-health',
+                label: 'Tools',
+                to: '/tools/cluster-health',
               },
               {
                 label: 'Configuration',
-                to: '/docs/configuration/environment-variables',
+                to: '/configuration',
               },
             ],
           },
@@ -157,7 +133,7 @@ const config = {
               },
               {
                 label: 'Contributing',
-                to: '/docs/contributing',
+                to: '/contributing',
               },
             ],
           },

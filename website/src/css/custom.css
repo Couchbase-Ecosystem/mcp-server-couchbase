@@ -1,27 +1,27 @@
 /**
  * Custom CSS for Couchbase MCP Server documentation.
- * Uses Couchbase brand colors.
+ * Uses Couchbase brand colors (green).
  */
 
 :root {
-  --ifm-color-primary: #EA2328;
-  --ifm-color-primary-dark: #d41a1f;
-  --ifm-color-primary-darker: #c8191d;
-  --ifm-color-primary-darkest: #a51418;
-  --ifm-color-primary-light: #ed3d41;
-  --ifm-color-primary-lighter: #ee494d;
-  --ifm-color-primary-lightest: #f17174;
+  --ifm-color-primary: #1B9E5A;
+  --ifm-color-primary-dark: #188E50;
+  --ifm-color-primary-darker: #16864C;
+  --ifm-color-primary-darkest: #126F3E;
+  --ifm-color-primary-light: #1FAE64;
+  --ifm-color-primary-lighter: #20B668;
+  --ifm-color-primary-lightest: #35CC7D;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 }
 
 [data-theme='dark'] {
-  --ifm-color-primary: #f25a5d;
-  --ifm-color-primary-dark: #f03c40;
-  --ifm-color-primary-darker: #ef2e32;
-  --ifm-color-primary-darkest: #dc0d11;
-  --ifm-color-primary-light: #f4787a;
-  --ifm-color-primary-lighter: #f58688;
-  --ifm-color-primary-lightest: #f9b2b3;
+  --ifm-color-primary: #4DC484;
+  --ifm-color-primary-dark: #3BBD78;
+  --ifm-color-primary-darker: #35B972;
+  --ifm-color-primary-darkest: #2B9C5E;
+  --ifm-color-primary-light: #5FCB90;
+  --ifm-color-primary-lighter: #67CE96;
+  --ifm-color-primary-lightest: #90DBB2;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
