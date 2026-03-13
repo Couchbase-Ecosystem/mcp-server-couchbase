@@ -1,0 +1,252 @@
+---
+sidebar_position: 2
+title: Quick Start
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Quick Start
+
+Get the Couchbase MCP Server running in under 5 minutes.
+
+## Prerequisites
+
+- Python 3.10+ installed
+- [uv](https://docs.astral.sh/uv/) installed
+- A running Couchbase cluster ([Capella free tier](https://docs.couchbase.com/cloud/get-started/create-account.html) recommended)
+- An MCP client installed (e.g., [Claude Desktop](https://claude.ai/download), [Cursor](https://cursor.com/), [VS Code](https://code.visualstudio.com/))
+
+## Step 1: Configure Your MCP Client
+
+Select your MCP client and add the Couchbase MCP Server configuration.
+
+<Tabs groupId="mcp-client">
+  <TabItem value="cursor" label="Cursor" default>
+
+Go to **Cursor > Cursor Settings > Tools & Integrations > MCP Tools**. See the [Cursor MCP documentation](https://cursor.com/docs/mcp) for details.
+
+Add the Couchbase MCP Server configuration. You may need to add the server configuration under a parent key of `mcpServers`.
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "your-username",
+        "CB_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+**Logs:** Bottom panel > Output dropdown > "Cursor MCP"
+
+  </TabItem>
+  <TabItem value="claude-desktop" label="Claude Desktop">
+
+Open the Claude Desktop configuration file:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+For detailed instructions, see the [MCP quickstart guide](https://modelcontextprotocol.io/quickstart/user).
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "your-username",
+        "CB_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+**Logs:** `~/Library/Logs/Claude` (macOS), `%APPDATA%\Claude\Logs` (Windows)
+
+  </TabItem>
+  <TabItem value="windsurf" label="Windsurf">
+
+Navigate to **Command Palette > Windsurf MCP Configuration Panel** or **Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers**. See the [official documentation](https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin) for details.
+
+Click **Add Server** > **Add custom server**.
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "your-username",
+        "CB_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+**Logs:** Check Windsurf output panel
+
+  </TabItem>
+  <TabItem value="vscode" label="VS Code">
+
+Create `.vscode/mcp.json` in your workspace, or run **MCP: Open User Configuration** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
+
+:::note
+VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
+:::
+
+```json
+{
+  "servers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "your-username",
+        "CB_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+**Logs:** Command Palette > "MCP: List Servers" > Show Output
+
+  </TabItem>
+  <TabItem value="jetbrains" label="JetBrains">
+
+Install the [AI Assistant](https://www.jetbrains.com/help/ai-assistant/getting-started-with-ai-assistant.html) or [Junie](https://www.jetbrains.com/help/junie/get-started-with-junie.html) plugin.
+
+Navigate to **Settings > Tools > AI Assistant (or Junie) > MCP Server**. Click **"+"** to add the configuration and click **Save**.
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "your-username",
+        "CB_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+**Logs:** Help > Show Log in Finder/Explorer > mcp > couchbase
+
+  </TabItem>
+</Tabs>
+
+:::tip
+Replace the placeholder values with your actual Couchbase cluster credentials. See [Environment Variables](/configuration/environment-variables) for all available options.
+:::
+
+## Step 2: Set Your Connection String
+
+The connection string format depends on your deployment type.
+
+<Tabs groupId="deployment-type">
+  <TabItem value="capella" label="Capella" default>
+
+Use `couchbases://` (with `s` for TLS):
+
+```
+couchbases://cb.your-endpoint.cloud.couchbase.com
+```
+
+Find your connection string in the [Capella UI](https://docs.couchbase.com/cloud/get-started/connect.html) under **Cluster > Connect**.
+
+:::important
+Ensure the machine running the MCP server has its IP [allowed](https://docs.couchbase.com/cloud/clusters/allow-ip-address.html) in your Capella cluster settings.
+:::
+
+  </TabItem>
+  <TabItem value="self-managed" label="Self-Managed">
+
+Use `couchbase://` for local or unencrypted connections:
+
+```
+couchbase://localhost
+couchbase://127.0.0.1
+```
+
+Use `couchbases://` if TLS is enabled on your cluster.
+
+Reach out to your database administrator if you are unsure about the connection string, credentials, or network configuration.
+
+  </TabItem>
+</Tabs>
+
+## Step 3: Validate the Setup
+
+Save your configuration and restart your MCP client.
+
+<details>
+<summary><b>Check server status</b></summary>
+
+Ask your AI assistant:
+
+> "What is the status of the Couchbase MCP server?"
+
+The assistant will call `get_server_configuration_status` and return the server's configuration, including transport mode, read-only mode status, and loaded tools.
+
+If the tool is not available, the server did not start correctly. Check the logs for your client (listed above in each client tab).
+
+</details>
+
+<details>
+<summary><b>Test cluster connection</b></summary>
+
+> "Test the connection to my Couchbase cluster."
+
+The assistant will call `test_cluster_connection`, which attempts to connect to the cluster using the configured credentials. It returns connection status, cluster services, and bucket accessibility.
+
+If the connection fails, verify your `CB_CONNECTION_STRING`, `CB_USERNAME`, and `CB_PASSWORD` values.
+
+</details>
+
+<details>
+<summary><b>Try sample queries</b></summary>
+
+Once connected, try these prompts:
+
+- "List all buckets in my cluster"
+- "Show me the scopes and collections in the `travel-sample` bucket"
+- "What does a document in the airline collection look like?"
+- "Find all airlines based in the United States"
+- "Run a query: `SELECT COUNT(*) FROM travel-sample.inventory.airline`"
+- "What are the longest running queries on my cluster?"
+- "Check my cluster health"
+
+</details>
+
+## Default Security
+
+By default, the server runs in **read-only mode** (`CB_MCP_READ_ONLY_MODE=true`):
+
+- All KV write tools (upsert, insert, replace, delete) are **not loaded**
+- SQL++ queries that modify data are **blocked**
+
+To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configuration. See [Read-Only Mode](/configuration/read-only-mode) for details.
+
+## Next Steps
+
+- Review all available [Tools](/tools/cluster-health)
+- Explore [Configuration](/configuration) options
+- For Source or Docker installation, see [Advanced Setup](/installation/source)

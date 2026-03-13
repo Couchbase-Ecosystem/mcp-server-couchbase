@@ -1,0 +1,27 @@
+/**
+ * Custom CSS for Couchbase MCP Server documentation.
+ * Uses Couchbase brand colors (green).
+ */
+
+:root {
+  --ifm-color-primary: #1B9E5A;
+  --ifm-color-primary-dark: #188E50;
+  --ifm-color-primary-darker: #16864C;
+  --ifm-color-primary-darkest: #126F3E;
+  --ifm-color-primary-light: #1FAE64;
+  --ifm-color-primary-lighter: #20B668;
+  --ifm-color-primary-lightest: #35CC7D;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #4DC484;
+  --ifm-color-primary-dark: #3BBD78;
+  --ifm-color-primary-darker: #35B972;
+  --ifm-color-primary-darkest: #2B9C5E;
+  --ifm-color-primary-light: #5FCB90;
+  --ifm-color-primary-lighter: #67CE96;
+  --ifm-color-primary-lightest: #90DBB2;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
