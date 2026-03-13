@@ -59,6 +59,10 @@ const config = {
       },
       navbar: {
         title: 'Couchbase MCP Server',
+        logo: {
+          alt: 'Couchbase Logo',
+          src: 'img/logo.svg',
+        },
         items: [
           {
             type: 'docSidebar',
