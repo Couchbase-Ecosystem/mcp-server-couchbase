@@ -4,33 +4,10 @@ from collections import Counter
 from typing import Any
 
 
-def extract_plan_from_explain_results(
-    explain_results: list[dict[str, Any]],
-) -> dict[str, Any] | None:
-    """Extract the plan object from an EXPLAIN query response."""
+def extract_plan_from_explain_results(explain_results):
     if not explain_results:
         return None
-
-    first_row = explain_results[0]
-    if not isinstance(first_row, dict):
-        return None
-
-    plan = first_row.get("plan")
-    if isinstance(plan, dict):
-        return plan
-
-    if "#operator" in first_row or "~children" in first_row:
-        return first_row
-
-    for value in first_row.values():
-        if isinstance(value, dict) and (
-            "#operator" in value or "~children" in value or "plan" in value
-        ):
-            nested_plan = value.get("plan") if "plan" in value else value
-            if isinstance(nested_plan, dict):
-                return nested_plan
-
-    return None
+    return explain_results[0].get("plan")
 
 
 def _walk_plan(

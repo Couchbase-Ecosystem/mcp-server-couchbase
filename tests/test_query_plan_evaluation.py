@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tools.query import evaluate_query_plan
+from utils.query_utils import extract_plan_from_explain_results
 
 
 def test_evaluate_query_plan_detects_primary_scan() -> None:
@@ -59,3 +60,11 @@ def test_evaluate_query_plan_handles_missing_plan() -> None:
     assert evaluation["summary"] == "No query plan found in EXPLAIN output."
     assert evaluation["operators"] == []
     assert evaluation["findings"] == []
+
+
+def test_extract_plan_from_explain_results_with_documented_shape() -> None:
+    """EXPLAIN payload with top-level `plan` should be extracted."""
+    plan = {"#operator": "Sequence", "~children": []}
+    results = [{"plan": plan, "text": "EXPLAIN"}]
+
+    assert extract_plan_from_explain_results(results) == plan
