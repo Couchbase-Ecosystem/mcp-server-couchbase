@@ -120,7 +120,7 @@ def explain_sql_plus_plus_query(
     """Generate and evaluate an EXPLAIN plan for a SQL++ query. It provides information about the execution plan for the query.
 
     The EXPLAIN statement is run in the specified scope in the specified bucket.
-    It returns the raw EXPLAIN response along with an extracted plan and plan evaluation.
+    It returns query metadata along with an extracted plan and plan evaluation.
     """
     normalized_query = query.strip()
     if not normalized_query:
@@ -148,7 +148,6 @@ def explain_sql_plus_plus_query(
         "query_context": {"bucket_name": bucket_name, "scope_name": scope_name},
         "plan": plan,
         "plan_evaluation": plan_evaluation,
-        "results": explain_results,
     }
 
 
