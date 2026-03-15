@@ -487,7 +487,7 @@ The server will be available on http://localhost:8000/sse. This can be used in M
 
 ## Docker Image
 
-The MCP server can also be built and run as a Docker container. Prebuilt images can be found on [DockerHub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase).
+The MCP server can also be built and run as a Docker container. Prebuilt images can be found on [DockerHub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase) or pulled via `docker pull couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase`.
 
 Alternatively, we are part of the [Docker MCP Catalog](https://hub.docker.com/mcp/server/couchbase/overview).
 
