@@ -19,6 +19,7 @@ from .connection import (
 # Constants
 from .constants import (
     ALLOWED_TRANSPORTS,
+    DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
@@ -34,6 +35,9 @@ from .context import (
     AppContext,
     get_cluster_connection,
 )
+
+# Elicitation utilities
+from .elicitation import wrap_with_confirmation
 
 # Index utilities
 from .index_utils import (
@@ -58,6 +62,7 @@ __all__ = [
     # Constants
     "MCP_SERVER_NAME",
     "DEFAULT_READ_ONLY_MODE",
+    "DEFAULT_CONFIRMATION_REQUIRED_TOOLS",
     "DEFAULT_TRANSPORT",
     "DEFAULT_LOG_LEVEL",
     "DEFAULT_HOST",
@@ -65,4 +70,6 @@ __all__ = [
     "ALLOWED_TRANSPORTS",
     "NETWORK_TRANSPORTS",
     "NETWORK_TRANSPORTS_SDK_MAPPING",
+    # Elicitation
+    "wrap_with_confirmation",
 ]

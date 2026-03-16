@@ -10,11 +10,12 @@ import click
 from mcp.server.fastmcp import FastMCP
 
 # Import tools
-from tools import get_tools
+from tools import TOOL_ANNOTATIONS, get_tools
 
 # Import utilities
 from utils import (
     ALLOWED_TRANSPORTS,
+    DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
@@ -26,6 +27,7 @@ from utils import (
     AppContext,
     get_settings,
     parse_disabled_tools,
+    wrap_with_confirmation,
 )
 
 # Configure logging
@@ -44,6 +46,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     settings = get_settings()
     read_only_mode = settings.get("read_only_mode", True)
     read_only_query_mode = settings.get("read_only_query_mode", True)
+    confirmation_required_tools = settings.get("confirmation_required_tools", set())
 
     # Note: We don't validate configuration here to allow tool discovery
     # Configuration will be validated when tools are actually used
@@ -54,7 +57,9 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     app_context = None
     try:
         app_context = AppContext(
-            read_only_mode=read_only_mode, read_only_query_mode=read_only_query_mode
+            read_only_mode=read_only_mode,
+            read_only_query_mode=read_only_query_mode,
+            confirmation_required_tools=confirmation_required_tools,
         )
         yield app_context
 
@@ -149,6 +154,15 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     help="Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') "
     "or a file path containing one tool name per line.",
 )
+@click.option(
+    "--confirmation-required-tools",
+    "confirmation_required_tools",
+    envvar="CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
+    default=DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
+    help="Comma-separated tool names that require user confirmation before execution. "
+    "Requires the client to support MCP elicitation. "
+    "Default: 'delete_document_by_id'.",
+)
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
 def main(
@@ -165,8 +179,37 @@ def main(
     host,
     port,
     disabled_tools,
+    confirmation_required_tools,
 ):
     """Couchbase MCP Server"""
+
+    # Get tools based on mode settings
+    # When read_only_mode is True, KV write tools are not loaded
+    tools = get_tools(read_only_mode=read_only_mode)
+
+    # Parse and validate disabled tools from CLI/environment variable
+    loaded_tool_names = {tool.__name__ for tool in tools}
+    disabled_tool_names = parse_disabled_tools(disabled_tools, loaded_tool_names)
+
+    if disabled_tool_names:
+        logger.info(
+            f"Disabled {len(disabled_tool_names)} tool(s): {sorted(disabled_tool_names)}"
+        )
+
+    # Parse and validate confirmation-required tools
+    # Validate confirmation tools against all known tools so defaults remain valid
+    # even when some tools are unavailable (e.g., read-only mode).
+    all_known_tool_names = {tool.__name__ for tool in get_tools(read_only_mode=False)}
+    configured_confirmation_tool_names = parse_disabled_tools(
+        confirmation_required_tools, all_known_tool_names
+    )
+
+    if configured_confirmation_tool_names:
+        logger.info(
+            f"Confirmation required for {len(configured_confirmation_tool_names)} tool(s): "
+            f"{sorted(configured_confirmation_tool_names)}"
+        )
+
     # Store configuration in context
     ctx.obj = {
         "connection_string": connection_string,
@@ -180,23 +223,34 @@ def main(
         "transport": transport,
         "host": host,
         "port": port,
+        "confirmation_required_tools": configured_confirmation_tool_names,
     }
-
-    # Get tools based on mode settings
-    # When read_only_mode is True, KV write tools are not loaded
-    tools = get_tools(read_only_mode=read_only_mode)
-
-    # Parse and validate disabled tools from CLI/environment variable
-    all_tool_names = {tool.__name__ for tool in tools}
-    disabled_tool_names = parse_disabled_tools(disabled_tools, all_tool_names)
-
-    if disabled_tool_names:
-        logger.info(
-            f"Disabled {len(disabled_tool_names)} tool(s): {sorted(disabled_tool_names)}"
-        )
 
     # Filter out disabled tools
     enabled_tools = [tool for tool in tools if tool.__name__ not in disabled_tool_names]
+
+    # Apply confirmation to tools that are currently active.
+    active_tool_names = {tool.__name__ for tool in enabled_tools}
+    active_confirmation_tool_names = (
+        configured_confirmation_tool_names & active_tool_names
+    )
+
+    skipped_confirmation_tool_names = (
+        configured_confirmation_tool_names - active_tool_names
+    )
+    if skipped_confirmation_tool_names:
+        logger.info(
+            "Skipped confirmation for unavailable tool(s): "
+            f"{sorted(skipped_confirmation_tool_names)}"
+        )
+
+    # Wrap tools that require confirmation with the elicitation wrapper
+    final_tools = []
+    for tool in enabled_tools:
+        if tool.__name__ in active_confirmation_tool_names:
+            final_tools.append(wrap_with_confirmation(tool))
+        else:
+            final_tools.append(tool)
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
@@ -214,15 +268,16 @@ def main(
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
 
     logger.info(
-        f"Registering {len(enabled_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
+        f"Registering {len(final_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
         f"read_only_query_mode={read_only_query_mode})"
     )
 
-    # Register only enabled tools
-    for tool in enabled_tools:
-        mcp.add_tool(tool)
+    # Register tools with their annotations
+    for tool in final_tools:
+        annotations = TOOL_ANNOTATIONS.get(tool.__name__)
+        mcp.add_tool(tool, annotations=annotations)
 
-    logger.info(f"Registered {len(enabled_tools)} tool(s)")
+    logger.info(f"Registered {len(final_tools)} tool(s)")
 
     # Run the server
     mcp.run(transport=sdk_transport)  # type: ignore

@@ -1,0 +1,237 @@
+"""
+Tests for the confirmation-required tools functionality and elicitation wrapper.
+"""
+
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from mcp.server.fastmcp import Context
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from tools import TOOL_ANNOTATIONS, get_tools
+from utils.config import parse_disabled_tools
+from utils.constants import DEFAULT_CONFIRMATION_REQUIRED_TOOLS
+from utils.elicitation import (
+    ConfirmationResult,
+    _build_confirmation_message,
+    wrap_with_confirmation,
+)
+
+VALID_TOOL_NAMES = {
+    "get_buckets_in_cluster",
+    "get_document_by_id",
+    "upsert_document_by_id",
+    "delete_document_by_id",
+    "insert_document_by_id",
+    "replace_document_by_id",
+    "run_sql_plus_plus_query",
+    "list_indexes",
+    "get_index_advisor_recommendations",
+}
+
+
+class TestDefaultConfirmationRequiredTools:
+    """Tests for default confirmation-required tools configuration."""
+
+    def test_default_value_includes_delete(self):
+        assert "delete_document_by_id" in DEFAULT_CONFIRMATION_REQUIRED_TOOLS
+
+    def test_parse_default_value(self):
+        result = parse_disabled_tools(
+            DEFAULT_CONFIRMATION_REQUIRED_TOOLS, VALID_TOOL_NAMES
+        )
+        assert result == {"delete_document_by_id"}
+
+
+class TestParseConfirmationRequiredTools:
+    """Tests for parsing confirmation-required tools (reuses parse_disabled_tools)."""
+
+    def test_single_tool(self):
+        result = parse_disabled_tools("delete_document_by_id", VALID_TOOL_NAMES)
+        assert result == {"delete_document_by_id"}
+
+    def test_multiple_tools(self):
+        result = parse_disabled_tools(
+            "delete_document_by_id,upsert_document_by_id,insert_document_by_id",
+            VALID_TOOL_NAMES,
+        )
+        assert result == {
+            "delete_document_by_id",
+            "upsert_document_by_id",
+            "insert_document_by_id",
+        }
+
+    def test_with_spaces(self):
+        result = parse_disabled_tools(
+            "delete_document_by_id, upsert_document_by_id",
+            VALID_TOOL_NAMES,
+        )
+        assert result == {"delete_document_by_id", "upsert_document_by_id"}
+
+    def test_invalid_tools_ignored(self):
+        result = parse_disabled_tools(
+            "delete_document_by_id,nonexistent_tool",
+            VALID_TOOL_NAMES,
+        )
+        assert result == {"delete_document_by_id"}
+
+    def test_empty_string(self):
+        result = parse_disabled_tools("", VALID_TOOL_NAMES)
+        assert result == set()
+
+    def test_none_input(self):
+        result = parse_disabled_tools(None, VALID_TOOL_NAMES)
+        assert result == set()
+
+
+class TestToolAnnotations:
+    """Tests for tool annotations mapping."""
+
+    def test_read_only_tools_have_read_only_hint(self):
+        read_only_tool_names = [
+            "get_server_configuration_status",
+            "test_cluster_connection",
+            "get_buckets_in_cluster",
+            "get_scopes_and_collections_in_bucket",
+            "get_collections_in_scope",
+            "get_scopes_in_bucket",
+            "get_cluster_health_and_services",
+            "get_document_by_id",
+            "get_schema_for_collection",
+            "get_index_advisor_recommendations",
+            "list_indexes",
+            "get_longest_running_queries",
+            "get_most_frequent_queries",
+            "get_queries_with_largest_response_sizes",
+            "get_queries_with_large_result_count",
+            "get_queries_using_primary_index",
+            "get_queries_not_using_covering_index",
+            "get_queries_not_selective",
+        ]
+        for tool_name in read_only_tool_names:
+            assert tool_name in TOOL_ANNOTATIONS, (
+                f"{tool_name} missing from annotations"
+            )
+            assert TOOL_ANNOTATIONS[tool_name].readOnlyHint is True, (
+                f"{tool_name} should have readOnlyHint=True"
+            )
+
+    def test_delete_tool_has_destructive_hint(self):
+        assert "delete_document_by_id" in TOOL_ANNOTATIONS
+        assert TOOL_ANNOTATIONS["delete_document_by_id"].destructiveHint is True
+
+    def test_sql_query_tool_has_open_world_hint(self):
+        assert "run_sql_plus_plus_query" in TOOL_ANNOTATIONS
+        assert TOOL_ANNOTATIONS["run_sql_plus_plus_query"].openWorldHint is True
+
+    def test_upsert_and_replace_are_idempotent(self):
+        for tool_name in ["upsert_document_by_id", "replace_document_by_id"]:
+            assert tool_name in TOOL_ANNOTATIONS
+            assert TOOL_ANNOTATIONS[tool_name].idempotentHint is True
+
+    def test_all_registered_tools_have_annotations(self):
+        """Every tool returned by get_tools should have annotations."""
+        all_tools = get_tools(read_only_mode=False)
+        for tool in all_tools:
+            assert tool.__name__ in TOOL_ANNOTATIONS, (
+                f"Tool '{tool.__name__}' is missing from TOOL_ANNOTATIONS"
+            )
+
+
+class TestConfirmationResult:
+    """Tests for the ConfirmationResult schema."""
+
+    def test_default_value_is_true(self):
+        result = ConfirmationResult()
+        assert result.confirm is True
+
+    def test_can_set_to_false(self):
+        result = ConfirmationResult(confirm=False)
+        assert result.confirm is False
+
+    def test_schema_has_title(self):
+        schema = ConfirmationResult.model_json_schema()
+        assert "properties" in schema
+        assert "confirm" in schema["properties"]
+
+
+class TestBuildConfirmationMessage:
+    """Tests for the confirmation message builder."""
+
+    def test_basic_message(self):
+        msg = _build_confirmation_message("delete_document_by_id", {})
+        assert "delete_document_by_id" in msg
+
+    def test_message_with_identifiers(self):
+        msg = _build_confirmation_message(
+            "delete_document_by_id",
+            {
+                "bucket_name": "test-bucket",
+                "scope_name": "_default",
+                "collection_name": "users",
+                "document_id": "doc123",
+            },
+        )
+        assert "test-bucket" in msg
+        assert "doc123" in msg
+        assert "delete_document_by_id" in msg
+
+    def test_message_with_partial_identifiers(self):
+        msg = _build_confirmation_message(
+            "delete_document_by_id",
+            {"bucket_name": "mybucket"},
+        )
+        assert "mybucket" in msg
+
+
+class TestWrapWithConfirmation:
+    """Tests for wrapper behavior around accept/decline/fallback paths."""
+
+    @pytest.mark.asyncio
+    async def test_decline_raises_permission_error(self):
+        def sample_tool(
+            ctx: Context,
+        ) -> bool:  # pragma: no cover - function under wrapper
+            return True
+
+        wrapped = wrap_with_confirmation(sample_tool)
+
+        class FakeContext:
+            def __init__(self):
+                self.request_context = SimpleNamespace(
+                    lifespan_context=SimpleNamespace(
+                        confirmation_required_tools={"sample_tool"}
+                    )
+                )
+
+            async def elicit(self, message, schema):
+                return SimpleNamespace(action="decline")
+
+        with pytest.raises(PermissionError):
+            await wrapped(ctx=FakeContext())
+
+    @pytest.mark.asyncio
+    async def test_elicitation_failure_falls_back_to_execution(self):
+        def sample_tool(
+            ctx: Context,
+        ) -> bool:  # pragma: no cover - function under wrapper
+            return True
+
+        wrapped = wrap_with_confirmation(sample_tool)
+
+        class FakeContext:
+            def __init__(self):
+                self.request_context = SimpleNamespace(
+                    lifespan_context=SimpleNamespace(
+                        confirmation_required_tools={"sample_tool"}
+                    )
+                )
+
+            async def elicit(self, message, schema):
+                raise RuntimeError("Client does not support elicitation")
+
+        result = await wrapped(ctx=FakeContext())
+        assert result is True
