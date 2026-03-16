@@ -58,18 +58,12 @@ const config = {
         respectPrefersColorScheme: true,
       },
       navbar: {
-        title: 'Couchbase MCP Server',
+        title: 'MCP Server',
         logo: {
           alt: 'Couchbase Logo',
           src: 'img/logo.svg',
         },
         items: [
-          {
-            type: 'docSidebar',
-            sidebarId: 'docsSidebar',
-            label: 'Docs',
-            position: 'left',
-          },
           {
             href: 'https://pypi.org/project/couchbase-mcp-server/',
             label: 'PyPI',
@@ -137,7 +131,7 @@ const config = {
               },
               {
                 label: 'Contributing',
-                to: '/contributing',
+                to: '/product-notes/contributing',
               },
             ],
           },

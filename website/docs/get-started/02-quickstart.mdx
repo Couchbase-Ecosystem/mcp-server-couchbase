@@ -28,6 +28,9 @@ Go to **Cursor > Cursor Settings > Tools & Integrations > MCP Tools**. See the [
 
 Add the Couchbase MCP Server configuration. You may need to add the server configuration under a parent key of `mcpServers`.
 
+<Tabs groupId="install-method">
+  <TabItem value="uvx" label="uvx" default>
+
 ```json
 {
   "mcpServers": {
@@ -43,6 +46,29 @@ Add the Couchbase MCP Server configuration. You may need to add the server confi
   }
 }
 ```
+
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=your-username",
+        "-e", "CB_PASSWORD=your-password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
 
 **Logs:** Bottom panel > Output dropdown > "Cursor MCP"
 
@@ -55,6 +81,9 @@ Open the Claude Desktop configuration file:
 
 For detailed instructions, see the [MCP quickstart guide](https://modelcontextprotocol.io/quickstart/user).
 
+<Tabs groupId="install-method">
+  <TabItem value="uvx" label="uvx" default>
+
 ```json
 {
   "mcpServers": {
@@ -70,6 +99,29 @@ For detailed instructions, see the [MCP quickstart guide](https://modelcontextpr
   }
 }
 ```
+
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=your-username",
+        "-e", "CB_PASSWORD=your-password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
 
 **Logs:** `~/Library/Logs/Claude` (macOS), `%APPDATA%\Claude\Logs` (Windows)
 
@@ -80,6 +132,9 @@ Navigate to **Command Palette > Windsurf MCP Configuration Panel** or **Windsurf
 
 Click **Add Server** > **Add custom server**.
 
+<Tabs groupId="install-method">
+  <TabItem value="uvx" label="uvx" default>
+
 ```json
 {
   "mcpServers": {
@@ -96,16 +151,45 @@ Click **Add Server** > **Add custom server**.
 }
 ```
 
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=your-username",
+        "-e", "CB_PASSWORD=your-password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
+
 **Logs:** Check Windsurf output panel
 
   </TabItem>
   <TabItem value="vscode" label="VS Code">
 
-Create `.vscode/mcp.json` in your workspace, or run **MCP: Open User Configuration** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
+VS Code supports two configuration scopes:
+
+- **Workspace** — Create `.vscode/mcp.json` in your project root. Settings apply only to that project.
+- **Global (User)** — Run **MCP: Open User Configuration** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`). Settings apply to all projects.
 
 :::note
 VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 :::
+
+<Tabs groupId="install-method">
+  <TabItem value="uvx" label="uvx" default>
 
 ```json
 {
@@ -123,6 +207,29 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 }
 ```
 
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "servers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=your-username",
+        "-e", "CB_PASSWORD=your-password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
+
 **Logs:** Command Palette > "MCP: List Servers" > Show Output
 
   </TabItem>
@@ -131,6 +238,9 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 Install the [AI Assistant](https://www.jetbrains.com/help/ai-assistant/getting-started-with-ai-assistant.html) or [Junie](https://www.jetbrains.com/help/junie/get-started-with-junie.html) plugin.
 
 Navigate to **Settings > Tools > AI Assistant (or Junie) > MCP Server**. Click **"+"** to add the configuration and click **Save**.
+
+<Tabs groupId="install-method">
+  <TabItem value="uvx" label="uvx" default>
 
 ```json
 {
@@ -147,6 +257,29 @@ Navigate to **Settings > Tools > AI Assistant (or Junie) > MCP Server**. Click *
   }
 }
 ```
+
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=your-username",
+        "-e", "CB_PASSWORD=your-password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
 
 **Logs:** Help > Show Log in Finder/Explorer > mcp > couchbase
 

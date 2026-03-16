@@ -10,14 +10,10 @@ const sidebars = {
       items: [
         'get-started/prerequisites',
         'get-started/quickstart',
+        'get-started/registries',
       ],
     },
-    'troubleshooting',
-    {
-      type: 'category',
-      label: 'Advanced Setup',
-      items: ['installation/source', 'installation/docker'],
-    },
+    'tools/cluster-health',
     {
       type: 'category',
       label: 'Configuration',
@@ -30,14 +26,23 @@ const sidebars = {
         'configuration/authentication',
         'configuration/read-only-mode',
         'configuration/disabling-tools',
-        'configuration/transport-modes',
       ],
     },
-    'tools/cluster-health',
-    'registries',
-    'contributing',
+    {
+      type: 'category',
+      label: 'Advanced Setup',
+      items: ['installation/source', 'installation/docker'],
+    },
     'security',
-    'release-notes',
+    {
+      type: 'category',
+      label: 'Product Notes',
+      items: [
+        'product-notes/release-notes',
+        'product-notes/contributing',
+      ],
+    },
+    'troubleshooting',
   ],
 };
 

@@ -1,4 +1,5 @@
 ---
+sidebar_position: 3
 title: Registries
 ---
 
@@ -28,4 +29,3 @@ The [MCP Registry](https://registry.modelcontextprotocol.io/) is the official re
 
 - **Listing:** [Couchbase MCP Server on Glama](https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase)
 - **Configuration:** Defined in [`glama.json`](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/glama.json) at the repository root.
-

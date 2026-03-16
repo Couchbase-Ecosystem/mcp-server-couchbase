@@ -25,3 +25,32 @@
   --ifm-color-primary-lightest: #90DBB2;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+.tutorial-cards {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tutorial-card {
+  flex: 1 1 45%;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  min-width: 240px;
+  transition: border-color 0.2s;
+}
+
+.tutorial-card:hover {
+  border-color: var(--ifm-color-primary);
+  text-decoration: none;
+  color: inherit;
+}
+
+.tutorial-card span {
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.9rem;
+}
