@@ -10,6 +10,9 @@ Tool Categories:
 
 from collections.abc import Callable
 
+# Docs / API reference tools
+from .docs import ask_couchbase_docs
+
 # Index tools
 from .index import get_index_advisor_recommendations, list_indexes
 
@@ -24,6 +27,7 @@ from .kv import (
 
 # Query tools
 from .query import (
+    generate_or_modify_sql_plus_plus_query,
     get_longest_running_queries,
     get_most_frequent_queries,
     get_queries_not_selective,
@@ -33,6 +37,7 @@ from .query import (
     get_queries_with_largest_response_sizes,
     get_schema_for_collection,
     run_sql_plus_plus_query,
+    update_query_function_annotation,
 )
 
 # Server tools
@@ -72,6 +77,13 @@ READ_ONLY_TOOLS = [
     get_queries_with_largest_response_sizes,
     get_longest_running_queries,
     get_most_frequent_queries,
+    # Docs / API reference tools
+    ask_couchbase_docs,
+]
+
+# Query generation tools - disabled by default, enabled via --enable-query-generation or CB_MCP_ENABLE_QUERY_GENERATION
+QUERY_GENERATION_TOOLS = [
+    generate_or_modify_sql_plus_plus_query,
 ]
 
 # KV write tools - disabled when READ_ONLY_MODE is True
@@ -83,20 +95,30 @@ KV_WRITE_TOOLS = [
 ]
 
 # List of all tools for easy registration (kept for backward compatibility)
-ALL_TOOLS = READ_ONLY_TOOLS + KV_WRITE_TOOLS
+ALL_TOOLS = READ_ONLY_TOOLS + KV_WRITE_TOOLS + QUERY_GENERATION_TOOLS
 
 
-def get_tools(read_only_mode: bool = True) -> list[Callable]:
+def get_tools(
+    read_only_mode: bool = True,
+    enable_query_generation: bool = False,
+) -> list[Callable]:
     """Get the list of tools based on the mode settings.
 
     This function determines which tools should be loaded based on the
-    READ_ONLY_MODE setting. When read_only_mode is True, write tools are excluded.
+    mode settings. When read_only_mode is True, write tools are excluded.
+    When enable_query_generation is True, query generation tools are included.
     """
+    # Update the query function annotation based on enable_query_generation flag
+    update_query_function_annotation(enable_query_generation)
+
     tools = list(READ_ONLY_TOOLS)
 
     if not read_only_mode:
         # KV write tools are only loaded when READ_ONLY_MODE is False
         tools.extend(KV_WRITE_TOOLS)
+
+    if enable_query_generation:
+        tools.extend(QUERY_GENERATION_TOOLS)
 
     return tools
 
@@ -126,9 +148,12 @@ __all__ = [
     "get_queries_with_largest_response_sizes",
     "get_longest_running_queries",
     "get_most_frequent_queries",
+    "generate_or_modify_sql_plus_plus_query",
+    "ask_couchbase_docs",
     # Tool categories
     "READ_ONLY_TOOLS",
     "KV_WRITE_TOOLS",
+    "QUERY_GENERATION_TOOLS",
     # Convenience
     "ALL_TOOLS",
     "get_tools",

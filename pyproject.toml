@@ -20,6 +20,7 @@ dependencies = [
     "lark-sqlpp>=0.0.1",
     "mcp[cli]>=1.20.0,<2.0.0",
     "urllib3>=2.0.0",
+    "requests>=2.32.5,<3.0.0",
 ]
 
 [project.urls]

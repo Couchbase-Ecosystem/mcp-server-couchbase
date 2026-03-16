@@ -15,6 +15,7 @@ from tools import get_tools
 # Import utilities
 from utils import (
     ALLOWED_TRANSPORTS,
+    DEFAULT_ENABLE_QUERY_GENERATION,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
@@ -149,6 +150,14 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     help="Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') "
     "or a file path containing one tool name per line.",
 )
+@click.option(
+    "--enable-query-generation",
+    envvar="CB_MCP_ENABLE_QUERY_GENERATION",
+    type=bool,
+    default=DEFAULT_ENABLE_QUERY_GENERATION,
+    help="Enable the SQL++ query generation tool (generate_or_modify_sql_plus_plus_query). "
+    "Disabled by default. Set to True to enable AI-powered query generation.",
+)
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
 def main(
@@ -165,6 +174,7 @@ def main(
     host,
     port,
     disabled_tools,
+    enable_query_generation,
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -184,7 +194,10 @@ def main(
 
     # Get tools based on mode settings
     # When read_only_mode is True, KV write tools are not loaded
-    tools = get_tools(read_only_mode=read_only_mode)
+    tools = get_tools(
+        read_only_mode=read_only_mode,
+        enable_query_generation=enable_query_generation,
+    )
 
     # Parse and validate disabled tools from CLI/environment variable
     all_tool_names = {tool.__name__ for tool in tools}
