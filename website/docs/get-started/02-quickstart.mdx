@@ -24,9 +24,8 @@ Select your MCP client and add the Couchbase MCP Server configuration.
 <Tabs groupId="mcp-client">
   <TabItem value="cursor" label="Cursor" default>
 
-Go to **Cursor > Cursor Settings > Tools & Integrations > MCP Tools**. See the [Cursor MCP documentation](https://cursor.com/docs/mcp) for details.
-
-Add the Couchbase MCP Server configuration. You may need to add the server configuration under a parent key of `mcpServers`.
+1. Go to **Cursor > Cursor Settings > Tools & Integrations > MCP Tools**. See the [Cursor MCP documentation](https://cursor.com/docs/mcp) for details.
+2. Add the Couchbase MCP Server configuration. You may need to add the server configuration under a parent key of `mcpServers`.
 
 <Tabs groupId="install-method">
   <TabItem value="uvx" label="uvx" default>
@@ -75,11 +74,10 @@ Add the Couchbase MCP Server configuration. You may need to add the server confi
   </TabItem>
   <TabItem value="claude-desktop" label="Claude Desktop">
 
-Open the Claude Desktop configuration file:
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-For detailed instructions, see the [MCP quickstart guide](https://modelcontextprotocol.io/quickstart/user).
+1. Open the Claude Desktop configuration file:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+2. Add the Couchbase MCP Server configuration. For detailed instructions, see the [MCP quickstart guide](https://modelcontextprotocol.io/quickstart/user).
 
 <Tabs groupId="install-method">
   <TabItem value="uvx" label="uvx" default>
@@ -128,9 +126,9 @@ For detailed instructions, see the [MCP quickstart guide](https://modelcontextpr
   </TabItem>
   <TabItem value="windsurf" label="Windsurf">
 
-Navigate to **Command Palette > Windsurf MCP Configuration Panel** or **Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers**. See the [official documentation](https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin) for details.
-
-Click **Add Server** > **Add custom server**.
+1. Navigate to **Command Palette > Windsurf MCP Configuration Panel** or **Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers**. See the [official documentation](https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin) for details.
+2. Click **Add Server** > **Add custom server**.
+3. Add the Couchbase MCP Server configuration.
 
 <Tabs groupId="install-method">
   <TabItem value="uvx" label="uvx" default>
@@ -179,10 +177,10 @@ Click **Add Server** > **Add custom server**.
   </TabItem>
   <TabItem value="vscode" label="VS Code">
 
-VS Code supports two configuration scopes:
-
-- **Workspace** — Create `.vscode/mcp.json` in your project root. Settings apply only to that project.
-- **Global (User)** — Run **MCP: Open User Configuration** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`). Settings apply to all projects.
+1. Create a configuration file using one of two scopes:
+   - **Workspace** — Create `.vscode/mcp.json` in your project root. Settings apply only to that project.
+   - **Global (User)** — Run **MCP: Open User Configuration** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`). Settings apply to all projects.
+2. Add the Couchbase MCP Server configuration.
 
 :::note
 VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
@@ -235,9 +233,9 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
   </TabItem>
   <TabItem value="jetbrains" label="JetBrains">
 
-Install the [AI Assistant](https://www.jetbrains.com/help/ai-assistant/getting-started-with-ai-assistant.html) or [Junie](https://www.jetbrains.com/help/junie/get-started-with-junie.html) plugin.
-
-Navigate to **Settings > Tools > AI Assistant (or Junie) > MCP Server**. Click **"+"** to add the configuration and click **Save**.
+1. Install the [AI Assistant](https://www.jetbrains.com/help/ai-assistant/getting-started-with-ai-assistant.html) or [Junie](https://www.jetbrains.com/help/junie/get-started-with-junie.html) plugin.
+2. Navigate to **Settings > Tools > AI Assistant (or Junie) > MCP Server**.
+3. Click **"+"** to add the Couchbase MCP Server configuration and click **Save**.
 
 <Tabs groupId="install-method">
   <TabItem value="uvx" label="uvx" default>
