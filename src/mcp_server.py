@@ -245,12 +245,14 @@ def main(
         )
 
     # Wrap tools that require confirmation with the elicitation wrapper
-    final_tools = []
-    for tool in enabled_tools:
-        if tool.__name__ in active_confirmation_tool_names:
-            final_tools.append(wrap_with_confirmation(tool))
-        else:
-            final_tools.append(tool)
+    final_tools = [
+        (
+            wrap_with_confirmation(tool)
+            if tool.__name__ in active_confirmation_tool_names
+            else tool
+        )
+        for tool in enabled_tools
+    ]
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)

@@ -167,6 +167,7 @@ The server can be configured using environment variables or command line argumen
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
 | `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](#disabling-tools)) | None |
+| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | `--confirmation-required-tools` | Tools that require explicit user confirmation before execution via MCP elicitation (see [Confirmation Required Tools](#confirmation-required-tools)) | `delete_document_by_id` |
 
 #### Read-Only Mode Configuration
 
@@ -282,6 +283,26 @@ Lines starting with `#` are treated as comments and ignored.
 > - The database user lacks the necessary RBAC permissions for data modification
 >
 > **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use tool disabling as an additional layer to guide LLM behavior and reduce the attack surface, not as the sole security control.
+
+### Confirmation Required Tools
+
+You can require explicit user confirmation for specific tools before execution (when the MCP client supports elicitation).
+
+**Comma-separated list:**
+
+```bash
+# Environment variable
+CB_MCP_CONFIRMATION_REQUIRED_TOOLS="delete_document_by_id,replace_document_by_id"
+
+# Command line
+uvx couchbase-mcp-server --confirmation-required-tools delete_document_by_id,replace_document_by_id
+```
+
+When a listed tool is invoked:
+- If the client supports elicitation, the user is prompted to confirm.
+- If the client does not support elicitation, the tool executes without confirmation for backward compatibility.
+
+By default, `delete_document_by_id` requires confirmation.
 
 You can also check the version of the server using:
 
@@ -544,7 +565,8 @@ docker run --rm -i \
   -e CB_USERNAME='<database_user>' \
   -e CB_PASSWORD='<database_password>' \
   -e CB_MCP_TRANSPORT='<http|sse|stdio>' \
-  -e CB_MCP_READ_ONLY_QUERY_MODE='<true|false>' \
+  -e CB_MCP_READ_ONLY_MODE='<true|false>' \
+  -e CB_MCP_CONFIRMATION_REQUIRED_TOOLS='delete_document_by_id' \
   -e CB_MCP_PORT=9001 \
   -p 9001:9001 \
   mcp/couchbase

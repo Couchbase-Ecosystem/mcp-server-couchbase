@@ -8,6 +8,8 @@ from types import SimpleNamespace
 
 import pytest
 from mcp.server.fastmcp import Context
+from mcp.shared.exceptions import McpError
+from mcp.types import ErrorData
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -190,6 +192,29 @@ class TestBuildConfirmationMessage:
 class TestWrapWithConfirmation:
     """Tests for wrapper behavior around accept/decline/fallback paths."""
 
+    @staticmethod
+    def _make_context(*, supports_elicitation: bool, elicit_callback):
+        class FakeSession:
+            def __init__(self, supports):
+                self.supports = supports
+
+            def check_client_capability(self, capability):
+                return self.supports
+
+        class FakeContext:
+            def __init__(self):
+                self.request_context = SimpleNamespace(
+                    lifespan_context=SimpleNamespace(
+                        confirmation_required_tools={"sample_tool"}
+                    ),
+                    session=FakeSession(supports_elicitation),
+                )
+
+            async def elicit(self, message, schema):
+                return await elicit_callback(message, schema)
+
+        return FakeContext()
+
     @pytest.mark.asyncio
     async def test_decline_raises_permission_error(self):
         def sample_tool(
@@ -199,22 +224,22 @@ class TestWrapWithConfirmation:
 
         wrapped = wrap_with_confirmation(sample_tool)
 
-        class FakeContext:
-            def __init__(self):
-                self.request_context = SimpleNamespace(
-                    lifespan_context=SimpleNamespace(
-                        confirmation_required_tools={"sample_tool"}
-                    )
-                )
+        async def decline_elicit(message, schema):
+            return SimpleNamespace(action="decline")
 
-            async def elicit(self, message, schema):
-                return SimpleNamespace(action="decline")
+        fake_ctx = self._make_context(
+            supports_elicitation=True,
+            elicit_callback=decline_elicit,
+        )
 
-        with pytest.raises(PermissionError):
-            await wrapped(ctx=FakeContext())
+        with pytest.raises(
+            PermissionError,
+            match="was declined by the user",
+        ):
+            await wrapped(ctx=fake_ctx)
 
     @pytest.mark.asyncio
-    async def test_elicitation_failure_falls_back_to_execution(self):
+    async def test_cancel_raises_permission_error(self):
         def sample_tool(
             ctx: Context,
         ) -> bool:  # pragma: no cover - function under wrapper
@@ -222,16 +247,156 @@ class TestWrapWithConfirmation:
 
         wrapped = wrap_with_confirmation(sample_tool)
 
-        class FakeContext:
-            def __init__(self):
-                self.request_context = SimpleNamespace(
-                    lifespan_context=SimpleNamespace(
-                        confirmation_required_tools={"sample_tool"}
-                    )
-                )
+        async def cancel_elicit(message, schema):
+            return SimpleNamespace(action="cancel")
 
-            async def elicit(self, message, schema):
-                raise RuntimeError("Client does not support elicitation")
+        fake_ctx = self._make_context(
+            supports_elicitation=True,
+            elicit_callback=cancel_elicit,
+        )
 
-        result = await wrapped(ctx=FakeContext())
+        with pytest.raises(
+            PermissionError,
+            match="was canceled by the user",
+        ):
+            await wrapped(ctx=fake_ctx)
+
+    @pytest.mark.asyncio
+    async def test_accept_with_confirm_false_raises_permission_error(self):
+        def sample_tool(
+            ctx: Context,
+        ) -> bool:  # pragma: no cover - function under wrapper
+            return True
+
+        wrapped = wrap_with_confirmation(sample_tool)
+
+        async def reject_confirm_elicit(message, schema):
+            return SimpleNamespace(
+                action="accept",
+                data=SimpleNamespace(confirm=False),
+            )
+
+        fake_ctx = self._make_context(
+            supports_elicitation=True,
+            elicit_callback=reject_confirm_elicit,
+        )
+
+        with pytest.raises(PermissionError):
+            await wrapped(ctx=fake_ctx)
+
+    @pytest.mark.asyncio
+    async def test_accept_with_confirm_true_executes_tool(self):
+        called = False
+
+        def sample_tool(
+            ctx: Context,
+        ) -> bool:  # pragma: no cover - function under wrapper
+            nonlocal called
+            called = True
+            return True
+
+        wrapped = wrap_with_confirmation(sample_tool)
+
+        async def accept_elicit(message, schema):
+            return SimpleNamespace(
+                action="accept",
+                data=SimpleNamespace(confirm=True),
+            )
+
+        fake_ctx = self._make_context(
+            supports_elicitation=True,
+            elicit_callback=accept_elicit,
+        )
+
+        result = await wrapped(ctx=fake_ctx)
         assert result is True
+        assert called is True
+
+    @pytest.mark.asyncio
+    async def test_client_without_elicitation_support_falls_back_to_execution(self):
+        def sample_tool(
+            ctx: Context,
+        ) -> bool:  # pragma: no cover - function under wrapper
+            return True
+
+        wrapped = wrap_with_confirmation(sample_tool)
+
+        async def should_not_be_called_elicit(message, schema):
+            raise AssertionError("elicit should not be called without client support")
+
+        fake_ctx = self._make_context(
+            supports_elicitation=False,
+            elicit_callback=should_not_be_called_elicit,
+        )
+
+        result = await wrapped(ctx=fake_ctx)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_unsupported_elicitation_error_falls_back_to_execution(self):
+        def sample_tool(
+            ctx: Context,
+        ) -> bool:  # pragma: no cover - function under wrapper
+            return True
+
+        wrapped = wrap_with_confirmation(sample_tool)
+
+        async def unsupported_error_elicit(message, schema):
+            raise McpError(ErrorData(code=-32601, message="Method not found"))
+
+        fake_ctx = self._make_context(
+            supports_elicitation=True,
+            elicit_callback=unsupported_error_elicit,
+        )
+
+        result = await wrapped(ctx=fake_ctx)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_unexpected_elicitation_error_blocks_execution(self):
+        def sample_tool(
+            ctx: Context,
+        ) -> bool:  # pragma: no cover - function under wrapper
+            return True
+
+        wrapped = wrap_with_confirmation(sample_tool)
+
+        async def transient_error_elicit(message, schema):
+            raise RuntimeError("Transient elicitation failure")
+
+        fake_ctx = self._make_context(
+            supports_elicitation=True,
+            elicit_callback=transient_error_elicit,
+        )
+
+        with pytest.raises(RuntimeError, match="Transient elicitation failure"):
+            await wrapped(ctx=fake_ctx)
+
+    @pytest.mark.asyncio
+    async def test_positional_arguments_are_supported(self):
+        captured_document_id = None
+
+        def sample_tool(
+            ctx: Context,
+            document_id: str,
+        ) -> bool:  # pragma: no cover - function under wrapper
+            nonlocal captured_document_id
+            captured_document_id = document_id
+            return True
+
+        wrapped = wrap_with_confirmation(sample_tool)
+
+        async def accept_elicit(message, schema):
+            return SimpleNamespace(
+                action="accept",
+                data=SimpleNamespace(confirm=True),
+            )
+
+        fake_ctx = self._make_context(
+            supports_elicitation=True,
+            elicit_callback=accept_elicit,
+        )
+
+        result = await wrapped(fake_ctx, "doc-123")
+        assert result is True
+        assert captured_document_id == "doc-123"

@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from couchbase.cluster import Cluster
 from mcp.server.fastmcp import Context
@@ -29,11 +29,7 @@ class AppContext:
     cluster: Cluster | None = None
     read_only_mode: bool = True
     read_only_query_mode: bool = True
-    confirmation_required_tools: set[str] | None = None
-
-    def __post_init__(self):
-        if self.confirmation_required_tools is None:
-            self.confirmation_required_tools = set()
+    confirmation_required_tools: set[str] = field(default_factory=set)
 
 
 def _set_cluster_in_lifespan_context(ctx: Context) -> None:
