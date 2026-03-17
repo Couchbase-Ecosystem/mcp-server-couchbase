@@ -36,12 +36,14 @@ Recommendations:
 - **Scope permissions to specific buckets** rather than granting cluster-wide access.
 - Don't rely solely on `CB_MCP_READ_ONLY_MODE` or tool disabling — these guide LLM behavior but RBAC is the enforcement layer.
 
+See [RBAC for Couchbase Server](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) or [RBAC for Capella](https://docs.couchbase.com/cloud/organizations/ui-auth/manage-database-credentials.html) for configuration details.
+
 ## Tool Disabling
 
-You can [disable specific tools](/configuration/disabling-tools) to reduce the attack surface. However:
+You can [disable specific tools](/configuration/disabling-tools) to reduce the attack surface.
 
 :::warning
-Disabling tools alone does not guarantee operations cannot be performed. For example, even with KV write tools disabled, data modifications can still occur via `run_sql_plus_plus_query` using SQL++ DML statements — unless `CB_MCP_READ_ONLY_MODE=true` or the database user lacks RBAC permissions.
+Disabling tools alone does not guarantee operations cannot be performed. Data modifications can still occur via `run_sql_plus_plus_query` using SQL++ DML statements — unless `CB_MCP_READ_ONLY_MODE=true` or the database user lacks RBAC permissions.
 :::
 
 ## TLS / mTLS
@@ -54,7 +56,13 @@ The server supports:
 
 For Capella connections, TLS is always enabled and the bundled Capella root CA is used automatically.
 
-## Defense in Depth
+## Risks Associated with LLMs
+
+- The use of large language models involves risks, including the potential for inaccurate or harmful outputs.
+- Couchbase does not review or evaluate the quality or accuracy of LLM outputs, and such outputs may not reflect Couchbase's views.
+- You are solely responsible for determining whether to use LLMs and for complying with your organization's policies.
+
+## Summary
 
 For maximum security, layer these controls:
 
@@ -62,9 +70,3 @@ For maximum security, layer these controls:
 2. **Read-Only Mode** — `CB_MCP_READ_ONLY_MODE=true` (default) blocks all write operations.
 3. **Tool Disabling** — Remove unnecessary tools from LLM discovery.
 4. **TLS/mTLS** — Encrypt all network traffic.
-
-## Risks Associated with LLMs
-
-- The use of large language models involves risks, including the potential for inaccurate or harmful outputs.
-- Couchbase does not review or evaluate the quality or accuracy of LLM outputs, and such outputs may not reflect Couchbase's views.
-- You are solely responsible for determining whether to use LLMs and for complying with your organization's policies.

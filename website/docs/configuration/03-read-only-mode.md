@@ -7,17 +7,17 @@ title: Read-Only Mode
 
 The MCP server provides configuration options for controlling write operations, ensuring safe interaction between LLMs and your database.
 
-## `CB_MCP_READ_ONLY_MODE` (Recommended)
+## Read-Only Mode (Recommended)
 
-This is the primary security control:
+This is the primary security control (`CB_MCP_READ_ONLY_MODE`):
 
 - **When `true` (default)**: All write operations are disabled. KV write tools (upsert, insert, replace, delete) are **not loaded** and will not be available to the LLM. SQL++ queries that modify data are also blocked.
 - **When `false`**: KV write tools are loaded and available. SQL++ write queries are allowed (unless blocked by `CB_MCP_READ_ONLY_QUERY_MODE`).
 
-## `CB_MCP_READ_ONLY_QUERY_MODE` (Deprecated)
+## Read-Only Query Mode (Deprecated)
 
 :::warning Deprecated
-This option only controls SQL++ query-based writes but does not prevent KV write operations. Use `CB_MCP_READ_ONLY_MODE` instead for comprehensive protection.
+`CB_MCP_READ_ONLY_QUERY_MODE` only controls SQL++ query-based writes but does not prevent KV write operations. Use `CB_MCP_READ_ONLY_MODE` instead for comprehensive protection.
 :::
 
 ## Mode Behavior Truth Table

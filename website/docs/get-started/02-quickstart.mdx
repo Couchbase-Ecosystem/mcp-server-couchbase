@@ -13,9 +13,9 @@ Get the Couchbase MCP Server running in under 5 minutes.
 ## Prerequisites
 
 - Python 3.10+ installed
-- [uv](https://docs.astral.sh/uv/) installed
+- [uv](https://docs.astral.sh/uv/) or [Docker](https://www.docker.com/) installed
 - A running Couchbase cluster ([Capella free tier](https://docs.couchbase.com/cloud/get-started/create-account.html) recommended)
-- An MCP client installed (e.g., [Claude Desktop](https://claude.ai/download), [Cursor](https://cursor.com/), [VS Code](https://code.visualstudio.com/))
+- An MCP client installed (e.g., [Claude Desktop](https://claude.ai/download), [Cursor](https://cursor.com/), [VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers))
 
 ## Step 1: Configure Your MCP Client
 
@@ -176,6 +176,8 @@ Select your MCP client and add the Couchbase MCP Server configuration.
 
   </TabItem>
   <TabItem value="vscode" label="VS Code">
+
+See the [VS Code MCP documentation](https://code.visualstudio.com/docs/copilot/chat/mcp-servers) for details.
 
 1. Create a configuration file using one of two scopes:
    - **Workspace** — Create `.vscode/mcp.json` in your project root. Settings apply only to that project.

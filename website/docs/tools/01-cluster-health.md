@@ -35,7 +35,7 @@ Tools for exploring buckets, scopes, collections, and document schemas.
 
 ## Document KV Operations
 
-Tools for reading and writing documents by ID. Write tools are disabled by default when `CB_MCP_READ_ONLY_MODE=true`.
+Tools for reading and writing documents by ID. Tools that modify data are disabled by default when `CB_MCP_READ_ONLY_MODE=true`.
 
 [Source](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/tools/kv.py)
 

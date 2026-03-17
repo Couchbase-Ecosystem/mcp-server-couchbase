@@ -1,11 +1,11 @@
 ---
 sidebar_position: 1
-title: Environment Variables
+title: Environment Variables & Command Line Arguments
 ---
 
-# Environment Variables
+# Environment Variables & Command Line Arguments
 
-The MCP server can be configured using environment variables or command line arguments.
+The MCP server can be configured using environment variables or command line arguments. If both are specified, command line arguments take priority over environment variables.
 
 ## Configuration Reference
 
@@ -46,7 +46,7 @@ uvx couchbase-mcp-server --version
 
 ### Basic Authentication (Username and Password)
 
-The simplest method. Provide a Couchbase username and password:
+Provide a Couchbase database username and password:
 
 ```json
 {
@@ -127,21 +127,6 @@ For environments requiring certificate-based authentication:
     "CB_CONNECTION_STRING": "couchbases://your-server-hostname",
     "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
     "CB_CLIENT_KEY_PATH": "/path/to/client.key",
-    "CB_CA_CERT_PATH": "/path/to/ca-certificate.pem"
-  }
-}
-```
-
-### Custom CA Certificate
-
-If your Couchbase server uses a self-signed or untrusted certificate, provide the CA root certificate:
-
-```json
-{
-  "env": {
-    "CB_CONNECTION_STRING": "couchbases://your-connection-string",
-    "CB_USERNAME": "username",
-    "CB_PASSWORD": "password",
     "CB_CA_CERT_PATH": "/path/to/ca-certificate.pem"
   }
 }

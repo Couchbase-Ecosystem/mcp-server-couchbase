@@ -13,8 +13,8 @@ Before using the Couchbase MCP Server, ensure you have the following:
 - **A running Couchbase cluster** — Either:
   - [Couchbase Capella](https://docs.couchbase.com/cloud/get-started/create-account.html#getting-started) (free tier available) — fully managed cloud version
   - A self-hosted Couchbase Server instance
-- **[uv](https://docs.astral.sh/uv/)** — Fast Python package manager, used to run the server.
-- **An MCP client** — Such as [Claude Desktop](https://claude.ai/download), [Cursor](https://cursor.sh/), VS Code, Windsurf Editor, or any [MCP-compatible client](https://modelcontextprotocol.io/clients).
+- **[uv](https://docs.astral.sh/uv/) or [Docker](https://www.docker.com/)** — uv is the recommended way to run the server. Docker is an alternative if you prefer containerized deployments.
+- **An MCP client** — Such as [Claude Desktop](https://claude.ai/download), [Cursor](https://cursor.sh/), [VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers), [Windsurf](https://docs.windsurf.com/windsurf/cascade/mcp), or any [MCP-compatible client](https://modelcontextprotocol.io/clients).
 
 ## Getting Sample Data
 
