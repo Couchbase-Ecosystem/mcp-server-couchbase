@@ -23,14 +23,13 @@ const sidebars = {
       },
       items: [
         'configuration/environment-variables',
-        'configuration/authentication',
         'configuration/read-only-mode',
         'configuration/disabling-tools',
       ],
     },
     {
       type: 'category',
-      label: 'Advanced Setup',
+      label: 'Build from Source or Docker',
       items: ['installation/source', 'installation/docker'],
     },
     'security',

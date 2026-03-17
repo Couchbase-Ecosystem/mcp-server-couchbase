@@ -342,11 +342,11 @@ If the tool is not available, the server did not start correctly. Check the logs
 </details>
 
 <details>
-<summary><b>Test cluster connection</b></summary>
+<summary><b>Check cluster health and services</b></summary>
 
-> "Test the connection to my Couchbase cluster."
+> "Check the health of my Couchbase cluster and list all running services."
 
-The assistant will call `test_cluster_connection`, which attempts to connect to the cluster using the configured credentials. It returns connection status, cluster services, and bucket accessibility.
+The assistant will call `get_cluster_health_and_services`, which connects to the cluster and returns the cluster health status along with all running services (Data, Query, Index, Search, etc.).
 
 If the connection fails, verify your `CB_CONNECTION_STRING`, `CB_USERNAME`, and `CB_PASSWORD` values.
 
@@ -380,4 +380,4 @@ To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configurat
 
 - Review all available [Tools](/tools/cluster-health)
 - Explore [Configuration](/configuration) options
-- For Source or Docker installation, see [Advanced Setup](/installation/source)
+- For Source or Docker installation, see [Build from Source or Docker](/installation/source)
