@@ -11,7 +11,9 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 <!-- mcp-name: io.github.Couchbase-Ecosystem/mcp-server-couchbase -->
 
 ## Features/Tools
+
 ### Cluster setup & health tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `get_server_configuration_status` | Get the status of the MCP server |
@@ -19,6 +21,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 | `get_cluster_health_and_services` | Get cluster health status and list of all running services |
 
 ### Data model & schema discovery tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `get_buckets_in_cluster` | Get a list of all the buckets in the cluster |
@@ -28,6 +31,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 | `get_schema_for_collection` | Get the structure for a collection |
 
 ### Document KV operations tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `get_document_by_id` | Get a document by ID from a specified scope and collection |
@@ -37,6 +41,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 | `delete_document_by_id` | Delete a document by ID from a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
 
 ### Query and indexing tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name. |
@@ -44,6 +49,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 | `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_MODE` is `true` by default, which means that **all write operations (KV and Query)** are disabled. When enabled, KV write tools are not loaded and SQL++ queries that modify data are blocked. |
 
 ### Query performance analysis tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `get_longest_running_queries` | Get longest running queries by average service time |
@@ -115,7 +121,7 @@ or
 
 The MCP server can be run from the source using this repository.
 
-#### Clone the repository to your local machine.
+#### Clone the repository to your local machine
 
 ```bash
 git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
@@ -153,6 +159,7 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 ### Additional Configuration for MCP Server
 
 The server can be configured using environment variables or command line arguments:
+
 | Environment Variable | CLI Argument | Description | Default |
 |--------------------------------|--------------------------|---------------------------------------------------------------------------------------------|------------------------------------------|
 | `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster | **Required** |
@@ -174,10 +181,12 @@ The server can be configured using environment variables or command line argumen
 The MCP server provides two configuration options for controlling write operations:
 
 **`CB_MCP_READ_ONLY_MODE`** (Recommended)
+
 - When `true` (default): All write operations are disabled. KV write tools (upsert, insert, replace, delete) are **not loaded** and will not be available to the LLM.
 - When `false`: KV write tools are loaded and available.
 
 **`CB_MCP_READ_ONLY_QUERY_MODE`** (Deprecated)
+
 - This option only controls SQL++ query-based writes but does not prevent KV write operations.
 - **Deprecated**: Use `CB_MCP_READ_ONLY_MODE` instead for comprehensive protection.
 
@@ -279,6 +288,7 @@ Lines starting with `#` are treated as comments and ignored.
 > **Warning:** Disabling tools alone does not guarantee that certain operations cannot be performed. The underlying database user's RBAC (Role-Based Access Control) permissions are the authoritative security control.
 >
 > For example, even if you disable `upsert_document_by_id` and `delete_document_by_id`, data modifications can still occur via the `run_sql_plus_plus_query` tool using SQL++ DML statements (INSERT, UPDATE, DELETE, MERGE) unless:
+>
 > - The `CB_MCP_READ_ONLY_MODE` is set to `true` (default), OR
 > - The database user lacks the necessary RBAC permissions for data modification
 >
@@ -389,15 +399,17 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 <summary>VS Code</summary>
 
 Follow the steps below to use the Couchbase MCP server with [VS Code](https://code.visualstudio.com/).
+
 1. Install [VS Code](https://code.visualstudio.com/)
 2. Following are a couple of ways to configure the MCP server.
-    * For a Workspace server configuration
+    - For a Workspace server configuration
       - Create a new file in workspace as .vscode/mcp.json.
       - Add the [configuration](#configuration) and save the file.
-    * For the Global server configuration:
-      - Run **MCP: Open User Configuration** in the Command Pallete(`Ctrl+Shift+P` or `Cmd+Shift+P`)
+    - For the Global server configuration:
+      - Run **MCP: Open User Configuration** in the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`)
       - Add the [configuration](#configuration) and save the file.
-    * **Note**: VS Code uses `servers` as the top-level JSON property in mcp.json files to define MCP (Model Context Protocol) servers, while Cursor uses `mcpServers` for the equivalent configuration. Check the [VS Code client configurations](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for any further changes or details. An example VS Code configuration is provided below.
+    - **Note**: VS Code uses `servers` as the top-level JSON property in mcp.json files to define MCP (Model Context Protocol) servers, while Cursor uses `mcpServers` for the equivalent configuration. Check the [VS Code client configurations](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for any further changes or details. An example VS Code configuration is provided below.
+
       ```json
         {
           "servers": {
@@ -413,20 +425,24 @@ Follow the steps below to use the Couchbase MCP server with [VS Code](https://co
           }
         }
         ```
+
 3. Once you save the file, the server starts and a small action list appears with `Running|Stop|n Tools|More..`.
 4. Click on the options from the option list to `Start`/`Stop`/manage the server.
 5. You can now use the Couchbase MCP server in VS Code to query your Couchbase cluster using natural language and perform CRUD operations on documents.
 
 Logs:
 In the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`),
+
 - run **MCP: List Servers** command and pick the couchbase server
 - choose “Show Output” to see its logs in the Output tab.
+
 </details>
 
 <details>
 <summary>JetBrains IDEs</summary>
 
 Follow the steps below to use the Couchbase MCP server with [JetBrains IDEs](https://www.jetbrains.com/)
+
 1. Install any one of the [JetBrains IDEs](https://www.jetbrains.com/)
 2. Install any one of the JetBrains plugins - [AI Assistant](https://www.jetbrains.com/help/ai-assistant/getting-started-with-ai-assistant.html) or [Junie](https://www.jetbrains.com/help/junie/get-started-with-junie.html)
 3. Navigate to **Settings > Tools > AI Assistant or Junie > MCP Server**
@@ -459,7 +475,7 @@ uvx couchbase-mcp-server \
   --transport=http
 ```
 
-The server will be available on http://localhost:8000/mcp. This can be used in MCP clients supporting streamable http transport mode such as Cursor.
+The server will be available on <http://localhost:8000/mcp>. This can be used in MCP clients supporting streamable http transport mode such as Cursor.
 
 ### MCP Client Configuration
 
@@ -492,7 +508,7 @@ uvx couchbase-mcp-server \
   --transport=sse
 ```
 
-The server will be available on http://localhost:8000/sse. This can be used in MCP clients supporting SSE transport mode such as Cursor.
+The server will be available on <http://localhost:8000/sse>. This can be used in MCP clients supporting SSE transport mode such as Cursor.
 
 ### MCP Client Configuration
 
