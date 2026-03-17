@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Troubleshooting | Couchbase MCP Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Troubleshooting | Couchbase MCP Server"><meta data-rh="true" name="description" content="Common issues and solutions when using the Couchbase MCP Server."><meta data-rh="true" property="og:description" content="Common issues and solutions when using the Couchbase MCP Server."><link data-rh="true" rel="icon" href="/mcp-server-couchbase/pr-preview/pr-106/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting"><link data-rh="true" rel="alternate" href="https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting" hreflang="en"><link data-rh="true" rel="alternate" href="https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Troubleshooting","item":"https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting"}]}</script><link rel="stylesheet" href="/mcp-server-couchbase/pr-preview/pr-106/assets/css/styles.a64e1761.css">
-<script src="/mcp-server-couchbase/pr-preview/pr-106/assets/js/runtime~main.7795e450.js" defer="defer"></script>
+<script src="/mcp-server-couchbase/pr-preview/pr-106/assets/js/runtime~main.6d32d6af.js" defer="defer"></script>
 <script src="/mcp-server-couchbase/pr-preview/pr-106/assets/js/main.b48b9d83.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -15,15 +15,17 @@
 <p>Common issues and solutions when using the Couchbase MCP Server.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="uv--uvx-issues">uv / uvx Issues<a href="#uv--uvx-issues" class="hash-link" aria-label="Direct link to uv / uvx Issues" title="Direct link to uv / uvx Issues" translate="no">​</a></h2>
 <ul>
-<li class=""><strong>Confirm <code>uv</code> is installed</strong> and accessible. You may need to provide the absolute path to <code>uv</code>/<code>uvx</code> in the <code>command</code> field of your MCP client configuration. Run <code>which uv</code> (macOS/Linux) or <code>where uv</code> (Windows) to find the path.</li>
-<li class=""><strong>After updating the repo</strong>, run <code>uv sync</code> to update <a href="https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment" target="_blank" rel="noopener noreferrer" class="">dependencies</a>.</li>
-<li class=""><strong><code>uvx</code> not found</strong>: Install uv following the <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank" rel="noopener noreferrer" class="">official instructions</a>. If installed via a package manager, ensure it&#x27;s on your system PATH.</li>
+<li class=""><strong><code>uvx</code> not found</strong>: Ensure <code>uv</code> is on your system PATH. Install uv following the <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank" rel="noopener noreferrer" class="">official instructions</a>. If installed via a package manager, verify it&#x27;s on your PATH.<!-- -->
+<ul>
+<li class="">Run <code>which uv</code> (macOS/Linux) or <code>where uv</code> (Windows) to find the path. You may need to provide the absolute path to <code>uv</code>/<code>uvx</code> in the <code>command</code> field of your MCP client configuration.</li>
+</ul>
+</li>
+<li class=""><strong>After updating source code</strong>, run <code>uv sync</code> to update <a href="https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment" target="_blank" rel="noopener noreferrer" class="">dependencies</a>. This is only required when running from source after pulling new changes.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-issues">Connection Issues<a href="#connection-issues" class="hash-link" aria-label="Direct link to Connection Issues" title="Direct link to Connection Issues" translate="no">​</a></h2>
 <ul>
-<li class=""><strong>Verify the repository path</strong> is correct in your MCP client configuration (if running from source).</li>
 <li class=""><strong>Check credentials</strong> — Ensure your connection string, username, password, or certificate paths are correct.</li>
-<li class=""><strong>Capella accessibility</strong> — If using Couchbase Capella, ensure the cluster is <a href="https://docs.couchbase.com/cloud/clusters/allow-ip-address.html" target="_blank" rel="noopener noreferrer" class="">accessible</a> from the machine running the MCP server.</li>
+<li class=""><strong>Cluster accessibility</strong> — Ensure the cluster is accessible from the machine running the MCP server. If using Couchbase Capella, ensure the machine&#x27;s IP is <a href="https://docs.couchbase.com/cloud/clusters/allow-ip-address.html" target="_blank" rel="noopener noreferrer" class="">allowed</a> in the cluster settings.</li>
 <li class=""><strong>Bucket permissions</strong> — Check that the database user has proper permissions to access at least one bucket.</li>
 <li class=""><strong>Connection string format</strong> — Use <code>couchbases://</code> for Capella and TLS-enabled clusters, <code>couchbase://</code> for unencrypted local connections.</li>
 </ul>
@@ -32,6 +34,7 @@
 <li class=""><strong>stdio</strong> — Ensure the MCP client is configured to launch the server as a subprocess. Check that no other process is already using stdin/stdout.</li>
 <li class=""><strong>HTTP/SSE</strong> — Check that the configured port is not in use. Verify the URL matches the transport mode (<code>/mcp</code> for HTTP, <code>/sse</code> for SSE).</li>
 <li class=""><strong>Port conflicts</strong> — If the default port 8000 is in use, set a different port with <code>CB_MCP_PORT</code> or <code>--port</code>.</li>
+<li class=""><strong>Host binding</strong> — By default, the server binds to <code>127.0.0.1</code> (localhost only). To allow external connections, set <code>CB_MCP_HOST=0.0.0.0</code>.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="read-only-mode-issues">Read-Only Mode Issues<a href="#read-only-mode-issues" class="hash-link" aria-label="Direct link to Read-Only Mode Issues" title="Direct link to Read-Only Mode Issues" translate="no">​</a></h2>
 <ul>
