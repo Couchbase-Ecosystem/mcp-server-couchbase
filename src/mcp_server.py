@@ -3,7 +3,7 @@ Couchbase MCP Server
 """
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 import click
@@ -26,7 +26,7 @@ from utils import (
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
     get_settings,
-    parse_disabled_tools,
+    parse_tool_names,
     wrap_with_confirmation,
 )
 
@@ -37,6 +37,69 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(MCP_SERVER_NAME)
+
+
+def _prepare_tools_for_registration(
+    read_only_mode: bool,
+    disabled_tools: str | None,
+    confirmation_required_tools: str | None,
+) -> tuple[list[Callable], set[str]]:
+    """Prepare final tool list and confirmation configuration for registration."""
+    # Get tools based on mode settings
+    # When read_only_mode is True, KV write tools are not loaded
+    tools = get_tools(read_only_mode=read_only_mode)
+
+    # Parse and validate disabled tools from CLI/environment variable
+    loaded_tool_names = {tool.__name__ for tool in tools}
+    disabled_tool_names = parse_tool_names(disabled_tools, loaded_tool_names)
+
+    if disabled_tool_names:
+        logger.info(
+            f"Disabled {len(disabled_tool_names)} tool(s): {sorted(disabled_tool_names)}"
+        )
+
+    # Parse and validate confirmation-required tools
+    # Validate confirmation tools against all known tools so defaults remain valid
+    # even when some tools are unavailable (e.g., read-only mode).
+    all_known_tool_names = {tool.__name__ for tool in get_tools(read_only_mode=False)}
+    configured_confirmation_tool_names = parse_tool_names(
+        confirmation_required_tools, all_known_tool_names
+    )
+
+    if configured_confirmation_tool_names:
+        logger.info(
+            f"Confirmation required for {len(configured_confirmation_tool_names)} tool(s): "
+            f"{sorted(configured_confirmation_tool_names)}"
+        )
+
+    # Filter out disabled tools
+    enabled_tools = [tool for tool in tools if tool.__name__ not in disabled_tool_names]
+
+    # Apply confirmation to tools that are currently active.
+    active_tool_names = {tool.__name__ for tool in enabled_tools}
+    active_confirmation_tool_names = (
+        configured_confirmation_tool_names & active_tool_names
+    )
+
+    skipped_confirmation_tool_names = (
+        configured_confirmation_tool_names - active_tool_names
+    )
+    if skipped_confirmation_tool_names:
+        logger.info(
+            "Skipped confirmation for unavailable tool(s): "
+            f"{sorted(skipped_confirmation_tool_names)}"
+        )
+
+    final_tools = [
+        (
+            wrap_with_confirmation(tool)
+            if tool.__name__ in active_confirmation_tool_names
+            else tool
+        )
+        for tool in enabled_tools
+    ]
+
+    return final_tools, configured_confirmation_tool_names
 
 
 @asynccontextmanager
@@ -160,7 +223,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     envvar="CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
     default=DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
     help="Comma-separated tool names that require user confirmation before execution. "
-    "Requires the client to support MCP elicitation. "
+    "Requires the MCP client to support elicitation. "
     "Default: 'delete_document_by_id'.",
 )
 @click.version_option(package_name="couchbase-mcp-server")
@@ -183,32 +246,11 @@ def main(
 ):
     """Couchbase MCP Server"""
 
-    # Get tools based on mode settings
-    # When read_only_mode is True, KV write tools are not loaded
-    tools = get_tools(read_only_mode=read_only_mode)
-
-    # Parse and validate disabled tools from CLI/environment variable
-    loaded_tool_names = {tool.__name__ for tool in tools}
-    disabled_tool_names = parse_disabled_tools(disabled_tools, loaded_tool_names)
-
-    if disabled_tool_names:
-        logger.info(
-            f"Disabled {len(disabled_tool_names)} tool(s): {sorted(disabled_tool_names)}"
-        )
-
-    # Parse and validate confirmation-required tools
-    # Validate confirmation tools against all known tools so defaults remain valid
-    # even when some tools are unavailable (e.g., read-only mode).
-    all_known_tool_names = {tool.__name__ for tool in get_tools(read_only_mode=False)}
-    configured_confirmation_tool_names = parse_disabled_tools(
-        confirmation_required_tools, all_known_tool_names
+    final_tools, configured_confirmation_tool_names = _prepare_tools_for_registration(
+        read_only_mode=read_only_mode,
+        disabled_tools=disabled_tools,
+        confirmation_required_tools=confirmation_required_tools,
     )
-
-    if configured_confirmation_tool_names:
-        logger.info(
-            f"Confirmation required for {len(configured_confirmation_tool_names)} tool(s): "
-            f"{sorted(configured_confirmation_tool_names)}"
-        )
 
     # Store configuration in context
     ctx.obj = {
@@ -225,34 +267,6 @@ def main(
         "port": port,
         "confirmation_required_tools": configured_confirmation_tool_names,
     }
-
-    # Filter out disabled tools
-    enabled_tools = [tool for tool in tools if tool.__name__ not in disabled_tool_names]
-
-    # Apply confirmation to tools that are currently active.
-    active_tool_names = {tool.__name__ for tool in enabled_tools}
-    active_confirmation_tool_names = (
-        configured_confirmation_tool_names & active_tool_names
-    )
-
-    skipped_confirmation_tool_names = (
-        configured_confirmation_tool_names - active_tool_names
-    )
-    if skipped_confirmation_tool_names:
-        logger.info(
-            "Skipped confirmation for unavailable tool(s): "
-            f"{sorted(skipped_confirmation_tool_names)}"
-        )
-
-    # Wrap tools that require confirmation with the elicitation wrapper
-    final_tools = [
-        (
-            wrap_with_confirmation(tool)
-            if tool.__name__ in active_confirmation_tool_names
-            else tool
-        )
-        for tool in enabled_tools
-    ]
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)

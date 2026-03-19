@@ -14,7 +14,7 @@ from mcp.types import ErrorData
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tools import TOOL_ANNOTATIONS, get_tools
-from utils.config import parse_disabled_tools
+from utils.config import parse_tool_names
 from utils.constants import DEFAULT_CONFIRMATION_REQUIRED_TOOLS
 from utils.elicitation import (
     ConfirmationResult,
@@ -42,21 +42,19 @@ class TestDefaultConfirmationRequiredTools:
         assert "delete_document_by_id" in DEFAULT_CONFIRMATION_REQUIRED_TOOLS
 
     def test_parse_default_value(self):
-        result = parse_disabled_tools(
-            DEFAULT_CONFIRMATION_REQUIRED_TOOLS, VALID_TOOL_NAMES
-        )
+        result = parse_tool_names(DEFAULT_CONFIRMATION_REQUIRED_TOOLS, VALID_TOOL_NAMES)
         assert result == {"delete_document_by_id"}
 
 
 class TestParseConfirmationRequiredTools:
-    """Tests for parsing confirmation-required tools (reuses parse_disabled_tools)."""
+    """Tests for parsing confirmation-required tools (reuses parse_tool_names)."""
 
     def test_single_tool(self):
-        result = parse_disabled_tools("delete_document_by_id", VALID_TOOL_NAMES)
+        result = parse_tool_names("delete_document_by_id", VALID_TOOL_NAMES)
         assert result == {"delete_document_by_id"}
 
     def test_multiple_tools(self):
-        result = parse_disabled_tools(
+        result = parse_tool_names(
             "delete_document_by_id,upsert_document_by_id,insert_document_by_id",
             VALID_TOOL_NAMES,
         )
@@ -67,25 +65,25 @@ class TestParseConfirmationRequiredTools:
         }
 
     def test_with_spaces(self):
-        result = parse_disabled_tools(
+        result = parse_tool_names(
             "delete_document_by_id, upsert_document_by_id",
             VALID_TOOL_NAMES,
         )
         assert result == {"delete_document_by_id", "upsert_document_by_id"}
 
     def test_invalid_tools_ignored(self):
-        result = parse_disabled_tools(
+        result = parse_tool_names(
             "delete_document_by_id,nonexistent_tool",
             VALID_TOOL_NAMES,
         )
         assert result == {"delete_document_by_id"}
 
     def test_empty_string(self):
-        result = parse_disabled_tools("", VALID_TOOL_NAMES)
+        result = parse_tool_names("", VALID_TOOL_NAMES)
         assert result == set()
 
     def test_none_input(self):
-        result = parse_disabled_tools(None, VALID_TOOL_NAMES)
+        result = parse_tool_names(None, VALID_TOOL_NAMES)
         assert result == set()
 
 

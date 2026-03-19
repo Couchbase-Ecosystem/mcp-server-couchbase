@@ -299,7 +299,11 @@ Lines starting with `#` are treated as comments and ignored.
 
 You can require explicit user confirmation for specific tools before execution (when the MCP client supports elicitation).
 
-**Comma-separated list:**
+`CB_MCP_CONFIRMATION_REQUIRED_TOOLS` / `--confirmation-required-tools` supports these formats:
+- Comma-separated list
+- File path (one tool name per line, `#` comments supported)
+
+**Example:**
 
 ```bash
 # Environment variable

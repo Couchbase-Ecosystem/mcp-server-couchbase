@@ -7,7 +7,7 @@ This module contains utility functions for configuration, connection, and contex
 # Configuration utilities
 from .config import (
     get_settings,
-    parse_disabled_tools,
+    parse_tool_names,
 )
 
 # Connection utilities
@@ -50,7 +50,7 @@ from .index_utils import (
 __all__ = [
     # Config
     "get_settings",
-    "parse_disabled_tools",
+    "parse_tool_names",
     # Connection
     "connect_to_couchbase_cluster",
     "connect_to_bucket",
