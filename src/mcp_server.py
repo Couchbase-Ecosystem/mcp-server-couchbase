@@ -43,7 +43,7 @@ def _prepare_tools_for_registration(
     read_only_mode: bool,
     disabled_tools: str | None,
     confirmation_required_tools: str | None,
-) -> tuple[list[Callable], set[str]]:
+) -> tuple[list[Callable], set[str], set[str]]:
     """Prepare final tool list and confirmation configuration for registration."""
     # Get tools based on mode settings
     # When read_only_mode is True, KV write tools are not loaded
@@ -99,7 +99,7 @@ def _prepare_tools_for_registration(
         for tool in enabled_tools
     ]
 
-    return final_tools, configured_confirmation_tool_names
+    return final_tools, configured_confirmation_tool_names, disabled_tool_names
 
 
 @asynccontextmanager
@@ -246,7 +246,11 @@ def main(
 ):
     """Couchbase MCP Server"""
 
-    final_tools, configured_confirmation_tool_names = _prepare_tools_for_registration(
+    (
+        final_tools,
+        configured_confirmation_tool_names,
+        disabled_tool_names,
+    ) = _prepare_tools_for_registration(
         read_only_mode=read_only_mode,
         disabled_tools=disabled_tools,
         confirmation_required_tools=confirmation_required_tools,
@@ -265,6 +269,7 @@ def main(
         "transport": transport,
         "host": host,
         "port": port,
+        "disabled_tools": disabled_tool_names,
         "confirmation_required_tools": configured_confirmation_tool_names,
     }
 
