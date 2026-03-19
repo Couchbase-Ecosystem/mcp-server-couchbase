@@ -7,7 +7,7 @@ Coverage map:
 - Confirmation schema + confirmation prompt message formatting.
 - Confirmation wrapper behavior across:
   - user actions (accept/decline/cancel)
-  - capability detection and unsupported-elicitation fallback
+  - capability detection and fallback when elicitation is not advertised
   - fail-closed behavior for unexpected runtime errors
   - positional argument forwarding compatibility
 """
@@ -18,8 +18,6 @@ from types import SimpleNamespace
 
 import pytest
 from mcp.server.fastmcp import Context
-from mcp.shared.exceptions import McpError
-from mcp.types import ErrorData
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -221,9 +219,8 @@ class TestWrapWithConfirmation:
     Coverage in this suite:
     - User decision outcomes: decline/cancel block execution.
     - Accept paths: confirm=False blocks, confirm=True executes.
-    - Capability/error behavior: no elicitation support and explicit
-      unsupported-elicitation errors fall back to execution, while unexpected
-      runtime failures fail closed.
+    - Capability/error behavior: no elicitation support falls back to execution,
+      while elicitation runtime failures fail closed.
     - Invocation compatibility: wrapper supports positional argument forwarding.
     """
 
@@ -273,7 +270,7 @@ class TestWrapWithConfirmation:
 
         with pytest.raises(
             PermissionError,
-            match="was declined by the user",
+            match="was not confirmed by the user",
         ):
             await wrapped(ctx=fake_ctx)
 
@@ -298,7 +295,7 @@ class TestWrapWithConfirmation:
 
         with pytest.raises(
             PermissionError,
-            match="was canceled by the user",
+            match="was not confirmed by the user",
         ):
             await wrapped(ctx=fake_ctx)
 
@@ -373,28 +370,6 @@ class TestWrapWithConfirmation:
         fake_ctx = self._make_context(
             supports_elicitation=False,
             elicit_callback=should_not_be_called_elicit,
-        )
-
-        result = await wrapped(ctx=fake_ctx)
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_unsupported_elicitation_error_falls_back_to_execution(self):
-        """Known unsupported-elicitation MCP errors should fall back to execution."""
-
-        def sample_tool(
-            ctx: Context,
-        ) -> bool:  # pragma: no cover - function under wrapper
-            return True
-
-        wrapped = wrap_with_confirmation(sample_tool)
-
-        async def unsupported_error_elicit(message, schema):
-            raise McpError(ErrorData(code=-32601, message="Method not found"))
-
-        fake_ctx = self._make_context(
-            supports_elicitation=True,
-            elicit_callback=unsupported_error_elicit,
         )
 
         result = await wrapped(ctx=fake_ctx)

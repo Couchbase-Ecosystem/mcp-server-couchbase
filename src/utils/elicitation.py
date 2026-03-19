@@ -11,14 +11,11 @@ import logging
 from collections.abc import Callable
 
 from mcp import types
-from mcp.shared.exceptions import McpError
 from pydantic import BaseModel, Field
 
 from utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.elicitation")
-
-UNSUPPORTED_ELICITATION_ERROR_CODES = {-32601, -32602}
 
 
 class ConfirmationResult(BaseModel):
@@ -58,17 +55,11 @@ def _client_supports_elicitation(ctx) -> bool:
     )
 
 
-def _is_unsupported_elicitation_error(error: McpError) -> bool:
-    """Return True when MCP error indicates client lacks elicitation support."""
-    return error.error.code in UNSUPPORTED_ELICITATION_ERROR_CODES
-
-
 def wrap_with_confirmation(fn: Callable) -> Callable:
     """Wrap a tool function with elicitation-based confirmation.
 
-    The wrapper checks if the tool is in the confirmation_required_tools
-    list in the AppContext. If so, it prompts the user for confirmation
-    via MCP elicitation before executing the tool.
+    This wrapper prompts for user confirmation via MCP elicitation
+    before executing the wrapped tool.
 
     If the client does not support elicitation, the tool executes without
     confirmation to maintain backward compatibility.
@@ -85,71 +76,33 @@ def wrap_with_confirmation(fn: Callable) -> Callable:
         ctx = call_arguments.get("ctx")
 
         if ctx:
-            app_context = ctx.request_context.lifespan_context
             tool_name = fn.__name__
-            confirmation_tools = getattr(
-                app_context, "confirmation_required_tools", set()
-            )
+            if not _client_supports_elicitation(ctx):
+                logger.debug(
+                    f"Client does not advertise elicitation support for '{tool_name}'; "
+                    "proceeding without confirmation"
+                )
+            else:
+                message = _build_confirmation_message(tool_name, call_arguments)
+                result = await ctx.elicit(
+                    message=message,
+                    schema=ConfirmationResult,
+                )
 
-            if tool_name in confirmation_tools:
-                if not _client_supports_elicitation(ctx):
-                    logger.debug(
-                        f"Client does not advertise elicitation support for '{tool_name}'; "
-                        "proceeding without confirmation"
+                if (
+                    result.action != "accept"
+                    or (
+                        hasattr(result, "data")
+                        and result.data
+                        and not result.data.confirm
                     )
-                else:
-                    try:
-                        message = _build_confirmation_message(tool_name, call_arguments)
-                        result = await ctx.elicit(
-                            message=message,
-                            schema=ConfirmationResult,
-                        )
-                    except McpError as error:
-                        if _is_unsupported_elicitation_error(error):
-                            logger.debug(
-                                f"Client does not support elicitation for '{tool_name}' "
-                                f"(code={error.error.code}); proceeding without confirmation"
-                            )
-                        else:
-                            logger.error(
-                                f"Elicitation failed for '{tool_name}' with code={error.error.code}; "
-                                "blocking execution",
-                                exc_info=True,
-                            )
-                            raise
-                    except Exception:
-                        logger.error(
-                            f"Unexpected elicitation failure for '{tool_name}'; blocking execution",
-                            exc_info=True,
-                        )
-                        raise
-                    else:
-                        if result.action in {"decline", "cancel"}:
-                            action_past_tense = {
-                                "decline": "declined",
-                                "cancel": "canceled",
-                            }[result.action]
-                            logger.info(
-                                f"User {action_past_tense} execution of '{tool_name}'"
-                            )
-                            raise PermissionError(
-                                f"Execution of '{tool_name}' was {action_past_tense} by the user."
-                            )
+                ):
+                    logger.info(f"User did not confirm execution of '{tool_name}'")
+                    raise PermissionError(
+                        f"Execution of '{tool_name}' was not confirmed by the user."
+                    )
 
-                        if (
-                            result.action == "accept"
-                            and hasattr(result, "data")
-                            and result.data
-                            and not result.data.confirm
-                        ):
-                            logger.info(
-                                f"User did not confirm execution of '{tool_name}'"
-                            )
-                            raise PermissionError(
-                                f"Execution of '{tool_name}' was not confirmed by the user."
-                            )
-
-                        logger.info(f"User confirmed execution of '{tool_name}'")
+                logger.info(f"User confirmed execution of '{tool_name}'")
 
         # Call the original (sync) function
         if inspect.iscoroutinefunction(fn):
