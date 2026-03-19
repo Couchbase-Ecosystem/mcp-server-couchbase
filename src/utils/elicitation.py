@@ -69,6 +69,16 @@ def wrap_with_confirmation(fn: Callable) -> Callable:
 
     @functools.wraps(fn)
     async def wrapper(*args, **kwargs):
+        """Apply confirmation gate, then delegate to the wrapped tool.
+
+        High-level flow:
+        1) Reconstruct a name->value argument map from positional/keyword inputs.
+        2) Read `ctx` from that normalized map and run elicitation when supported.
+        3) Preserve the wrapped function's original calling style (async or sync).
+        """
+        # `bind_partial` maps runtime `*args/**kwargs` to the wrapped function's
+        # declared parameter names without requiring every optional parameter.
+        # This gives us a reliable `{"ctx": ..., "document_id": ...}` view.
         bound_args = fn_signature.bind_partial(*args, **kwargs)
         call_arguments = dict(bound_args.arguments)
 
@@ -104,7 +114,7 @@ def wrap_with_confirmation(fn: Callable) -> Callable:
 
                 logger.info(f"User confirmed execution of '{tool_name}'")
 
-        # Call the original (sync) function
+        # Keep wrapper behavior transparent: await async tools, call sync tools directly.
         if inspect.iscoroutinefunction(fn):
             return await fn(*args, **kwargs)
         return fn(*args, **kwargs)
