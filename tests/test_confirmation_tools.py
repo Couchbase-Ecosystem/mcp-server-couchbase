@@ -1,5 +1,15 @@
-"""
-Tests for the confirmation-required tools functionality and elicitation wrapper.
+"""Tests for confirmation-required tool behavior and related metadata.
+
+Coverage map:
+- Default confirmation-required configuration values and parsing.
+- Generic tool-name parsing behavior used by disabled/confirmation tool lists.
+- Tool annotations contract (read-only/destructive/idempotent/open-world hints).
+- Confirmation schema + confirmation prompt message formatting.
+- Confirmation wrapper behavior across:
+  - user actions (accept/decline/cancel)
+  - capability detection and unsupported-elicitation fallback
+  - fail-closed behavior for unexpected runtime errors
+  - positional argument forwarding compatibility
 """
 
 import sys
@@ -39,9 +49,11 @@ class TestDefaultConfirmationRequiredTools:
     """Tests for default confirmation-required tools configuration."""
 
     def test_default_value_includes_delete(self):
+        """Default constant should include delete tool for safety."""
         assert "delete_document_by_id" in DEFAULT_CONFIRMATION_REQUIRED_TOOLS
 
     def test_parse_default_value(self):
+        """Default string should parse into expected tool set."""
         result = parse_tool_names(DEFAULT_CONFIRMATION_REQUIRED_TOOLS, VALID_TOOL_NAMES)
         assert result == {"delete_document_by_id"}
 
@@ -50,10 +62,12 @@ class TestParseConfirmationRequiredTools:
     """Tests for parsing confirmation-required tools (reuses parse_tool_names)."""
 
     def test_single_tool(self):
+        """Single tool value should parse to one-item set."""
         result = parse_tool_names("delete_document_by_id", VALID_TOOL_NAMES)
         assert result == {"delete_document_by_id"}
 
     def test_multiple_tools(self):
+        """Comma-separated values should parse to all valid tools."""
         result = parse_tool_names(
             "delete_document_by_id,upsert_document_by_id,insert_document_by_id",
             VALID_TOOL_NAMES,
@@ -65,6 +79,7 @@ class TestParseConfirmationRequiredTools:
         }
 
     def test_with_spaces(self):
+        """Parser should ignore whitespace around comma-separated names."""
         result = parse_tool_names(
             "delete_document_by_id, upsert_document_by_id",
             VALID_TOOL_NAMES,
@@ -72,6 +87,7 @@ class TestParseConfirmationRequiredTools:
         assert result == {"delete_document_by_id", "upsert_document_by_id"}
 
     def test_invalid_tools_ignored(self):
+        """Unknown tool names should be ignored, valid names retained."""
         result = parse_tool_names(
             "delete_document_by_id,nonexistent_tool",
             VALID_TOOL_NAMES,
@@ -79,10 +95,12 @@ class TestParseConfirmationRequiredTools:
         assert result == {"delete_document_by_id"}
 
     def test_empty_string(self):
+        """Empty input should produce an empty set."""
         result = parse_tool_names("", VALID_TOOL_NAMES)
         assert result == set()
 
     def test_none_input(self):
+        """None input should produce an empty set."""
         result = parse_tool_names(None, VALID_TOOL_NAMES)
         assert result == set()
 
@@ -91,6 +109,7 @@ class TestToolAnnotations:
     """Tests for tool annotations mapping."""
 
     def test_read_only_tools_have_read_only_hint(self):
+        """All read-only tools should advertise readOnlyHint=True."""
         read_only_tool_names = [
             "get_server_configuration_status",
             "test_cluster_connection",
@@ -120,14 +139,17 @@ class TestToolAnnotations:
             )
 
     def test_delete_tool_has_destructive_hint(self):
+        """Delete tool should advertise destructive behavior."""
         assert "delete_document_by_id" in TOOL_ANNOTATIONS
         assert TOOL_ANNOTATIONS["delete_document_by_id"].destructiveHint is True
 
     def test_sql_query_tool_has_open_world_hint(self):
+        """SQL query tool should advertise open-world side effects."""
         assert "run_sql_plus_plus_query" in TOOL_ANNOTATIONS
         assert TOOL_ANNOTATIONS["run_sql_plus_plus_query"].openWorldHint is True
 
     def test_upsert_and_replace_are_idempotent(self):
+        """Idempotent write tools should advertise idempotentHint=True."""
         for tool_name in ["upsert_document_by_id", "replace_document_by_id"]:
             assert tool_name in TOOL_ANNOTATIONS
             assert TOOL_ANNOTATIONS[tool_name].idempotentHint is True
@@ -145,14 +167,17 @@ class TestConfirmationResult:
     """Tests for the ConfirmationResult schema."""
 
     def test_default_value_is_true(self):
+        """Confirmation model defaults to confirm=True."""
         result = ConfirmationResult()
         assert result.confirm is True
 
     def test_can_set_to_false(self):
+        """Confirmation model should accept explicit confirm=False."""
         result = ConfirmationResult(confirm=False)
         assert result.confirm is False
 
     def test_schema_has_title(self):
+        """Generated schema should include confirm property metadata."""
         schema = ConfirmationResult.model_json_schema()
         assert "properties" in schema
         assert "confirm" in schema["properties"]
@@ -162,10 +187,12 @@ class TestBuildConfirmationMessage:
     """Tests for the confirmation message builder."""
 
     def test_basic_message(self):
+        """Base message should include tool name."""
         msg = _build_confirmation_message("delete_document_by_id", {})
         assert "delete_document_by_id" in msg
 
     def test_message_with_identifiers(self):
+        """Message should include common identifier fields when present."""
         msg = _build_confirmation_message(
             "delete_document_by_id",
             {
@@ -180,6 +207,7 @@ class TestBuildConfirmationMessage:
         assert "delete_document_by_id" in msg
 
     def test_message_with_partial_identifiers(self):
+        """Message should include whichever identifiers are available."""
         msg = _build_confirmation_message(
             "delete_document_by_id",
             {"bucket_name": "mybucket"},
@@ -188,10 +216,21 @@ class TestBuildConfirmationMessage:
 
 
 class TestWrapWithConfirmation:
-    """Tests for wrapper behavior around accept/decline/fallback paths."""
+    """High-level behavioral tests for confirmation gating.
+
+    Coverage in this suite:
+    - User decision outcomes: decline/cancel block execution.
+    - Accept paths: confirm=False blocks, confirm=True executes.
+    - Capability/error behavior: no elicitation support and explicit
+      unsupported-elicitation errors fall back to execution, while unexpected
+      runtime failures fail closed.
+    - Invocation compatibility: wrapper supports positional argument forwarding.
+    """
 
     @staticmethod
     def _make_context(*, supports_elicitation: bool, elicit_callback):
+        """Build a minimal fake Context/session pair for wrapper tests."""
+
         class FakeSession:
             def __init__(self, supports):
                 self.supports = supports
@@ -215,6 +254,8 @@ class TestWrapWithConfirmation:
 
     @pytest.mark.asyncio
     async def test_decline_raises_permission_error(self):
+        """Decline action must block execution with PermissionError."""
+
         def sample_tool(
             ctx: Context,
         ) -> bool:  # pragma: no cover - function under wrapper
@@ -238,6 +279,8 @@ class TestWrapWithConfirmation:
 
     @pytest.mark.asyncio
     async def test_cancel_raises_permission_error(self):
+        """Cancel action must block execution with PermissionError."""
+
         def sample_tool(
             ctx: Context,
         ) -> bool:  # pragma: no cover - function under wrapper
@@ -261,6 +304,8 @@ class TestWrapWithConfirmation:
 
     @pytest.mark.asyncio
     async def test_accept_with_confirm_false_raises_permission_error(self):
+        """Accept action with confirm=False must still block execution."""
+
         def sample_tool(
             ctx: Context,
         ) -> bool:  # pragma: no cover - function under wrapper
@@ -284,6 +329,7 @@ class TestWrapWithConfirmation:
 
     @pytest.mark.asyncio
     async def test_accept_with_confirm_true_executes_tool(self):
+        """Accept action with confirm=True should allow tool execution."""
         called = False
 
         def sample_tool(
@@ -312,6 +358,8 @@ class TestWrapWithConfirmation:
 
     @pytest.mark.asyncio
     async def test_client_without_elicitation_support_falls_back_to_execution(self):
+        """If client does not advertise elicitation, tool should still execute."""
+
         def sample_tool(
             ctx: Context,
         ) -> bool:  # pragma: no cover - function under wrapper
@@ -332,6 +380,8 @@ class TestWrapWithConfirmation:
 
     @pytest.mark.asyncio
     async def test_unsupported_elicitation_error_falls_back_to_execution(self):
+        """Known unsupported-elicitation MCP errors should fall back to execution."""
+
         def sample_tool(
             ctx: Context,
         ) -> bool:  # pragma: no cover - function under wrapper
@@ -352,6 +402,8 @@ class TestWrapWithConfirmation:
 
     @pytest.mark.asyncio
     async def test_unexpected_elicitation_error_blocks_execution(self):
+        """Unexpected elicitation failures should fail closed (raise)."""
+
         def sample_tool(
             ctx: Context,
         ) -> bool:  # pragma: no cover - function under wrapper
@@ -372,6 +424,7 @@ class TestWrapWithConfirmation:
 
     @pytest.mark.asyncio
     async def test_positional_arguments_are_supported(self):
+        """Wrapper should preserve positional argument passing semantics."""
         captured_document_id = None
 
         def sample_tool(

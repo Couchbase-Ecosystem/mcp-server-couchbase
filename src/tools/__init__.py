@@ -104,6 +104,7 @@ TOOL_ANNOTATIONS: dict[str, ToolAnnotations] = {
     # Query tools
     "get_schema_for_collection": ToolAnnotations(readOnlyHint=True),
     "run_sql_plus_plus_query": ToolAnnotations(openWorldHint=True),
+    "explain_sql_plus_plus_query": ToolAnnotations(readOnlyHint=True),
     # Index tools (read-only)
     "get_index_advisor_recommendations": ToolAnnotations(readOnlyHint=True),
     "list_indexes": ToolAnnotations(readOnlyHint=True),
