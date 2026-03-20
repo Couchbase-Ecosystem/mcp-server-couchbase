@@ -5,7 +5,12 @@ title: Read-Only Mode
 
 # Read-Only Mode
 
-The MCP server provides configuration options for controlling write operations, ensuring safe interaction between LLMs and your database.
+The MCP server provides configuration options for controlling write operations, ensuring safe interaction between LLMs and your database. Use this mode to start in a safe default that prevents data mutations by not loading write-capable tools; see the [Security](/security) page for best practices. This mode is enabled by default.
+
+## Security Guidelines
+
+- Read-only mode is a **defense-in-depth feature**, not the primary security boundary.
+- The authoritative control is **Couchbase RBAC**: you should configure database user permissions so that the credentials used by the MCP server simply do not have data-modification privileges if you want strong guarantees. See [RBAC for Couchbase Server](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) or [RBAC for Capella](https://docs.couchbase.com/cloud/organizations/ui-auth/manage-database-credentials.html).
 
 ## Read-Only Mode (Recommended)
 

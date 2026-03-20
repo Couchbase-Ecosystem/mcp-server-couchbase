@@ -29,7 +29,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Build from Source or Docker',
+      label: 'Run from Source or Docker',
       items: ['installation/source', 'installation/docker'],
     },
     'security',

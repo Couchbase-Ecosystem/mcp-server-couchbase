@@ -5,7 +5,7 @@ title: Disabling Tools
 
 # Disabling Tools
 
-You can disable specific tools to prevent them from being loaded and exposed to the MCP client. Disabled tools will not appear in tool discovery and cannot be invoked by the LLM.
+You can disable specific tools to prevent them from being loaded and exposed to the MCP client; disabled tools will not appear in tool discovery, cannot be invoked by the LLM, and help cut noise and unnecessary token consumption.
 
 ## Supported Formats
 

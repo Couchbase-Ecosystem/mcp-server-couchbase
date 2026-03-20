@@ -18,6 +18,7 @@ Common issues and solutions when using the Couchbase MCP Server.
 - **Cluster accessibility** — Ensure the cluster is accessible from the machine running the MCP server. If using Couchbase Capella, ensure the machine's IP is [allowed](https://docs.couchbase.com/cloud/clusters/allow-ip-address.html) in the cluster settings.
 - **Bucket permissions** — Check that the database user has proper permissions to access at least one bucket.
 - **Connection string format** — Use `couchbases://` for Capella and TLS-enabled clusters, `couchbase://` for unencrypted local connections.
+  - Use `couchbase://` for unencrypted connections as you do not need to encrypt the connection in trusted environments.
 
 ## Transport Mode Issues
 

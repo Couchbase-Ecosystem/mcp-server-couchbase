@@ -6,7 +6,7 @@ sidebar_position: 0
 
 # Configuration
 
-The Couchbase MCP Server can be configured through environment variables set in your MCP client configuration.
+The Couchbase MCP Server can be configured through environment variables set in your MCP client configuration. Equivalent command line arguments are also available — see [Environment Variables & Command Line Arguments](/configuration/environment-variables) for the full reference.
 
 ## Configuration Topics
 

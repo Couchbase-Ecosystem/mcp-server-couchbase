@@ -55,6 +55,10 @@ docker run --rm -i \
 
 The `CB_MCP_PORT` environment variable and port mapping (`-p`) are only needed for HTTP/SSE transport modes.
 
+:::note
+By default, the server binds to `127.0.0.1` (localhost only). When running in a Docker container with HTTP/SSE transport, set `CB_MCP_HOST=0.0.0.0` so the server is accessible outside the container network.
+:::
+
 ## MCP Client Configuration (stdio)
 
 The Docker image can be used in `stdio` transport mode with MCP clients:

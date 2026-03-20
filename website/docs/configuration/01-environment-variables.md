@@ -44,6 +44,10 @@ uvx couchbase-mcp-server --version
 
 ## Example Configurations
 
+:::note
+All examples below use `uvx` to run the server. These can be replaced with the corresponding `docker run` commands — see [Docker](/installation/docker) for details.
+:::
+
 ### Basic Authentication (Username and Password)
 
 Provide a Couchbase database username and password:

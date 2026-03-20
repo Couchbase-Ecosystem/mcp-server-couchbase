@@ -3,7 +3,7 @@ sidebar_position: 2
 title: Source
 ---
 
-# Install from Source
+# Run from Source
 
 Clone the repository and run directly with `uv`.
 
