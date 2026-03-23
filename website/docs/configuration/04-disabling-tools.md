@@ -16,7 +16,7 @@ You can disable specific tools to prevent them from being loaded and exposed to 
 CB_MCP_DISABLED_TOOLS="upsert_document_by_id, delete_document_by_id"
 
 # Command line
-uvx couchbase-mcp-server --disabled-tools upsert_document_by_id, delete_document_by_id
+uvx couchbase-mcp-server --disabled-tools "upsert_document_by_id, delete_document_by_id"
 ```
 
 ### File Path (One Tool Per Line)
