@@ -27,6 +27,7 @@ const sidebars = {
         'configuration/disabling-tools',
       ],
     },
+    'troubleshooting',
     {
       type: 'category',
       label: 'Run from Source or Docker',
@@ -41,7 +42,6 @@ const sidebars = {
         'product-notes/contributing',
       ],
     },
-    'troubleshooting',
   ],
 };
 

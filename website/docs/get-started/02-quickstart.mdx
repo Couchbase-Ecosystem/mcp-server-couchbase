@@ -12,10 +12,7 @@ Get the Couchbase MCP Server running in under 5 minutes.
 
 ## Prerequisites
 
-- Python 3.10+ installed
-- [uv](https://docs.astral.sh/uv/) or [Docker](https://www.docker.com/) installed
-- A running Couchbase cluster ([Capella free tier](https://docs.couchbase.com/cloud/get-started/create-account.html) recommended)
-- An MCP client installed (e.g., [Claude Desktop](https://claude.ai/download), [Cursor](https://cursor.com/), [VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers))
+Make sure you complete the [prerequisites](/get-started/prerequisites) before proceeding.
 
 ## Step 1: Configure Your MCP Client
 
@@ -326,7 +323,41 @@ Reach out to your database administrator if you are unsure about the connection 
   </TabItem>
 </Tabs>
 
-## Step 3: Validate the Setup
+## Step 3: Set Up Authentication
+
+Configure authentication for your MCP server. Choose one of the following methods.
+
+### Basic Authentication (Username and Password)
+
+Set `CB_USERNAME` and `CB_PASSWORD` in your MCP client configuration:
+
+```json
+{
+  "env": {
+    "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+    "CB_USERNAME": "your-username",
+    "CB_PASSWORD": "your-password"
+  }
+}
+```
+
+### mTLS (Mutual TLS)
+
+Set `CB_CLIENT_CERT_PATH` and `CB_CLIENT_KEY_PATH`:
+
+```json
+{
+  "env": {
+    "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+    "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
+    "CB_CLIENT_KEY_PATH": "/path/to/client.key"
+  }
+}
+```
+
+See [Configuring Authentication](/configuration/environment-variables#configuring-authentication) for full details.
+
+## Step 4: Validate the Setup
 
 Save your configuration and restart your MCP client.
 
@@ -369,12 +400,12 @@ Once connected, try these prompts:
 
 </details>
 
-## Default Security
+## Read Only Mode
 
 By default, the server runs in **read-only mode** (`CB_MCP_READ_ONLY_MODE=true`):
 
 - All KV write tools (upsert, insert, replace, delete) are **not loaded**
-- SQL++ queries that modify data are **blocked**
+- SQL++ queries that modify data are **not loaded**
 
 To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configuration. See [Read-Only Mode](/configuration/read-only-mode) for details.
 
@@ -383,3 +414,4 @@ To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configurat
 - Review all available [Tools](/tools/cluster-health)
 - Explore [Configuration](/configuration) options
 - For Source or Docker installation, see [Run from Source or Docker](/installation/source)
+- Having issues? See [Troubleshooting](/troubleshooting)

@@ -5,7 +5,7 @@ title: Tools
 
 # Tools
 
-The Couchbase MCP Server exposes 23 tools across 5 categories. Each tool is available to LLMs through the MCP protocol.
+The Couchbase MCP Server exposes several tools across multiple categories. The list of supported tools is constantly evolving so check the [latest version](https://pypi.org/project/couchbase-mcp-server/) for the latest set of tools. Each tool is available to LLMs through the MCP protocol.
 
 ## Cluster Setup & Health
 

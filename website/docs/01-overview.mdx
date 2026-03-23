@@ -16,14 +16,6 @@ It exposes capabilities like cluster health checks, schema discovery, document k
 
 ![Couchbase MCP Server Architecture](/img/architecture.png)
 
-## Use Cases
-
-- **Database exploration** — Ask an LLM to list buckets, discover schemas, and understand your data model without writing queries.
-- **Query assistance** — Have an AI assistant write and run SQL++ queries against your cluster using natural language.
-- **Performance analysis** — Identify slow queries, missing indexes, and optimization opportunities through conversation.
-- **Cluster monitoring** — Check cluster health, running services, and connection status through your AI assistant.
-- **Document operations** — Read, insert, update, and delete documents using natural language (when write mode is enabled).
-
 ## Tools
 
 The server exposes 23 tools across 5 categories. See the [Tools](/tools/cluster-health) page for full details.
@@ -49,14 +41,11 @@ The server exposes 23 tools across 5 categories. See the [Tools](/tools/cluster-
   </a>
 </div>
 
-## Releases and Upcoming Features
+## Releases
 
 The latest release is available on [PyPI](https://pypi.org/project/couchbase-mcp-server/) and [Docker Hub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase). See the [Release Notes](/product-notes/release-notes) for version history and details.
 
-Upcoming features include:
-
-- **Explain Queries** — New tool to retrieve query execution plans for LLM analysis
-- **Search-Based Tools** — Tools for Search queries, indexes, and performance analysis
+The latest version (v0.6.1) introduces comprehensive read-only mode, tool disabling, expanded CRUD support, and VS Code / JetBrains IDE support.
 
 ## Support Policy
 
@@ -70,3 +59,7 @@ Our support portal is unable to assist with requests related to this project, so
 - **Questions**: [Open a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues)
 
 Your collaboration helps us all move forward together — thank you! Pull requests and contributions from the community are welcome — see [Contributing](/product-notes/contributing).
+
+## Learn More
+
+- [Introducing the Couchbase MCP Server for AI Agents](https://www.couchbase.com/blog/introducing-couchbase-mcp-server-ai-agents/) — Blog post and video walkthrough.
