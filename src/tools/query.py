@@ -5,6 +5,7 @@ This module contains tools for getting the schema for a collection and running S
 """
 
 import logging
+import re
 from typing import Any
 
 from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
@@ -13,6 +14,10 @@ from mcp.server.fastmcp import Context
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
+from utils.query_utils import (
+    evaluate_query_plan,
+    extract_plan_from_explain_results,
+)
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
 
@@ -34,6 +39,17 @@ def get_schema_for_collection(
         logger.error(f"Error getting schema: {e}")
         raise
     return schema
+
+
+def _is_explain_statement(query: str) -> bool:
+    """Check if the query is an EXPLAIN statement.
+
+    Handles multi-line queries where EXPLAIN is followed by newline or tab,
+    e.g., "EXPLAIN\nSELECT ..." or "EXPLAIN\tSELECT ...".
+    """
+    # Match "EXPLAIN" followed by any whitespace (space, tab, newline, etc.)
+    normalized = query.lstrip().upper()
+    return re.match(r"^EXPLAIN\s", normalized) is not None
 
 
 def run_sql_plus_plus_query(
@@ -66,7 +82,8 @@ def run_sql_plus_plus_query(
 
         results = []
         # If read-only mode is enabled, check if the query is a data or structure modification query
-        if block_query_writes:
+        # EXPLAIN statements are always safe to execute and should bypass write checks.
+        if block_query_writes and not _is_explain_statement(query):
             parsed_query = parse_sqlpp(query)
             data_modification_query = modifies_data(parsed_query)
             structure_modification_query = modifies_structure(parsed_query)
@@ -92,6 +109,46 @@ def run_sql_plus_plus_query(
     except Exception as e:
         logger.error(f"Error running query: {e!s}", exc_info=True)
         raise
+
+
+def explain_sql_plus_plus_query(
+    ctx: Context,
+    bucket_name: str,
+    scope_name: str,
+    query: str,
+) -> dict[str, Any]:
+    """Generate and evaluate an EXPLAIN plan for a SQL++ query. It provides information about the execution plan for the query.
+
+    The EXPLAIN statement is run in the specified scope in the specified bucket.
+    It returns query metadata along with an extracted plan and plan evaluation.
+    """
+    normalized_query = query.strip()
+    if not normalized_query:
+        raise ValueError("Query cannot be empty.")
+
+    explain_statement = (
+        normalized_query
+        if _is_explain_statement(normalized_query)
+        else f"EXPLAIN {normalized_query}"
+    )
+
+    explain_results = run_sql_plus_plus_query(
+        ctx,
+        bucket_name,
+        scope_name,
+        explain_statement,
+    )
+
+    plan = extract_plan_from_explain_results(explain_results)
+    plan_evaluation = evaluate_query_plan(plan)
+
+    return {
+        "query": query,
+        "explain_statement": explain_statement,
+        "query_context": {"bucket_name": bucket_name, "scope_name": scope_name},
+        "plan": plan,
+        "plan_evaluation": plan_evaluation,
+    }
 
 
 def run_cluster_query(ctx: Context, query: str, **kwargs: Any) -> list[dict[str, Any]]:
