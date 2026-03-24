@@ -8,6 +8,7 @@ This module contains utility functions for configuration, connection, and contex
 from .config import (
     set_settings,
     get_settings,
+    parse_disabled_tools,
 )
 
 # Connection utilities
@@ -19,6 +20,7 @@ from .connection import (
 # Constants
 from .constants import (
     ALLOWED_TRANSPORTS,
+    DEFAULT_ENABLE_QUERY_GENERATION,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
@@ -47,6 +49,7 @@ __all__ = [
     # Config
     "set_settings",
     "get_settings",
+    "parse_disabled_tools",
     # Connection
     "connect_to_couchbase_cluster",
     "connect_to_bucket",
@@ -58,6 +61,7 @@ __all__ = [
     # Constants
     "MCP_SERVER_NAME",
     "DEFAULT_READ_ONLY_MODE",
+    "DEFAULT_ENABLE_QUERY_GENERATION",
     "DEFAULT_TRANSPORT",
     "DEFAULT_LOG_LEVEL",
     "DEFAULT_HOST",

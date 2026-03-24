@@ -10,24 +10,49 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 
 <!-- mcp-name: io.github.Couchbase-Ecosystem/mcp-server-couchbase -->
 
-## Features
+## Features/Tools
+### Cluster setup & health tools
+| Tool Name | Description |
+|-----------|-------------|
+| `get_server_configuration_status` | Get the status of the MCP server |
+| `test_cluster_connection` | Check the cluster credentials by connecting to the cluster |
+| `get_cluster_health_and_services` | Get cluster health status and list of all running services |
 
-- Get a list of all the buckets in the cluster
-- Get a list of all the scopes and collections in the specified bucket
-- Get a list of all the scopes in the specified bucket
-- Get a list of all the collections in a specified scope and bucket. Note that this tool requires the cluster to have Query service.
-- Get the structure for a collection
-- Get a document by ID from a specified scope and collection
-- Upsert a document by ID to a specified scope and collection
-- Delete a document by ID from a specified scope and collection
-- Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope
-  - Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., use `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`)
-  - There is an option in the MCP server, `CB_MCP_READ_ONLY_QUERY_MODE` that is set to true by default to disable running SQL++ queries that change the data or the underlying collection structure. Note that the documents can still be updated by ID.
-- Get the status of the MCP server
-- Check the cluster credentials by connecting to the cluster
-- List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name.
-- Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance
-- Get cluster health status and list of all running services
+### Data model & schema discovery tools
+| Tool Name | Description |
+|-----------|-------------|
+| `get_buckets_in_cluster` | Get a list of all the buckets in the cluster |
+| `get_scopes_in_bucket` | Get a list of all the scopes in the specified bucket |
+| `get_collections_in_scope` | Get a list of all the collections in a specified scope and bucket. Note that this tool requires the cluster to have Query service. |
+| `get_scopes_and_collections_in_bucket` | Get a list of all the scopes and collections in the specified bucket |
+| `get_schema_for_collection` | Get the structure for a collection |
+
+### Document KV operations tools
+| Tool Name | Description |
+|-----------|-------------|
+| `get_document_by_id` | Get a document by ID from a specified scope and collection |
+| `upsert_document_by_id` | Upsert a document by ID to a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
+| `insert_document_by_id` | Insert a new document by ID (fails if document exists). **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
+| `replace_document_by_id` | Replace an existing document by ID (fails if document doesn't exist). **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
+| `delete_document_by_id` | Delete a document by ID from a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
+
+### Query and indexing tools
+| Tool Name | Description |
+|-----------|-------------|
+| `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name. |
+| `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance |
+| `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_MODE` is `true` by default, which means that **all write operations (KV and Query)** are disabled. When enabled, KV write tools are not loaded and SQL++ queries that modify data are blocked. |
+
+### Query performance analysis tools
+| Tool Name | Description |
+|-----------|-------------|
+| `get_longest_running_queries` | Get longest running queries by average service time |
+| `get_most_frequent_queries` | Get most frequently executed queries |
+| `get_queries_with_largest_response_sizes` | Get queries with the largest response sizes |
+| `get_queries_with_large_result_count` | Get queries with the largest result counts |
+| `get_queries_using_primary_index` | Get queries that use a primary index (potential performance concern) |
+| `get_queries_not_using_covering_index` | Get queries that don't use a covering index |
+| `get_queries_not_selective` | Get queries that are not selective (index scans return many more documents than final result) |
 
 ## Prerequisites
 
@@ -136,13 +161,127 @@ The server can be configured using environment variables or command line argumen
 | `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
 | `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to the client key file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
 | `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. This will not be required if you are connecting to Capella | |
-| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | Prevent data modification queries | `true` |
+| `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). When enabled, KV write tools are not loaded. | `true` |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | **[DEPRECATED]** Prevent queries that modify data. Note that data modification would still be possible via document operations tools. Use `CB_MCP_READ_ONLY_MODE` instead. | `true` |
 | `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
+| `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](#disabling-tools)) | None |
+
+#### Read-Only Mode Configuration
+
+The MCP server provides two configuration options for controlling write operations:
+
+**`CB_MCP_READ_ONLY_MODE`** (Recommended)
+- When `true` (default): All write operations are disabled. KV write tools (upsert, insert, replace, delete) are **not loaded** and will not be available to the LLM.
+- When `false`: KV write tools are loaded and available.
+
+**`CB_MCP_READ_ONLY_QUERY_MODE`** (Deprecated)
+- This option only controls SQL++ query-based writes but does not prevent KV write operations.
+- **Deprecated**: Use `CB_MCP_READ_ONLY_MODE` instead for comprehensive protection.
+
+**Mode Behavior Truth Table:**
+
+| `READ_ONLY_MODE` | `READ_ONLY_QUERY_MODE` | Result |
+|------------------|------------------------|--------|
+| `true` | `true` | Read-only KV and Query operations. All writes disabled. |
+| `true` | `false` | Read-only KV and Query operations. All writes disabled. |
+| `false` | `true` | Only Query writes disabled. KV writes allowed. |
+| `false` | `false` | All KV and Query operations allowed. |
+
+> **Important**: When `READ_ONLY_MODE` is `true`, it takes precedence and disables all write operations regardless of `READ_ONLY_QUERY_MODE` setting. This is the recommended safe default to prevent inadvertent data modifications by LLMs.
 
 > Note: For authentication, you need either the Username and Password or the Client Certificate and key paths. Optionally, you can specify the CA root certificate path that will be used to validate the server certificates.
 > If both the Client Certificate & key path and the username and password are specified, the client certificates will be used for authentication.
+
+### Disabling Tools
+
+You can disable specific tools to prevent them from being loaded and exposed to the MCP client. Disabled tools will not appear in the tool discovery and cannot be invoked by the LLM.
+
+#### Supported Formats
+
+**Comma-separated list:**
+
+```bash
+# Environment variable
+CB_MCP_DISABLED_TOOLS="upsert_document_by_id, delete_document_by_id"
+
+# Command line
+uvx couchbase-mcp-server --disabled-tools upsert_document_by_id, delete_document_by_id
+```
+
+**File path (one tool name per line):**
+
+```bash
+# Environment variable
+CB_MCP_DISABLED_TOOLS=disabled_tools.txt
+
+# Command line
+uvx couchbase-mcp-server --disabled-tools disabled_tools.txt
+```
+
+**File format (e.g., `disabled_tools.txt`):**
+
+```text
+# Write operations
+upsert_document_by_id
+delete_document_by_id
+
+# Index advisor
+get_index_advisor_recommendations
+```
+
+Lines starting with `#` are treated as comments and ignored.
+
+#### MCP Client Configuration Examples
+
+**Using comma-separated list:**
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
+        "CB_MCP_DISABLED_TOOLS": "upsert_document_by_id,delete_document_by_id"
+      }
+    }
+  }
+}
+```
+
+**Using file path (recommended for many tools):**
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
+        "CB_MCP_DISABLED_TOOLS": "/path/to/disabled_tools.txt"
+      }
+    }
+  }
+}
+```
+
+#### Important Security Note
+
+> **Warning:** Disabling tools alone does not guarantee that certain operations cannot be performed. The underlying database user's RBAC (Role-Based Access Control) permissions are the authoritative security control.
+>
+> For example, even if you disable `upsert_document_by_id` and `delete_document_by_id`, data modifications can still occur via the `run_sql_plus_plus_query` tool using SQL++ DML statements (INSERT, UPDATE, DELETE, MERGE) unless:
+> - The `CB_MCP_READ_ONLY_MODE` is set to `true` (default), OR
+> - The database user lacks the necessary RBAC permissions for data modification
+>
+> **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use tool disabling as an additional layer to guide LLM behavior and reduce the attack surface, not as the sole security control.
 
 You can also check the version of the server using:
 
@@ -150,7 +289,7 @@ You can also check the version of the server using:
 uvx couchbase-mcp-server --version
 ```
 
-#### Client Specific Configuration
+### Client Specific Configuration
 
 <details>
 <summary>Claude Desktop</summary>
@@ -225,6 +364,60 @@ For more details about MCP integration with Windsurf Editor, refer to the offici
 
 </details>
 
+<details>
+<summary>VS Code</summary>
+
+Follow the steps below to use the Couchbase MCP server with [VS Code](https://code.visualstudio.com/).
+1. Install [VS Code](https://code.visualstudio.com/)
+2. Following are a couple of ways to configure the MCP server.
+    * For a Workspace server configuration
+      - Create a new file in workspace as .vscode/mcp.json.
+      - Add the [configuration](#configuration) and save the file.
+    * For the Global server configuration:
+      - Run **MCP: Open User Configuration** in the Command Pallete(`Ctrl+Shift+P` or `Cmd+Shift+P`)
+      - Add the [configuration](#configuration) and save the file.
+    * **Note**: VS Code uses `servers` as the top-level JSON property in mcp.json files to define MCP (Model Context Protocol) servers, while Cursor uses `mcpServers` for the equivalent configuration. Check the [VS Code client configurations](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for any further changes or details. An example VS Code configuration is provided below.
+      ```json
+        {
+          "servers": {
+            "couchbase": {
+              "command": "uvx",
+              "args": ["couchbase-mcp-server"],
+              "env": {
+                "CB_CONNECTION_STRING": "couchbases://connection-string",
+                "CB_USERNAME": "username",
+                "CB_PASSWORD": "password"
+              }
+            }
+          }
+        }
+        ```
+3. Once you save the file, the server starts and a small action list appears with `Running|Stop|n Tools|More..`.
+4. Click on the options from the option list to `Start`/`Stop`/manage the server.
+5. You can now use the Couchbase MCP server in VS Code to query your Couchbase cluster using natural language and perform CRUD operations on documents.
+
+Logs:
+In the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`),
+- run **MCP: List Servers** command and pick the couchbase server
+- choose “Show Output” to see its logs in the Output tab.
+</details>
+
+<details>
+<summary>JetBrains IDEs</summary>
+
+Follow the steps below to use the Couchbase MCP server with [JetBrains IDEs](https://www.jetbrains.com/)
+1. Install any one of the [JetBrains IDEs](https://www.jetbrains.com/)
+2. Install any one of the JetBrains plugins - [AI Assistant](https://www.jetbrains.com/help/ai-assistant/getting-started-with-ai-assistant.html) or [Junie](https://www.jetbrains.com/help/junie/get-started-with-junie.html)
+3. Navigate to **Settings > Tools > AI Assistant or Junie > MCP Server**
+4. Click "+" to add the Couchbase MCP [configuration](#configuration) and click Save.
+5. You will see the Couchbase MCP server added to the list of servers. Once you click Apply, the Couchbase MCP server starts and on-hover of status, it shows all the tools available.
+6. You can now use the Couchbase MCP server in JetBrains IDEs to query your Couchbase cluster using natural language and perform CRUD operations on documents.
+
+Logs:
+The log file can be explored at **Help > Show Log in Finder (Explorer) > mcp > couchbase**
+
+</details>
+
 ## Streamable HTTP Transport Mode
 
 The MCP Server can be run in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode which allows multiple clients to connect to the same server instance via HTTP.
@@ -241,7 +434,7 @@ uvx couchbase-mcp-server \
   --connection-string='<couchbase_connection_string>' \
   --username='<database_username>' \
   --password='<database_password>' \
-  --read-only-query-mode=true \
+  --read-only-mode=true \
   --transport=http
 ```
 
@@ -274,7 +467,7 @@ uvx couchbase-mcp-server \
   --connection-string='<couchbase_connection_string>' \
   --username='<database_username>' \
   --password='<database_password>' \
-  --read-only-query-mode=true \
+  --read-only-mode=true \
   --transport=sse
 ```
 
@@ -409,6 +602,21 @@ The Couchbase MCP server can also be used as a managed server in your agentic ap
 - Confirm that the `uv` package manager is properly installed and accessible. You may need to provide absolute path to `uv`/`uvx` in the `command` field in the configuration.
 - Check the logs for any errors or warnings that may indicate issues with the MCP server. The location of the logs depend on your MCP client.
 - If you are observing issues running your MCP server from source after updating your local MCP server repository, try running `uv sync` to update the [dependencies](https://docs.astral.sh/uv/concepts/projects/sync/#syncing-the-environment).
+
+## Integration testing
+
+We provide high-level MCP integration tests to verify that the server exposes the expected tools and that they can be invoked against a demo Couchbase cluster.
+
+1. Export demo cluster credentials:
+   - `CB_CONNECTION_STRING`
+   - `CB_USERNAME`
+   - `CB_PASSWORD`
+   - Optional: `CB_MCP_TEST_BUCKET` (a bucket to probe during the tests)
+2. Run the tests:
+
+```bash
+uv run pytest tests/ -v
+```
 
 ---
 

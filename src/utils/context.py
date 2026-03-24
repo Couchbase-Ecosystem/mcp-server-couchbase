@@ -13,9 +13,19 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.context")
 
 @dataclass
 class AppContext:
-    """Context for the MCP server."""
+    """Context for the MCP server.
+
+    Attributes:
+        cluster: The Couchbase cluster connection (lazily initialized).
+        read_only_mode: When True, all write operations (KV and Query) are disabled
+                       and KV write tools are not loaded.
+                       This is the recommended mode for safety. Default is True.
+        read_only_query_mode: When True, query-based write operations are disabled.
+                             DEPRECATED: Use read_only_mode instead.
+    """
 
     cluster: Cluster | None = None
+    read_only_mode: bool = True
     read_only_query_mode: bool = True
 
 

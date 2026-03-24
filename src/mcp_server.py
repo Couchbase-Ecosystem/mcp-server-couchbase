@@ -24,11 +24,12 @@ from catalog_manager import (
 from enrichment import start_enrichment_cron, stop_enrichment_cron
 
 # Import tools
-from tools import ALL_TOOLS
+from tools import get_tools
 
 # Import utilities
 from utils import (
     ALLOWED_TRANSPORTS,
+    DEFAULT_ENABLE_QUERY_GENERATION,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
@@ -39,7 +40,7 @@ from utils import (
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
     get_settings,
-    set_settings,
+    parse_disabled_tools,
 )
 
 # Configure logging
@@ -84,19 +85,20 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Initialize the MCP server context and start the catalog background thread."""
     # Get configuration from Click context
     settings = get_settings()
+    read_only_mode = settings.get("read_only_mode", True)
     read_only_query_mode = settings.get("read_only_query_mode", True)
 
     # Note: We don't validate configuration here to allow tool discovery
     # Configuration will be validated when tools are actually used
-    logger.info("MCP server initialized in lazy mode for tool discovery.")
-    
-    # Start the catalog background thread
-    logger.info("Starting catalog background thread")
-    start_catalog_thread()
-    
+    logger.info(
+        f"MCP server initialized in lazy mode for tool discovery. "
+        f"Modes: (read_only_mode={read_only_mode}, read_only_query_mode={read_only_query_mode})"
+    )
     app_context = None
     try:
-        app_context = AppContext(read_only_query_mode=read_only_query_mode)
+        app_context = AppContext(
+            read_only_mode=read_only_mode, read_only_query_mode=read_only_query_mode
+        )
         yield app_context
 
     except Exception as e:
@@ -155,14 +157,22 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     help="Path to the client certificate key file used for mTLS authentication.",
 )
 @click.option(
+    "--read-only-mode",
+    envvar="CB_MCP_READ_ONLY_MODE",
+    type=bool,
+    default=DEFAULT_READ_ONLY_MODE,
+    help="Enable read-only mode. When True (default), all write operations (KV and Query) are disabled and KV write tools are not loaded. Set to False to enable write operations.",
+)
+@click.option(
     "--read-only-query-mode",
     envvar=[
         "CB_MCP_READ_ONLY_QUERY_MODE",
         "READ_ONLY_QUERY_MODE",  # Deprecated
     ],
     type=bool,
+    deprecated=True,
     default=DEFAULT_READ_ONLY_MODE,
-    help="Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
+    help="[DEPRECATED: Use --read-only-mode instead] Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
 )
 @click.option(
     "--transport",
@@ -186,6 +196,21 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     default=DEFAULT_PORT,
     help="Port to run the server on (default: 8000)",
 )
+@click.option(
+    "--disabled-tools",
+    "disabled_tools",
+    envvar="CB_MCP_DISABLED_TOOLS",
+    help="Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') "
+    "or a file path containing one tool name per line.",
+)
+@click.option(
+    "--enable-query-generation",
+    envvar="CB_MCP_ENABLE_QUERY_GENERATION",
+    type=bool,
+    default=DEFAULT_ENABLE_QUERY_GENERATION,
+    help="Enable the SQL++ query generation tool (generate_or_modify_sql_plus_plus_query). "
+    "Disabled by default. Set to True to enable AI-powered query generation.",
+)
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
 def main(
@@ -196,10 +221,13 @@ def main(
     ca_cert_path,
     client_cert_path,
     client_key_path,
+    read_only_mode,
     read_only_query_mode,
     transport,
     host,
     port,
+    disabled_tools,
+    enable_query_generation,
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -210,11 +238,31 @@ def main(
         "ca_cert_path": ca_cert_path,
         "client_cert_path": client_cert_path,
         "client_key_path": client_key_path,
+        "read_only_mode": read_only_mode,
         "read_only_query_mode": read_only_query_mode,
         "transport": transport,
         "host": host,
         "port": port,
     })
+
+    # Get tools based on mode settings
+    # When read_only_mode is True, KV write tools are not loaded
+    tools = get_tools(
+        read_only_mode=read_only_mode,
+        enable_query_generation=enable_query_generation,
+    )
+
+    # Parse and validate disabled tools from CLI/environment variable
+    all_tool_names = {tool.__name__ for tool in tools}
+    disabled_tool_names = parse_disabled_tools(disabled_tools, all_tool_names)
+
+    if disabled_tool_names:
+        logger.info(
+            f"Disabled {len(disabled_tool_names)} tool(s): {sorted(disabled_tool_names)}"
+        )
+
+    # Filter out disabled tools
+    enabled_tools = [tool for tool in tools if tool.__name__ not in disabled_tool_names]
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
@@ -234,14 +282,17 @@ def main(
     # Set the transport mode for session caching
     mcp.set_transport(transport)
 
-    # Register all tools
-    for tool in ALL_TOOLS:
+    logger.info(
+        f"Registering {len(enabled_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
+        f"read_only_query_mode={read_only_query_mode})"
+    )
+
+    # Register only enabled tools
+    for tool in enabled_tools:
         mcp.add_tool(tool)
 
-    # For stdio transport, we'll cache the session for sampling support
-    if transport == "stdio":
-        logger.info("Running in stdio mode with session caching enabled for sampling")
-    
+    logger.info(f"Registered {len(enabled_tools)} tool(s)")
+
     # Run the server
     mcp.run(transport=sdk_transport)  # type: ignore
 
