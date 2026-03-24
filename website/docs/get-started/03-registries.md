@@ -19,7 +19,7 @@ The [MCP Registry](https://registry.modelcontextprotocol.io/) is the official re
 
 The [Docker MCP Catalog](https://hub.docker.com/mcp/server/couchbase/overview) provides a curated listing of MCP servers available as Docker images.
 
-- **Image:** [`couchbaseecosystem/mcp-server-couchbase`](https://hub.docker.com/mcp/server/couchbase/overview)
+- **Image:** [`mcp/couchbase`](https://hub.docker.com/mcp/server/couchbase/overview)
 - **Transport:** stdio (default), HTTP, SSE
 - See [Docker](/installation/docker) for full usage instructions.
 
