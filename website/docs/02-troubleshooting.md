@@ -42,6 +42,7 @@ Common issues and solutions when using the Couchbase MCP Server.
 ## Environment Variable Issues
 
 - **Variables not taking effect** — Ensure variables are set in the `env` block of your MCP client configuration, not as system environment variables (unless your client supports that).
+- **CLI vs environment variable conflicts** — Command line arguments take priority over environment variables. If a setting isn't behaving as expected, check if it's being overridden by a CLI argument.
 - **Deprecated variables** — `CB_MCP_READ_ONLY_QUERY_MODE` is deprecated. Use `CB_MCP_READ_ONLY_MODE` instead.
 - See [Environment Variables](/configuration/environment-variables) for the full reference.
 

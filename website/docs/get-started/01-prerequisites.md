@@ -26,7 +26,8 @@ If you don't already have a Couchbase cluster, you can set one up using either o
 
 ## Getting Sample Data (Optional)
 
-The easiest way to get started is with Couchbase Capella's free tier. You can [import sample datasets](https://docs.couchbase.com/cloud/clusters/data-service/import-data-documents.html#import-sample-data) like `travel-sample` or import your own data.
+- **Couchbase Capella** — [Import sample datasets](https://docs.couchbase.com/cloud/clusters/data-service/import-data-documents.html#import-sample-data) like `travel-sample` or import your own data.
+- **Self-Managed Couchbase Server** — [Install sample buckets](https://docs.couchbase.com/server/current/manage/manage-settings/install-sample-buckets.html) like `travel-sample` from the Couchbase Web Console.
 
 ## Setup Authentication
 
@@ -35,7 +36,7 @@ Configure your Couchbase cluster with one of the following authentication method
 - **Basic Authentication**: A username and password with access to the required buckets.
 - **mTLS Authentication**: A client certificate and key for mutual TLS authentication.
 
-For Basic Authentication setup, see [Manage Database Credentials](https://docs.couchbase.com/cloud/organizations/ui-auth/manage-database-credentials.html) (Capella) or [Manage Users and Roles](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) (self-managed). For mTLS setup, see [Configure Client Certificate Authentication](https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html).
+For Basic Authentication setup, see [Manage Database Credentials](https://docs.couchbase.com/cloud/clusters/manage-database-users.html) (Capella) or [Manage Users and Roles](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) (self-managed). For mTLS setup, see [Configure Client Certificate Authentication](https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html).
 
 Ensure that:
 - The cluster is accessible from the machine running the MCP server.

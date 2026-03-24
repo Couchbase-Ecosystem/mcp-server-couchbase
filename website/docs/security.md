@@ -36,14 +36,16 @@ Recommendations:
 - **Scope permissions to specific buckets** rather than granting cluster-wide access.
 - Don't rely solely on `CB_MCP_READ_ONLY_MODE` or tool disabling — these guide LLM behavior but RBAC is the enforcement layer.
 
-See [RBAC for Couchbase Server](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) or [RBAC for Capella](https://docs.couchbase.com/cloud/organizations/ui-auth/manage-database-credentials.html) for configuration details.
+See [RBAC for Couchbase Server](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) or [RBAC for Capella](https://docs.couchbase.com/cloud/clusters/manage-database-users.html) for configuration details.
 
 ## Tool Disabling
 
 You can [disable specific tools](/configuration/disabling-tools) to reduce the attack surface.
 
 :::warning
-Disabling tools alone does not guarantee operations cannot be performed. Data modifications can still occur via `run_sql_plus_plus_query` using SQL++ DML statements — unless `CB_MCP_READ_ONLY_MODE=true` or the database user lacks RBAC permissions.
+Disabling tools alone does not guarantee operations cannot be performed.
+
+Data modifications can still occur via `run_sql_plus_plus_query` using SQL++ DML statements — unless `CB_MCP_READ_ONLY_MODE=true` or the database user lacks RBAC permissions.
 :::
 
 ## TLS / mTLS

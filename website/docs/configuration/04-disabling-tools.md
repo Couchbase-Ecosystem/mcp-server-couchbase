@@ -93,5 +93,5 @@ The underlying database user's RBAC (Role-Based Access Control) permissions are 
 - The database user lacks the necessary RBAC permissions
 
 :::tip Best Practice
-Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. See [RBAC for Couchbase Server](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) or [RBAC for Capella](https://docs.couchbase.com/cloud/organizations/ui-auth/manage-database-credentials.html). Use tool disabling as an additional layer to guide LLM behavior and reduce the attack surface, not as the sole security control.
+Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. See [RBAC for Couchbase Server](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) or [RBAC for Capella](https://docs.couchbase.com/cloud/clusters/manage-database-users.html). Use tool disabling as an additional layer to guide LLM behavior and reduce the attack surface, not as the sole security control.
 :::

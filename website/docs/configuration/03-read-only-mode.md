@@ -57,4 +57,4 @@ To enable write operations:
 ## Security Guidelines
 
 - Read-only mode is a **defense-in-depth feature**, not the primary security boundary.
-- The authoritative control is **Couchbase RBAC**: you should configure database user permissions so that the credentials used by the MCP server simply do not have data-modification privileges if you want strong guarantees. See [RBAC for Couchbase Server](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) or [RBAC for Capella](https://docs.couchbase.com/cloud/organizations/ui-auth/manage-database-credentials.html).
+- The authoritative control is **Couchbase RBAC**: you should configure database user permissions so that the credentials used by the MCP server simply do not have data-modification privileges if you want strong guarantees. See [RBAC for Couchbase Server](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) or [RBAC for Capella](https://docs.couchbase.com/cloud/clusters/manage-database-users.html).
