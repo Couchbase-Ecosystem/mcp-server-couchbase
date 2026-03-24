@@ -50,7 +50,8 @@ RUN chown -R mcpuser:mcpuser /app /opt/venv
 USER 1001
 
 # Environment variables with stdio defaults (override for network mode)
-ENV CB_MCP_READ_ONLY_QUERY_MODE="true" \
+ENV CB_MCP_READ_ONLY_MODE="true" \
+    CB_MCP_CONFIRMATION_REQUIRED_TOOLS="delete_document_by_id" \
     CB_MCP_TRANSPORT="stdio" \
     CB_MCP_PORT="8000"
 
