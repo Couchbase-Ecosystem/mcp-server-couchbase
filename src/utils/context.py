@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from couchbase.cluster import Cluster
 from mcp.server.fastmcp import Context
@@ -22,14 +22,11 @@ class AppContext:
                        This is the recommended mode for safety. Default is True.
         read_only_query_mode: When True, query-based write operations are disabled.
                              DEPRECATED: Use read_only_mode instead.
-        confirmation_required_tools: Set of tool names that require user confirmation
-                                    before execution (via MCP elicitation).
     """
 
     cluster: Cluster | None = None
     read_only_mode: bool = True
     read_only_query_mode: bool = True
-    confirmation_required_tools: set[str] = field(default_factory=set)
 
 
 def _set_cluster_in_lifespan_context(ctx: Context) -> None:

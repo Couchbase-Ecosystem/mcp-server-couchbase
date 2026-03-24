@@ -1,5 +1,5 @@
 """
-Tests for the disabled tools functionality.
+Tests for parse_tool_names utility used by disabled tools and confirmation-required tools.
 """
 
 import sys

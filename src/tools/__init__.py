@@ -103,7 +103,7 @@ TOOL_ANNOTATIONS: dict[str, ToolAnnotations] = {
     "get_document_by_id": ToolAnnotations(readOnlyHint=True),
     # Query tools
     "get_schema_for_collection": ToolAnnotations(readOnlyHint=True),
-    "run_sql_plus_plus_query": ToolAnnotations(openWorldHint=True),
+    "run_sql_plus_plus_query": ToolAnnotations(),
     "explain_sql_plus_plus_query": ToolAnnotations(readOnlyHint=True),
     # Index tools (read-only)
     "get_index_advisor_recommendations": ToolAnnotations(readOnlyHint=True),
@@ -118,7 +118,7 @@ TOOL_ANNOTATIONS: dict[str, ToolAnnotations] = {
     "get_queries_not_selective": ToolAnnotations(readOnlyHint=True),
     # KV write tools
     "upsert_document_by_id": ToolAnnotations(idempotentHint=True),
-    "insert_document_by_id": ToolAnnotations(),
+    "insert_document_by_id": ToolAnnotations(idempotentHint=True),
     "replace_document_by_id": ToolAnnotations(idempotentHint=True),
     "delete_document_by_id": ToolAnnotations(destructiveHint=True, idempotentHint=True),
 }

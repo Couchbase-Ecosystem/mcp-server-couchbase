@@ -30,17 +30,7 @@ from utils.elicitation import (
     wrap_with_confirmation,
 )
 
-VALID_TOOL_NAMES = {
-    "get_buckets_in_cluster",
-    "get_document_by_id",
-    "upsert_document_by_id",
-    "delete_document_by_id",
-    "insert_document_by_id",
-    "replace_document_by_id",
-    "run_sql_plus_plus_query",
-    "list_indexes",
-    "get_index_advisor_recommendations",
-}
+VALID_TOOL_NAMES = {tool.__name__ for tool in get_tools(read_only_mode=False)}
 
 
 class TestDefaultConfirmationRequiredTools:
@@ -54,53 +44,6 @@ class TestDefaultConfirmationRequiredTools:
         """Default string should parse into expected tool set."""
         result = parse_tool_names(DEFAULT_CONFIRMATION_REQUIRED_TOOLS, VALID_TOOL_NAMES)
         assert result == {"delete_document_by_id"}
-
-
-class TestParseConfirmationRequiredTools:
-    """Tests for parsing confirmation-required tools (reuses parse_tool_names)."""
-
-    def test_single_tool(self):
-        """Single tool value should parse to one-item set."""
-        result = parse_tool_names("delete_document_by_id", VALID_TOOL_NAMES)
-        assert result == {"delete_document_by_id"}
-
-    def test_multiple_tools(self):
-        """Comma-separated values should parse to all valid tools."""
-        result = parse_tool_names(
-            "delete_document_by_id,upsert_document_by_id,insert_document_by_id",
-            VALID_TOOL_NAMES,
-        )
-        assert result == {
-            "delete_document_by_id",
-            "upsert_document_by_id",
-            "insert_document_by_id",
-        }
-
-    def test_with_spaces(self):
-        """Parser should ignore whitespace around comma-separated names."""
-        result = parse_tool_names(
-            "delete_document_by_id, upsert_document_by_id",
-            VALID_TOOL_NAMES,
-        )
-        assert result == {"delete_document_by_id", "upsert_document_by_id"}
-
-    def test_invalid_tools_ignored(self):
-        """Unknown tool names should be ignored, valid names retained."""
-        result = parse_tool_names(
-            "delete_document_by_id,nonexistent_tool",
-            VALID_TOOL_NAMES,
-        )
-        assert result == {"delete_document_by_id"}
-
-    def test_empty_string(self):
-        """Empty input should produce an empty set."""
-        result = parse_tool_names("", VALID_TOOL_NAMES)
-        assert result == set()
-
-    def test_none_input(self):
-        """None input should produce an empty set."""
-        result = parse_tool_names(None, VALID_TOOL_NAMES)
-        assert result == set()
 
 
 class TestToolAnnotations:
@@ -141,10 +84,10 @@ class TestToolAnnotations:
         assert "delete_document_by_id" in TOOL_ANNOTATIONS
         assert TOOL_ANNOTATIONS["delete_document_by_id"].destructiveHint is True
 
-    def test_sql_query_tool_has_open_world_hint(self):
-        """SQL query tool should advertise open-world side effects."""
+    def test_sql_query_tool_is_not_open_world(self):
+        """SQL query tool operates on a closed Couchbase cluster, not the open web."""
         assert "run_sql_plus_plus_query" in TOOL_ANNOTATIONS
-        assert TOOL_ANNOTATIONS["run_sql_plus_plus_query"].openWorldHint is True
+        assert TOOL_ANNOTATIONS["run_sql_plus_plus_query"].openWorldHint is not True
 
     def test_upsert_and_replace_are_idempotent(self):
         """Idempotent write tools should advertise idempotentHint=True."""
@@ -238,9 +181,7 @@ class TestWrapWithConfirmation:
         class FakeContext:
             def __init__(self):
                 self.request_context = SimpleNamespace(
-                    lifespan_context=SimpleNamespace(
-                        confirmation_required_tools={"sample_tool"}
-                    ),
+                    lifespan_context=SimpleNamespace(),
                     session=FakeSession(supports_elicitation),
                 )
 

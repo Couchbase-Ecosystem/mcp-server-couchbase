@@ -39,7 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger(MCP_SERVER_NAME)
 
 
-def _prepare_tools_for_registration(
+def prepare_tools_for_registration(
     read_only_mode: bool,
     disabled_tools: str | None,
     confirmation_required_tools: str | None,
@@ -119,7 +119,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         app_context = AppContext(
             read_only_mode=read_only_mode,
             read_only_query_mode=read_only_query_mode,
-            confirmation_required_tools=confirmation_required_tools,
         )
         yield app_context
 
@@ -220,6 +219,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     envvar="CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
     default=DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
     help="Comma-separated tool names that require user confirmation before execution. "
+    "Also accepts a file path containing one tool name per line."
     "Requires the MCP client to support elicitation. "
     "Default: 'delete_document_by_id'.",
 )
@@ -247,7 +247,7 @@ def main(
         final_tools,
         configured_confirmation_tool_names,
         disabled_tool_names,
-    ) = _prepare_tools_for_registration(
+    ) = prepare_tools_for_registration(
         read_only_mode=read_only_mode,
         disabled_tools=disabled_tools,
         confirmation_required_tools=confirmation_required_tools,
