@@ -59,11 +59,8 @@ def _prepare_tools_for_registration(
         )
 
     # Parse and validate confirmation-required tools
-    # Validate confirmation tools against all known tools so defaults remain valid
-    # even when some tools are unavailable (e.g., read-only mode).
-    all_known_tool_names = {tool.__name__ for tool in get_tools(read_only_mode=False)}
     configured_confirmation_tool_names = parse_tool_names(
-        confirmation_required_tools, all_known_tool_names
+        confirmation_required_tools, loaded_tool_names
     )
 
     if configured_confirmation_tool_names:

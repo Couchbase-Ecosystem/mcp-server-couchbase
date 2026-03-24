@@ -47,7 +47,7 @@ def _build_confirmation_message(tool_name: str, kwargs: dict) -> str:
 def _client_supports_elicitation(ctx) -> bool:
     """Return True when client explicitly advertises elicitation capability."""
     session = getattr(ctx.request_context, "session", None)
-    if session is None or not hasattr(session, "check_client_capability"):
+    if session is None:
         return False
 
     return session.check_client_capability(
