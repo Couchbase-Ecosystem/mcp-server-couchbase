@@ -315,6 +315,7 @@ async def append_verified_relationships_to_prompt(
     appended_section = "\n".join(
         [
             "## Verified Relationships (Data-backed)",
+            "Note: These verification results are based on sampled/queryable data and may not fully represent the entire dataset.",
             *verified_lines,
         ]
     )
