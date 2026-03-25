@@ -26,14 +26,11 @@ const sidebars = {
         'configuration/environment-variables',
         'configuration/read-only-mode',
         'configuration/disabling-tools',
+        'configuration/streamable-http',
       ],
     },
-    {
-      type: 'category',
-      label: 'Run from Source or Docker',
-      items: ['installation/source', 'installation/docker'],
-    },
     'security',
+    'customize-mcp-server',
     {
       type: 'category',
       label: 'Product Notes',

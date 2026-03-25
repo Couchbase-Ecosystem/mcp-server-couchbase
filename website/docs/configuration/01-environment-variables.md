@@ -19,7 +19,7 @@ The MCP server can be configured using environment variables or command line arg
 | `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS (self-signed/untrusted certs). Not required for Capella. | |
 | `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). See [Read-Only Mode](/configuration/read-only-mode). | `true` |
 | `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | **[DEPRECATED]** Prevent queries that modify data. Use `CB_MCP_READ_ONLY_MODE` instead. | `true` |
-| `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio` (default — client launches server as subprocess), `http` ([Streamable HTTP](#how-to-streamable-http-mode) — multiple clients, serves at `/mcp`), `sse` ([deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) — use `http` instead) | `stdio` |
+| `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio` (default — client launches server as subprocess), `http` ([Streamable HTTP](/configuration/streamable-http) — multiple clients, serves at `/mcp`), `sse` ([deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) — use `http` instead) | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
 | `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](/configuration/disabling-tools)) | None |
@@ -45,7 +45,7 @@ uvx couchbase-mcp-server --version
 ## Example Configurations
 
 :::note
-All examples below use `uvx` to run the server. These can be replaced with the corresponding `docker run` commands — see [Docker](/installation/docker) for details.
+All examples below use `uvx` to run the server. These can be replaced with the corresponding `docker run` commands — see [Streamable HTTP](/configuration/streamable-http) for the Docker HTTP configuration.
 :::
 
 ### How to: Connect to Self-Managed Server
@@ -136,37 +136,3 @@ Provide a Couchbase database username and password. For Basic Authentication set
 }
 ```
 
-### How to: Streamable HTTP Mode
-
-Run the server in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode to allow multiple clients to connect to the same server instance via HTTP.
-
-**Start the server:**
-
-```bash
-uvx couchbase-mcp-server \
-  --connection-string='couchbases://your-connection-string' \
-  --username='your-username' \
-  --password='your-password' \
-  --read-only-mode=true \
-  --transport=http
-```
-
-The server will be available at `http://localhost:8000/mcp`.
-
-**MCP client configuration:**
-
-```json
-{
-  "mcpServers": {
-    "couchbase-http": {
-      "url": "http://localhost:8000/mcp"
-    }
-  }
-}
-```
-
-Set `CB_MCP_PORT` or `--port` to use a different port. Set `CB_MCP_HOST=0.0.0.0` or `--host=0.0.0.0` to allow external connections.
-
-:::note
-For Capella connections using the Index Service REST API (e.g. `list_indexes`), the bundled Capella root CA is applied automatically. For the main SDK connection, Capella's public certificates are typically trusted by the system trust store. If you encounter TLS errors, set `CB_CA_CERT_PATH` explicitly.
-:::

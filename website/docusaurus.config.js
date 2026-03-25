@@ -58,7 +58,7 @@ const config = {
         respectPrefersColorScheme: true,
       },
       navbar: {
-        title: 'MCP Server',
+        title: 'Couchbase MCP Server',
         logo: {
           alt: 'Couchbase Logo',
           src: 'img/logo.svg',

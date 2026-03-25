@@ -320,6 +320,8 @@ Use `couchbases://` if TLS is enabled on your cluster.
 
 To find your connection string and credentials, see the Couchbase Web Console: connection strings are under **Servers** ([Manage Connections](https://docs.couchbase.com/server/current/manage/manage-nodes/manage-connections.html)), and database users are under **Security** ([Manage Users and Roles](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html)).
 
+If your Couchbase server is running on the host machine and you are using Docker, the connection string would typically be `couchbase://host.docker.internal`. See the [Docker networking documentation](https://docs.docker.com/desktop/features/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host).
+
   </TabItem>
 </Tabs>
 
@@ -413,5 +415,5 @@ To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configurat
 
 - Review all available [Tools](/tools/cluster-health)
 - Explore [Configuration](/configuration) options
-- For Source or Docker installation, see [Run from Source or Docker](/installation/source)
+- Want to customize or build from source? See [Customize MCP Server](/customize-mcp-server)
 - Having issues? See [Troubleshooting](/troubleshooting)
