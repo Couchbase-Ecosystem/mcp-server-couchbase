@@ -10,10 +10,13 @@ Before using the Couchbase MCP Server, ensure you have the following:
 ## Required
 
 - **Python 3.10 or higher** — The server requires Python 3.10+ (supports 3.10, 3.11, 3.12, 3.13).
-- **Couchbase Server 7.2 or higher** — The MCP Server is compatible with Couchbase Server 7.2+.
 - **A running Couchbase cluster** — Either:
   - [Couchbase Capella](https://docs.couchbase.com/cloud/get-started/create-account.html#getting-started) (free tier available) — fully managed cloud version
   - A self-hosted Couchbase Server instance
+
+  :::note Compatibility
+  The MCP Server is compatible with **Couchbase Server 7.2+** (Operational Cluster). The following services are **not supported**: Couchbase Analytics, Sync Gateway, Couchbase Lite, and Capella AI Services.
+  :::
 - **[uv](https://docs.astral.sh/uv/) or [Docker](https://www.docker.com/)** — uv is the recommended way to run the server. Docker is an alternative if you prefer containerized deployments.
 - **An MCP client** — Such as [Claude Desktop](https://claude.ai/download), [Cursor](https://cursor.sh/), [VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers), [Windsurf](https://docs.windsurf.com/windsurf/cascade/mcp), or any [MCP-compatible client](https://modelcontextprotocol.io/clients).
 

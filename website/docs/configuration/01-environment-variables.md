@@ -19,7 +19,7 @@ The MCP server can be configured using environment variables or command line arg
 | `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS (self-signed/untrusted certs). Not required for Capella. | |
 | `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). See [Read-Only Mode](/configuration/read-only-mode). | `true` |
 | `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | **[DEPRECATED]** Prevent queries that modify data. Use `CB_MCP_READ_ONLY_MODE` instead. | `true` |
-| `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio` (default — client launches server as subprocess), `http` ([Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) — multiple clients, serves at `/mcp`), `sse` ([deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) — use `http` instead) | `stdio` |
+| `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio` (default — client launches server as subprocess), `http` ([Streamable HTTP](#how-to-streamable-http-mode) — multiple clients, serves at `/mcp`), `sse` ([deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) — use `http` instead) | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
 | `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](/configuration/disabling-tools)) | None |
@@ -98,7 +98,7 @@ All examples below use `uvx` to run the server. These can be replaced with the c
 
 ### How to: mTLS Based Auth
 
-For environments requiring certificate-based authentication:
+For environments requiring certificate-based authentication. For mTLS setup, see [Configure Client Certificate Authentication](https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html).
 
 ```json
 {
@@ -118,7 +118,7 @@ For environments requiring certificate-based authentication:
 
 ### How to: Basic Based Auth
 
-Provide a Couchbase database username and password:
+Provide a Couchbase database username and password. For Basic Authentication setup, see [Manage Database Credentials](https://docs.couchbase.com/cloud/clusters/manage-database-users.html) (Capella) or [Manage Users and Roles](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) (self-managed).
 
 ```json
 {

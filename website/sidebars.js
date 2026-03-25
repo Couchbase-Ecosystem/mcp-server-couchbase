@@ -13,6 +13,7 @@ const sidebars = {
         'get-started/registries',
       ],
     },
+    'troubleshooting',
     'tools/cluster-health',
     {
       type: 'category',
@@ -27,7 +28,6 @@ const sidebars = {
         'configuration/disabling-tools',
       ],
     },
-    'troubleshooting',
     {
       type: 'category',
       label: 'Run from Source or Docker',
