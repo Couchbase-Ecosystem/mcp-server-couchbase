@@ -4,12 +4,14 @@ Pre-built images for the [Couchbase](https://www.couchbase.com/) MCP Server.
 
 A Model Context Protocol (MCP) server that allows AI agents to interact with Couchbase databases.
 
-Github Repo: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase
+GitHub Repo: <https://github.com/Couchbase-Ecosystem/mcp-server-couchbase>
 
-Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/Dockerfile
+Dockerfile: <https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/Dockerfile>
 
 ## Features/Tools
+
 ### Cluster setup & health tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `get_server_configuration_status` | Get the status of the MCP server |
@@ -17,6 +19,7 @@ Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/mai
 | `get_cluster_health_and_services` | Get cluster health status and list of all running services |
 
 ### Data model & schema discovery tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `get_buckets_in_cluster` | Get a list of all the buckets in the cluster |
@@ -26,6 +29,7 @@ Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/mai
 | `get_schema_for_collection` | Get the structure for a collection |
 
 ### Document KV operations tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `get_document_by_id` | Get a document by ID from a specified scope and collection |
@@ -35,13 +39,16 @@ Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/mai
 | `delete_document_by_id` | Delete a document by ID from a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
 
 ### Query and indexing tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name. |
 | `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance |
 | `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_MODE` is `true` by default, which means that **all write operations (KV and Query)** are disabled. When enabled, KV write tools are not loaded and SQL++ queries that modify data are blocked. |
+| `explain_sql_plus_plus_query` | Generate and evaluate an EXPLAIN plan for a SQL++ query. Returns query metadata, extracted plan, and plan evaluation findings. |
 
 ### Query performance analysis tools
+
 | Tool Name | Description |
 |-----------|-------------|
 | `get_longest_running_queries` | Get longest running queries by average service time |
@@ -60,9 +67,11 @@ The Docker images can be used in the supported MCP clients such as Claude Deskto
 
 Add the configuration specified below to the MCP configuration in your MCP client.
 
-- Claude Desktop: https://modelcontextprotocol.io/quickstart/user
-- Cursor: https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers
-- Windsurf: https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin
+- Claude Desktop: <https://modelcontextprotocol.io/quickstart/user>
+- Cursor: <https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers>
+- Windsurf: <https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin>
+- VS Code: <https://code.visualstudio.com/docs/copilot/customization/mcp-servers>
+- JetBrains IDEs: <https://www.jetbrains.com/help/ai-assistant/model-context-protocol.html>
 
 ```json
 {
@@ -88,7 +97,7 @@ Add the configuration specified below to the MCP configuration in your MCP clien
 
 ### Environment Variables
 
-The detailed explanation for the environment variables can be found on the [Github Repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase?tab=readme-ov-file#additional-configuration-for-mcp-server).
+The detailed explanation for the environment variables can be found on the [GitHub Repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase?tab=readme-ov-file#additional-configuration-for-mcp-server).
 
 | Variable                      | Description                                                                                               | Default                                                        |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
@@ -103,6 +112,7 @@ The detailed explanation for the environment variables can be found on the [Gith
 | `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
 | `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                                                                              | `8000`                                                         |
 | `CB_MCP_DISABLED_TOOLS`       | Tools to disable                                                                                          |                                                                |
+| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (via MCP elicitation)                 | `delete_document_by_id`                                        |
 
 ### Disabling Tools
 
@@ -151,14 +161,21 @@ Lines starting with `#` are treated as comments and ignored.
 {
   "mcpServers": {
     "couchbase": {
-      "command": "uvx",
-      "args": ["couchbase-mcp-server"],
-      "env": {
-        "CB_CONNECTION_STRING": "couchbases://connection-string",
-        "CB_USERNAME": "username",
-        "CB_PASSWORD": "password",
-        "CB_MCP_DISABLED_TOOLS": "upsert_document_by_id,delete_document_by_id"
-      }
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "CB_CONNECTION_STRING=couchbases://connection-string",
+        "-e",
+        "CB_USERNAME=username",
+        "-e",
+        "CB_PASSWORD=password",
+        "-e",
+        "CB_MCP_DISABLED_TOOLS=upsert_document_by_id,delete_document_by_id",
+        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+      ]
     }
   }
 }
@@ -170,14 +187,23 @@ Lines starting with `#` are treated as comments and ignored.
 {
   "mcpServers": {
     "couchbase": {
-      "command": "uvx",
-      "args": ["couchbase-mcp-server"],
-      "env": {
-        "CB_CONNECTION_STRING": "couchbases://connection-string",
-        "CB_USERNAME": "username",
-        "CB_PASSWORD": "password",
-        "CB_MCP_DISABLED_TOOLS": "/path/to/disabled_tools.txt"
-      }
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "/path/to/disabled_tools.txt:/app/disabled_tools.txt",
+        "-e",
+        "CB_CONNECTION_STRING=couchbases://connection-string",
+        "-e",
+        "CB_USERNAME=username",
+        "-e",
+        "CB_PASSWORD=password",
+        "-e",
+        "CB_MCP_DISABLED_TOOLS=/app/disabled_tools.txt",
+        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+      ]
     }
   }
 }
@@ -188,6 +214,7 @@ Lines starting with `#` are treated as comments and ignored.
 > **Warning:** Disabling tools alone does not guarantee that certain operations cannot be performed. The underlying database user's RBAC (Role-Based Access Control) permissions are the authoritative security control.
 >
 > For example, even if you disable `upsert_document_by_id` and `delete_document_by_id`, data modifications can still occur via the `run_sql_plus_plus_query` tool using SQL++ DML statements (INSERT, UPDATE, DELETE, MERGE) unless:
+>
 > - The `CB_MCP_READ_ONLY_MODE` is set to `true` (default), which disables all write operations (KV and Query), OR
 > - The database user lacks the necessary RBAC permissions for data modification
 >

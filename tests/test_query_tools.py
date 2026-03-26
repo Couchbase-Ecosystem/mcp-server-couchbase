@@ -4,6 +4,7 @@ Integration tests for query.py tools.
 Tests for:
 - get_schema_for_collection
 - run_sql_plus_plus_query
+- explain_sql_plus_plus_query
 """
 
 from __future__ import annotations
@@ -154,3 +155,39 @@ async def test_run_sql_plus_plus_query_meta() -> None:
 
     if skip_reason:
         pytest.skip(skip_reason)
+
+
+@pytest.mark.asyncio
+async def test_explain_sql_plus_plus_query_with_query() -> None:
+    """Verify explain_sql_plus_plus_query returns plan and evaluation for a query."""
+    bucket = require_test_bucket()
+    scope = get_test_scope()
+    collection = get_test_collection()
+
+    query = f"SELECT COUNT(*) as doc_count FROM `{collection}`"
+
+    async with create_mcp_session() as session:
+        response = await session.call_tool(
+            "explain_sql_plus_plus_query",
+            arguments={
+                "bucket_name": bucket,
+                "scope_name": scope,
+                "query": query,
+            },
+        )
+        payload = extract_payload(response)
+
+        assert isinstance(payload, dict), f"Expected dict, got {type(payload)}"
+        assert payload.get("query") == query
+        assert "plan" in payload
+        assert "plan_evaluation" in payload
+
+        plan_evaluation = payload["plan_evaluation"]
+        assert isinstance(plan_evaluation, dict)
+        assert "summary" in plan_evaluation
+        assert "operators" in plan_evaluation
+        assert "findings" in plan_evaluation
+
+        query_context = payload.get("query_context", {})
+        assert query_context.get("bucket_name") == bucket
+        assert query_context.get("scope_name") == scope
