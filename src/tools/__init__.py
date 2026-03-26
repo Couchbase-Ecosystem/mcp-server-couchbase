@@ -10,6 +10,8 @@ Tool Categories:
 
 from collections.abc import Callable
 
+from mcp.types import ToolAnnotations
+
 # Index tools
 from .index import get_index_advisor_recommendations, list_indexes
 
@@ -24,6 +26,7 @@ from .kv import (
 
 # Query tools
 from .query import (
+    explain_sql_plus_plus_query,
     get_longest_running_queries,
     get_most_frequent_queries,
     get_queries_not_selective,
@@ -61,6 +64,7 @@ READ_ONLY_TOOLS = [
     # Query tools (read operations)
     get_schema_for_collection,
     run_sql_plus_plus_query,  # Write protection handled at runtime via read_only_query_mode
+    explain_sql_plus_plus_query,
     # Index tools
     get_index_advisor_recommendations,
     list_indexes,
@@ -84,6 +88,40 @@ KV_WRITE_TOOLS = [
 
 # List of all tools for easy registration (kept for backward compatibility)
 ALL_TOOLS = READ_ONLY_TOOLS + KV_WRITE_TOOLS
+
+# Tool annotations for MCP clients (readOnlyHint, destructiveHint, etc.)
+TOOL_ANNOTATIONS: dict[str, ToolAnnotations] = {
+    # Server/Cluster management tools (read-only)
+    "get_server_configuration_status": ToolAnnotations(readOnlyHint=True),
+    "test_cluster_connection": ToolAnnotations(readOnlyHint=True),
+    "get_buckets_in_cluster": ToolAnnotations(readOnlyHint=True),
+    "get_scopes_and_collections_in_bucket": ToolAnnotations(readOnlyHint=True),
+    "get_collections_in_scope": ToolAnnotations(readOnlyHint=True),
+    "get_scopes_in_bucket": ToolAnnotations(readOnlyHint=True),
+    "get_cluster_health_and_services": ToolAnnotations(readOnlyHint=True),
+    # KV read tool
+    "get_document_by_id": ToolAnnotations(readOnlyHint=True),
+    # Query tools
+    "get_schema_for_collection": ToolAnnotations(readOnlyHint=True),
+    "run_sql_plus_plus_query": ToolAnnotations(),
+    "explain_sql_plus_plus_query": ToolAnnotations(readOnlyHint=True),
+    # Index tools (read-only)
+    "get_index_advisor_recommendations": ToolAnnotations(readOnlyHint=True),
+    "list_indexes": ToolAnnotations(readOnlyHint=True),
+    # Query performance analysis tools (read-only)
+    "get_longest_running_queries": ToolAnnotations(readOnlyHint=True),
+    "get_most_frequent_queries": ToolAnnotations(readOnlyHint=True),
+    "get_queries_with_largest_response_sizes": ToolAnnotations(readOnlyHint=True),
+    "get_queries_with_large_result_count": ToolAnnotations(readOnlyHint=True),
+    "get_queries_using_primary_index": ToolAnnotations(readOnlyHint=True),
+    "get_queries_not_using_covering_index": ToolAnnotations(readOnlyHint=True),
+    "get_queries_not_selective": ToolAnnotations(readOnlyHint=True),
+    # KV write tools
+    "upsert_document_by_id": ToolAnnotations(idempotentHint=True),
+    "insert_document_by_id": ToolAnnotations(idempotentHint=True),
+    "replace_document_by_id": ToolAnnotations(idempotentHint=True),
+    "delete_document_by_id": ToolAnnotations(destructiveHint=True, idempotentHint=True),
+}
 
 
 def get_tools(read_only_mode: bool = True) -> list[Callable]:
@@ -116,6 +154,7 @@ __all__ = [
     "delete_document_by_id",
     "get_schema_for_collection",
     "run_sql_plus_plus_query",
+    "explain_sql_plus_plus_query",
     "get_index_advisor_recommendations",
     "list_indexes",
     "get_cluster_health_and_services",
@@ -129,6 +168,8 @@ __all__ = [
     # Tool categories
     "READ_ONLY_TOOLS",
     "KV_WRITE_TOOLS",
+    # Tool annotations
+    "TOOL_ANNOTATIONS",
     # Convenience
     "ALL_TOOLS",
     "get_tools",
