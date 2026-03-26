@@ -2,26 +2,22 @@
 Couchbase MCP Server
 """
 
-import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, Optional
 
 import click
 from mcp.server.fastmcp import FastMCP
 from mcp.server.session import ServerSession
 from mcp.types import Tool as MCPTool
 
+# Import enrichment functions (MCP server thread component)
+from catalog.enrichment import start_enrichment_cron, stop_enrichment_cron
+
 # Import catalog manager (background thread)
 from catalog_manager import (
-    start_catalog_thread,
     stop_catalog_thread,
 )
-
-
-# Import enrichment functions (MCP server thread component)
-from enrichment import start_enrichment_cron, stop_enrichment_cron
 
 # Import tools
 from tools import get_tools
@@ -41,6 +37,7 @@ from utils import (
     AppContext,
     get_settings,
     parse_disabled_tools,
+    set_settings,
 )
 
 # Configure logging
@@ -51,11 +48,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(MCP_SERVER_NAME)
 
-_cached_session: Optional[ServerSession] = None
+_SESSION_STATE: dict[str, ServerSession | None] = {"cached_session": None}
+
 
 class MCPServer(FastMCP):
     """Extended FastMCP server with session caching for sampling support."""
-    
+
     def set_transport(self, transport: str) -> None:
         """Set the transport mode for this server."""
         self._transport = transport
@@ -63,19 +61,19 @@ class MCPServer(FastMCP):
     async def list_tools(self) -> list[MCPTool]:
         """List all available tools and cache the session for sampling support (stdio only)."""
         # Cache the session from the request context only for stdio transport
-        global _cached_session
-        if self._transport == "stdio" and _cached_session is None:
+        cached_session = _SESSION_STATE["cached_session"]
+        if self._transport == "stdio" and cached_session is None:
             try:
                 # Access the session from the request context
                 ctx = self.get_context()
-                _cached_session = ctx.session  # type: ignore
+                _SESSION_STATE["cached_session"] = ctx.session  # type: ignore
                 # Start enrichment cron in the background
-                start_enrichment_cron(_cached_session)
+                start_enrichment_cron(_SESSION_STATE["cached_session"])
 
             except LookupError:
                 # Context not available (shouldn't happen in normal flow)
                 logger.error("RequestContext not available in list_tools")
-        
+
         # Call the parent implementation
         return await super().list_tools()
 
@@ -111,11 +109,11 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             await stop_enrichment_cron()
         except Exception as e:
             logger.error(f"Error stopping enrichment cron: {e}")
-        
+
         # Stop the catalog background thread
         logger.info("Stopping catalog background thread")
         stop_catalog_thread()
-        
+
         # Close the cluster connection
         if app_context and app_context.cluster:
             app_context.cluster.close()
@@ -231,19 +229,21 @@ def main(
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
-    set_settings({
-        "connection_string": connection_string,
-        "username": username,
-        "password": password,
-        "ca_cert_path": ca_cert_path,
-        "client_cert_path": client_cert_path,
-        "client_key_path": client_key_path,
-        "read_only_mode": read_only_mode,
-        "read_only_query_mode": read_only_query_mode,
-        "transport": transport,
-        "host": host,
-        "port": port,
-    })
+    set_settings(
+        {
+            "connection_string": connection_string,
+            "username": username,
+            "password": password,
+            "ca_cert_path": ca_cert_path,
+            "client_cert_path": client_cert_path,
+            "client_key_path": client_key_path,
+            "read_only_mode": read_only_mode,
+            "read_only_query_mode": read_only_query_mode,
+            "transport": transport,
+            "host": host,
+            "port": port,
+        }
+    )
 
     # Get tools based on mode settings
     # When read_only_mode is True, KV write tools are not loaded
