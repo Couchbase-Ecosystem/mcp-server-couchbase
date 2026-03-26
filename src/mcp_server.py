@@ -16,6 +16,7 @@ from catalog.enrichment import start_enrichment_cron, stop_enrichment_cron
 
 # Import catalog manager (background thread)
 from catalog_manager import (
+    start_catalog_thread,
     stop_catalog_thread,
 )
 
@@ -97,6 +98,10 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         app_context = AppContext(
             read_only_mode=read_only_mode, read_only_query_mode=read_only_query_mode
         )
+
+        logger.info("Starting catalog background thread")
+        start_catalog_thread()
+
         yield app_context
 
     except Exception as e:
