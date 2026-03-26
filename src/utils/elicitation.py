@@ -99,13 +99,8 @@ def wrap_with_confirmation(fn: Callable) -> Callable:
                     schema=ConfirmationResult,
                 )
 
-                if (
-                    result.action != "accept"
-                    or (
-                        hasattr(result, "data")
-                        and result.data
-                        and not result.data.confirm
-                    )
+                if result.action != "accept" or (
+                    hasattr(result, "data") and result.data and not result.data.confirm
                 ):
                     msg = f"Execution of '{tool_name}' was not confirmed by the user."
                     logger.warning(msg)
