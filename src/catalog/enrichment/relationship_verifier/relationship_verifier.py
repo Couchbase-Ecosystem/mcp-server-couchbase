@@ -84,6 +84,16 @@ class RelationshipVerifier:
 
         return results
 
+    def _relationship_label(self, relationship: AnyRelationship) -> str:
+        """Return a short relationship kind label for logging."""
+        if isinstance(relationship, PrimaryKeyRelationship):
+            return "PK"
+
+        if isinstance(relationship, ForeignKeyRelationship):
+            return "FK"
+
+        return relationship.kind
+
     def devise_operations(
         self, relationships: list[AnyRelationship]
     ) -> dict[int, list[AnyTask]]:
@@ -97,7 +107,7 @@ class RelationshipVerifier:
                 self.devise_operations_for_relationship(relationship)
             )
             logger.debug(
-                f"Relationship {relationship_index} ({relationship.kind}): "
+                f"Relationship {relationship_index} ({self._relationship_label(relationship)}): "
                 f"{len(planned_operations[relationship_index])} operations planned"
             )
 
@@ -202,11 +212,11 @@ class RelationshipVerifier:
 
             if not is_valid:
                 logger.warning(
-                    f"Relationship {relationship_index} INVALID: {relationship.kind} - {failure_reason}"
+                    f"Relationship {relationship_index} INVALID: {self._relationship_label(relationship)} - {failure_reason}"
                 )
             else:
                 logger.debug(
-                    f"Relationship {relationship_index} VALID: {relationship.kind}"
+                    f"Relationship {relationship_index} VALID: {self._relationship_label(relationship)}"
                 )
 
         return results
