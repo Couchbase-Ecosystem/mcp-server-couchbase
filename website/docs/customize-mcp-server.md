@@ -59,7 +59,7 @@ You can also build and run the server as a Docker container from the cloned repo
 ### Build the Image
 
 ```bash
-docker build -t mcp/couchbase .
+docker build -t mcp/couchbase-src .
 ```
 
 To include build metadata (git commit hash and build timestamp):
@@ -67,7 +67,7 @@ To include build metadata (git commit hash and build timestamp):
 ```bash
 docker build --build-arg GIT_COMMIT_HASH=$(git rev-parse HEAD) \
   --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-  -t mcp/couchbase .
+  -t mcp/couchbase-src .
 ```
 
 Or use the provided build script:
@@ -82,10 +82,10 @@ The script automatically generates git commit hash and build timestamp, creates 
 
 ```bash
 # View git commit hash
-docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase:latest
+docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase-src:latest
 
 # View all metadata labels
-docker inspect --format='{{json .Config.Labels}}' mcp/couchbase:latest
+docker inspect --format='{{json .Config.Labels}}' mcp/couchbase-src:latest
 ```
 
 ## Next Steps
