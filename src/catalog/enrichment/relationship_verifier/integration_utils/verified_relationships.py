@@ -18,6 +18,7 @@ from catalog.enrichment.relationship_verifier.common.relationships import (
 from catalog.enrichment.relationship_verifier.couchbase_utils.cb_utils import CB
 from catalog.enrichment.relationship_verifier.relationship_verifier import (
     RelationshipVerifier,
+    VerificationResult,
 )
 from utils.config import get_settings
 from utils.connection import connect_to_couchbase_cluster
@@ -214,7 +215,7 @@ def _verify_relationships_blocking(
     *,
     relationships: list[AnyRelationship],
     database_info: dict[str, Any],
-) -> tuple[list[AnyRelationship], int]:
+) -> tuple[list[VerificationResult], int]:
     keyspace_to_bucket, bucket_keyspace_map, bucket_index_map = _build_verifier_maps(
         database_info
     )
@@ -241,7 +242,7 @@ def _verify_relationships_blocking(
         client_key_path=settings.get("client_key_path"),
     )
     cb = CB.from_cluster(cluster)
-    verified_relationships: list[AnyRelationship] = []
+    verification_results: list[VerificationResult] = []
 
     try:
         for bucket_name, bucket_relationships in relationships_by_bucket.items():
@@ -252,16 +253,14 @@ def _verify_relationships_blocking(
                 index_map=bucket_index_map.get(bucket_name, {}),
             )
             results = verifier.verify(bucket_relationships)
-            verified_relationships.extend(
-                result.relationship for result in results if result.is_valid
-            )
+            verification_results.extend(results)
     finally:
         try:
             cluster.close()
         except Exception:
             logger.debug("Failed to close verifier Couchbase cluster cleanly")
 
-    return verified_relationships, skipped_count
+    return verification_results, skipped_count
 
 
 async def append_verified_relationships_to_prompt(
@@ -269,7 +268,7 @@ async def append_verified_relationships_to_prompt(
     enriched_prompt: str,
     database_info: dict[str, Any],
 ) -> str:
-    """Parse and verify relationships from LLM text, then append valid ones.
+    """Parse and verify relationships from LLM text, then append status.
 
     Returns the original text unchanged when parsing or verification is unavailable.
     """
@@ -289,7 +288,7 @@ async def append_verified_relationships_to_prompt(
         return enriched_prompt
 
     try:
-        verified_relationships, skipped_count = await asyncio.to_thread(
+        verification_results, skipped_count = await asyncio.to_thread(
             _verify_relationships_blocking,
             relationships=candidate_relationships,
             database_info=database_info,
@@ -301,27 +300,36 @@ async def append_verified_relationships_to_prompt(
         )
         return enriched_prompt
 
-    if not verified_relationships:
-        logger.info(
-            "Relationship verification completed: 0 valid relationships (%d skipped)",
-            skipped_count,
-        )
-        return enriched_prompt
+    verified_count = sum(1 for result in verification_results if result.is_valid)
+    failed_count = len(verification_results) - verified_count
 
-    verified_lines = [
-        f"- {_relationship_to_expression(relationship)}"
-        for relationship in verified_relationships
-    ]
+    status_lines = []
+    for result in verification_results:
+        expression = _relationship_to_expression(result.relationship)
+        if result.is_valid:
+            status_lines.append(f"- VERIFIED: {expression}")
+        else:
+            reason = result.failure_reason or "verification_failed"
+            status_lines.append(f"- FAILED: {expression} — {reason}")
+
+    if skipped_count:
+        status_lines.append(
+            f"- SKIPPED: {skipped_count} relationship(s) could not be bucket-mapped for verification"
+        )
+
     appended_section = "\n".join(
         [
-            "## Verified Relationships (Data-backed)",
-            "Note: These verification results are based on sampled/queryable data and may not fully represent the entire dataset.",
-            *verified_lines,
+            "## Relationship Verification Status",
+            "Verification uses live SQL++ checks against sampled/queryable data for column presence, nullability, uniqueness, and FK inclusion.",
+            "Results are data-backed but sample-sensitive, so unseen values can still fail candidate checks.",
+            f"Summary: {verified_count} verified, {failed_count} failed, {skipped_count} skipped.",
+            *status_lines,
         ]
     )
     logger.info(
-        "Relationship verification completed: %d valid relationships (%d skipped)",
-        len(verified_relationships),
+        "Relationship verification completed: %d verified, %d failed, %d skipped",
+        verified_count,
+        failed_count,
         skipped_count,
     )
     return f"{enriched_prompt.rstrip()}\n\n{appended_section}\n"
