@@ -23,7 +23,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tools import TOOL_ANNOTATIONS, get_tools
 from utils.config import parse_tool_names
-from utils.constants import DEFAULT_CONFIRMATION_REQUIRED_TOOLS
 from utils.elicitation import (
     ConfirmationResult,
     _build_confirmation_message,
@@ -36,14 +35,10 @@ VALID_TOOL_NAMES = {tool.__name__ for tool in get_tools(read_only_mode=False)}
 class TestDefaultConfirmationRequiredTools:
     """Tests for default confirmation-required tools configuration."""
 
-    def test_default_value_includes_delete(self):
-        """Default constant should include delete tool for safety."""
-        assert "delete_document_by_id" in DEFAULT_CONFIRMATION_REQUIRED_TOOLS
-
-    def test_parse_default_value(self):
-        """Default string should parse into expected tool set."""
-        result = parse_tool_names(DEFAULT_CONFIRMATION_REQUIRED_TOOLS, VALID_TOOL_NAMES)
-        assert result == {"delete_document_by_id"}
+    def test_no_default_confirmation_tools(self):
+        """No tools should require confirmation by default."""
+        result = parse_tool_names(None, VALID_TOOL_NAMES)
+        assert result == set()
 
 
 class TestToolAnnotations:

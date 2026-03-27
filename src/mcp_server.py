@@ -15,7 +15,6 @@ from tools import TOOL_ANNOTATIONS, get_tools
 # Import utilities
 from utils import (
     ALLOWED_TRANSPORTS,
-    DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
@@ -217,11 +216,10 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     "--confirmation-required-tools",
     "confirmation_required_tools",
     envvar="CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
-    default=DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
+    default=None,
     help="Comma-separated tool names that require user confirmation before execution. "
-    "Also accepts a file path containing one tool name per line."
-    "Requires the MCP client to support elicitation. "
-    "Default: 'delete_document_by_id'.",
+    "Also accepts a file path containing one tool name per line. "
+    "Requires the MCP client to support elicitation.",
 )
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context

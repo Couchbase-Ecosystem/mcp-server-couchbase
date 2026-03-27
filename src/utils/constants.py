@@ -15,10 +15,6 @@ NETWORK_TRANSPORTS_SDK_MAPPING = {
     "sse": "sse",
 }
 
-# Default tools that require user confirmation before execution (via MCP elicitation).
-# These are high-risk, destructive operations that warrant explicit user consent.
-DEFAULT_CONFIRMATION_REQUIRED_TOOLS = "delete_document_by_id"
-
 # Logging Configuration
 # Change this to DEBUG, WARNING, ERROR as needed
 DEFAULT_LOG_LEVEL = "INFO"

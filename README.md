@@ -317,7 +317,6 @@ When a listed tool is invoked:
 - If the client supports elicitation, the user is prompted to confirm.
 - If the client does not support elicitation, the tool executes without confirmation for backward compatibility.
 
-By default, `delete_document_by_id` requires confirmation.
 
 You can also check the version of the server using:
 
