@@ -75,7 +75,7 @@ mcp-server-couchbase/
 │   │   ├── __init__.py            # Tool exports and ALL_TOOLS list
 │   │   ├── server.py              # Server status and connection tools
 │   │   ├── kv.py                  # Key-value operations (CRUD)
-│   │   ├── query.py               # SQL++ query operations
+│   │   ├── query.py               # SQL++ query and EXPLAIN operations
 │   │   └── index.py               # Index operations and recommendations
 │   └── utils/                     # Utility modules
 │       ├── __init__.py            # Utility exports
@@ -83,10 +83,30 @@ mcp-server-couchbase/
 │       ├── config.py              # Configuration management
 │       ├── connection.py          # Couchbase connection handling
 │       ├── context.py             # Application context management
-│       └── index_utils.py         # Index-related helper functions
+│       ├── elicitation.py         # Confirmation/elicitation support
+│       ├── index_utils.py         # Index-related helper functions
+│       └── query_utils.py         # Query-related helper functions
 ├── scripts/                       # Development scripts
 │   ├── lint.sh                    # Manual linting script
-│   └── lint_fix.sh                # Auto-fix linting issues
+│   ├── lint_fix.sh                # Auto-fix linting issues
+│   ├── setup_test_data.py         # Setup script for integration tests
+│   └── update_version.sh          # Version update script
+├── tests/                         # Test suite
+│   ├── conftest.py                # Shared test fixtures
+│   ├── test_confirmation_tools.py # Tests for confirmation/elicitation
+│   ├── test_index_tools.py        # Tests for index tools
+│   ├── test_is_explain_statement.py # Tests for EXPLAIN detection
+│   ├── test_kv_tools.py           # Tests for KV operations
+│   ├── test_mcp_integration.py    # MCP integration tests
+│   ├── test_parse_tool_names.py   # Tests for tool name parsing
+│   ├── test_performance_tools.py  # Tests for performance analysis tools
+│   ├── test_query_plan_evaluation.py # Tests for query plan evaluation
+│   ├── test_query_tools.py        # Tests for query tools
+│   ├── test_read_only_mode.py     # Tests for read-only mode
+│   ├── test_server_configuration_status_tool.py
+│   ├── test_server_tools.py       # Tests for server tools
+│   ├── test_tool_registration.py  # Tests for tool registration
+│   └── test_utils.py              # Tests for utility functions
 ├── .pre-commit-config.yaml        # Pre-commit hook configuration
 ├── pyproject.toml                 # Project dependencies and Ruff config
 ├── CONTRIBUTING.md                # Contribution Guide
@@ -131,7 +151,29 @@ When adding new MCP tools:
 1. **Create the tool function** in the appropriate module (in `tools` directory)
 2. **Export the tool** in `tools/__init__.py`
 3. **Add to ALL_TOOLS** list in `tools/__init__.py`
-4. **Test the tool** with an MCP client
+4. **Write tests** for the new tool in the `tests/` directory
+5. **Test the tool** with an MCP client
+
+### Configuration Options
+
+When developing and testing, be aware of the key configuration options that affect tool behavior:
+
+| Environment Variable | CLI Argument | Description | Default |
+|---|---|---|---|
+| `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster | **Required** |
+| `CB_USERNAME` | `--username` | Username for basic authentication | **Required (or mTLS)** |
+| `CB_PASSWORD` | `--password` | Password for basic authentication | **Required (or mTLS)** |
+| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Client certificate file for mTLS | |
+| `CB_CLIENT_KEY_PATH` | `--client-key-path` | Client key file for mTLS | |
+| `CB_CA_CERT_PATH` | `--ca-cert-path` | Server root certificate for TLS | |
+| `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). When enabled, KV write tools are not loaded. | `true` |
+| `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
+| `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
+| `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
+| `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (comma-separated or file path) | |
+| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | `--confirmation-required-tools` | Tools requiring user confirmation via elicitation | |
+
+See the [README](README.md) for full details on each option.
 
 ### Code Style Guidelines
 
@@ -143,21 +185,51 @@ When adding new MCP tools:
 
 ## 🧪 Testing
 
-### Manual Testing
+### Running Tests
 
-Currently, testing is done manually with MCP clients:
+The project has a comprehensive test suite in the `tests/` directory:
 
-1. **Set up environment variables** for your Couchbase cluster
-2. **Run the server** with an MCP client like Claude Desktop
-3. **Test tool functionality** through the client interface
+```bash
+# Run all tests
+uv run pytest
 
-### Future Testing Plans
+# Run a specific test file
+uv run pytest tests/test_query_tools.py
 
-We plan to add:
+# Run tests with verbose output
+uv run pytest -v
+```
 
-- Unit tests for utility functions
-- Integration tests
-- Automated testing in CI/CD
+### Setting Up Test Data
+
+For integration tests that need a running Couchbase cluster:
+
+```bash
+# Set required environment variables
+export CB_CONNECTION_STRING="couchbase://localhost"
+export CB_USERNAME="username"
+export CB_PASSWORD="password"
+export CB_MCP_TEST_BUCKET="travel-sample"
+
+# Run the setup script to create indexes and populate test data
+python scripts/setup_test_data.py
+```
+
+### Test Categories
+
+- **Unit tests**: Test individual functions and utilities (e.g., `test_utils.py`, `test_parse_tool_names.py`)
+- **Tool tests**: Test each tool category (e.g., `test_kv_tools.py`, `test_query_tools.py`, `test_index_tools.py`)
+- **Feature tests**: Test specific features like read-only mode (`test_read_only_mode.py`), confirmation tools (`test_confirmation_tools.py`), and query plan evaluation (`test_query_plan_evaluation.py`)
+- **Integration tests**: Test MCP server integration (`test_mcp_integration.py`)
+
+### Writing Tests
+
+When adding new features or tools, add corresponding tests:
+
+1. **Create a test file** in `tests/` following the `test_*.py` naming convention
+2. **Use shared fixtures** from `conftest.py`
+3. **Test both success and error paths**
+4. **Test read-only mode interactions** if your tool performs write operations
 
 ## 📋 Adding New Features
 
@@ -173,7 +245,8 @@ We plan to add:
 2. **Use the utility modules**: Leverage existing connection and context management
 3. **Add proper logging**: Use the hierarchical logging system
 4. **Handle errors gracefully**: Provide helpful error messages
-5. **Update documentation**: Update README.md if adding user-facing features
+5. **Consider read-only mode**: If your tool modifies data, respect `read_only_mode` settings
+6. **Update documentation**: Update README.md if adding user-facing features
 
 ## 🤝 Submitting Changes
 
@@ -209,7 +282,16 @@ uv add --dev package-name
 uv sync
 
 # Run the server for testing
-uv run src/mcp_server.py --connection-string "..." --username "..." --password "..." --bucket-name "..."
+uv run src/mcp_server.py --connection-string "..." --username "..." --password "..."
+
+# Run with write operations enabled
+uv run src/mcp_server.py --connection-string "..." --username "..." --password "..." --read-only-mode false
+
+# Run with confirmation required for specific tools
+uv run src/mcp_server.py --connection-string "..." --username "..." --password "..." --confirmation-required-tools "delete_document_by_id,replace_document_by_id"
+
+# Run with specific tools disabled
+uv run src/mcp_server.py --connection-string "..." --username "..." --password "..." --disabled-tools "upsert_document_by_id,delete_document_by_id"
 ```
 
 ### Debugging
