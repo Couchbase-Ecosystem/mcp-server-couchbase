@@ -111,8 +111,8 @@ The detailed explanation for the environment variables can be found on the [GitH
 | `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)                                                                           | `stdio`                                                        |
 | `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
 | `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                                                                              | `8000`                                                         |
-| `CB_MCP_DISABLED_TOOLS`       | Tools to disable                                                                                          |                                                                |
-| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (via MCP elicitation)                 |                                       |
+| `CB_MCP_DISABLED_TOOLS`       | Tools to disable                                                                                          | None |
+| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (via MCP elicitation)                 | None |
 
 ### Disabling Tools
 
