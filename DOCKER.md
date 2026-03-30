@@ -111,8 +111,8 @@ The detailed explanation for the environment variables can be found on the [GitH
 | `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)                                                                           | `stdio`                                                        |
 | `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
 | `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                                                                              | `8000`                                                         |
-| `CB_MCP_DISABLED_TOOLS`       | Tools to disable                                                                                          | None |
-| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (via MCP elicitation)                 | None |
+| `CB_MCP_DISABLED_TOOLS`              | Tools to disable (see [Disabling Tools](#disabling-tools))                                                | None                                                           |
+| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (see [Confirmation Required Tools](#confirmation-required-tools)) | None                                                           |
 
 ### Disabling Tools
 
@@ -219,3 +219,64 @@ Lines starting with `#` are treated as comments and ignored.
 > - The database user lacks the necessary RBAC permissions for data modification
 >
 > **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use `CB_MCP_READ_ONLY_MODE=true` (the default) for comprehensive write protection, and tool disabling as an additional layer to guide LLM behavior.
+
+### Confirmation Required Tools
+
+You can require explicit user confirmation for specific tools before execution (when the MCP client supports [elicitation](https://modelcontextprotocol.io/specification/2025-06-18/server/elicitation)).
+
+#### Configuration Formats
+
+**Comma-separated list:**
+
+```bash
+CB_MCP_CONFIRMATION_REQUIRED_TOOLS="delete_document_by_id,replace_document_by_id"
+```
+
+**File path (one tool name per line):**
+
+```bash
+CB_MCP_CONFIRMATION_REQUIRED_TOOLS=confirmation_tools.txt
+```
+
+**File format (e.g., `confirmation_tools.txt`):**
+
+```text
+# Destructive operations
+delete_document_by_id
+replace_document_by_id
+```
+
+Lines starting with `#` are treated as comments and ignored.
+
+#### Behavior
+
+When a listed tool is invoked:
+
+- If the client supports elicitation, the user is prompted to confirm before execution.
+- If the client does not support elicitation, the tool executes without confirmation for backward compatibility.
+
+#### MCP Client Configuration Example
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "CB_CONNECTION_STRING=couchbases://connection-string",
+        "-e",
+        "CB_USERNAME=username",
+        "-e",
+        "CB_PASSWORD=password",
+        "-e",
+        "CB_MCP_CONFIRMATION_REQUIRED_TOOLS=delete_document_by_id,replace_document_by_id",
+        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+      ]
+    }
+  }
+}
+```
