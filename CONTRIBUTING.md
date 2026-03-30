@@ -62,6 +62,23 @@ Our Ruff configuration includes:
 - **Code quality**: Detection of unused variables, simplification opportunities
 - **Modern Python**: Encourages modern Python patterns with `pyupgrade`
 
+## 📋 Adding New Features
+
+### Before You Start
+
+1. **Check existing issues** to see if someone is already working on it
+2. **Open an issue** to discuss larger changes
+3. **Review the codebase** to understand existing patterns
+
+### Implementation Guidelines
+
+1. **Follow existing patterns**: Look at similar tools for guidance
+2. **Use the utility modules**: Leverage existing connection and context management
+3. **Add proper logging**: Use the hierarchical logging system
+4. **Handle errors gracefully**: Provide helpful error messages
+5. **Consider read-only mode**: If your tool modifies data, respect `read_only_mode` settings
+6. **Update documentation**: Update README.md if adding user-facing features
+
 ## 🏗️ Project Structure
 
 ```
@@ -108,7 +125,15 @@ mcp-server-couchbase/
 │   ├── test_tool_registration.py  # Tests for tool registration
 │   └── test_utils.py              # Tests for utility functions
 ├── .pre-commit-config.yaml        # Pre-commit hook configuration
+├── build.sh                       # Docker image build script
+├── Dockerfile                     # Docker container definition
+├── DOCKER.md                      # Docker usage documentation
+├── glama.json                     # Glama MCP catalog metadata
+├── LICENSE                        # Apache 2.0 license
 ├── pyproject.toml                 # Project dependencies and Ruff config
+├── RELEASE.md                     # Release process documentation
+├── server.json                    # MCP server metadata
+├── smithery.yaml                  # Smithery.ai deployment config
 ├── CONTRIBUTING.md                # Contribution Guide
 └── README.md                      # Usage
 ```
@@ -117,7 +142,14 @@ mcp-server-couchbase/
 
 ### Making Changes
 
-1. **Create a branch** for your feature/fix:
+1. **Fork the repository**: External contributors do not have commit permissions on the main repository. [Fork the repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/fork) to your own GitHub account and clone your fork.
+
+   ```bash
+   git clone https://github.com/<your-username>/mcp-server-couchbase.git
+   cd mcp-server-couchbase
+   ```
+
+2. **Create a branch** for your feature/fix:
 
    ```bash
    git checkout -b feature/your-feature-name
@@ -153,27 +185,6 @@ When adding new MCP tools:
 3. **Add to ALL_TOOLS** list in `tools/__init__.py`
 4. **Write tests** for the new tool in the `tests/` directory
 5. **Test the tool** with an MCP client
-
-### Configuration Options
-
-When developing and testing, be aware of the key configuration options that affect tool behavior:
-
-| Environment Variable | CLI Argument | Description | Default |
-|---|---|---|---|
-| `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster | **Required** |
-| `CB_USERNAME` | `--username` | Username for basic authentication | **Required (or mTLS)** |
-| `CB_PASSWORD` | `--password` | Password for basic authentication | **Required (or mTLS)** |
-| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Client certificate file for mTLS | |
-| `CB_CLIENT_KEY_PATH` | `--client-key-path` | Client key file for mTLS | |
-| `CB_CA_CERT_PATH` | `--ca-cert-path` | Server root certificate for TLS | |
-| `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). When enabled, KV write tools are not loaded. | `true` |
-| `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio`, `http`, `sse` | `stdio` |
-| `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
-| `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
-| `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (comma-separated or file path) | |
-| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | `--confirmation-required-tools` | Tools requiring user confirmation via elicitation | |
-
-See the [README](README.md) for full details on each option.
 
 ### Code Style Guidelines
 
@@ -230,23 +241,6 @@ When adding new features or tools, add corresponding tests:
 2. **Use shared fixtures** from `conftest.py`
 3. **Test both success and error paths**
 4. **Test read-only mode interactions** if your tool performs write operations
-
-## 📋 Adding New Features
-
-### Before You Start
-
-1. **Check existing issues** to see if someone is already working on it
-2. **Open an issue** to discuss larger changes
-3. **Review the codebase** to understand existing patterns
-
-### Implementation Guidelines
-
-1. **Follow existing patterns**: Look at similar tools for guidance
-2. **Use the utility modules**: Leverage existing connection and context management
-3. **Add proper logging**: Use the hierarchical logging system
-4. **Handle errors gracefully**: Provide helpful error messages
-5. **Consider read-only mode**: If your tool modifies data, respect `read_only_mode` settings
-6. **Update documentation**: Update README.md if adding user-facing features
 
 ## 🤝 Submitting Changes
 
