@@ -19,7 +19,6 @@ from .connection import (
 # Constants
 from .constants import (
     ALLOWED_TRANSPORTS,
-    DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
@@ -62,7 +61,6 @@ __all__ = [
     # Constants
     "MCP_SERVER_NAME",
     "DEFAULT_READ_ONLY_MODE",
-    "DEFAULT_CONFIRMATION_REQUIRED_TOOLS",
     "DEFAULT_TRANSPORT",
     "DEFAULT_LOG_LEVEL",
     "DEFAULT_HOST",

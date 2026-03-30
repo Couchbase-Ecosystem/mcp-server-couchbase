@@ -21,21 +21,22 @@ Environment variables required:
 This script should be run before pytest to ensure tests don't skip.
 """
 
+import base64
+import json
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
-import base64
-import json
+import urllib.request
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+from datetime import timedelta
+
+from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions
-from couchbase.auth import PasswordAuthenticator
-from datetime import timedelta
 
 
 def get_env_or_exit(var_name: str) -> str:
@@ -131,7 +132,10 @@ def create_indexes(cluster: Cluster, bucket_name: str) -> None:
             error_msg = str(e)
             if "already exists" in error_msg.lower():
                 print(f"  - {description} already exists")
-            elif "not found" in error_msg.lower() or "does not exist" in error_msg.lower():
+            elif (
+                "not found" in error_msg.lower()
+                or "does not exist" in error_msg.lower()
+            ):
                 print(f"  - Skipped {description} (scope/collection not found)")
             else:
                 print(f"  - Warning: Could not create {description}: {e}")
@@ -155,7 +159,9 @@ def wait_for_indexes(cluster: Cluster, timeout_seconds: int = 180) -> bool:
                 return True
 
             elapsed = int(time.time() - start_time)
-            print(f"  - Waiting for {building_count} indexes to be built... ({elapsed}s elapsed)")
+            print(
+                f"  - Waiting for {building_count} indexes to be built... ({elapsed}s elapsed)"
+            )
             time.sleep(3)
 
         except Exception as e:
@@ -194,14 +200,8 @@ def check_scope_exists(bucket, scope_name: str) -> bool:
         return False
 
 
-def run_test_queries_inventory(cluster: Cluster, bucket_name: str) -> None:
-    """Run queries against travel-sample inventory scope (full sample data)."""
-    bucket = cluster.bucket(bucket_name)
-    scope = bucket.scope("inventory")
-
-    print("  Using inventory scope (travel-sample with sample data)...")
-
-    # Regular SELECT queries (for longest running, most frequent, response sizes)
+def _run_inventory_select_queries(scope) -> None:
+    """Run regular SELECT and PRIMARY index queries."""
     print("  - Running regular SELECT queries...")
     for _ in range(3):
         result = scope.query("SELECT * FROM airline LIMIT 100")
@@ -210,7 +210,6 @@ def run_test_queries_inventory(cluster: Cluster, bucket_name: str) -> None:
     result = scope.query("SELECT * FROM route LIMIT 500")
     list(result)
 
-    # Queries using PRIMARY index
     print("  - Running queries using primary index...")
     try:
         result = scope.query(
@@ -220,7 +219,9 @@ def run_test_queries_inventory(cluster: Cluster, bucket_name: str) -> None:
     except Exception:
         pass  # May fail depending on data
 
-    # Queries that fetch after index scan (not using covering index)
+
+def _run_inventory_fetch_queries(scope) -> None:
+    """Run queries requiring fetch after index scan (not using covering index)."""
     print("  - Running queries requiring fetch after index scan...")
     result = scope.query(
         "SELECT * FROM airline WHERE country = 'United States' LIMIT 50"
@@ -233,75 +234,69 @@ def run_test_queries_inventory(cluster: Cluster, bucket_name: str) -> None:
         )
         list(result)
 
-    # Queries that are non-selective (indexScan > resultCount)
+
+def _run_inventory_non_selective_queries(scope) -> None:
+    """Run non-selective queries (indexScan > resultCount)."""
     print("  - Running non-selective queries (using secondary indexes)...")
 
-    # Use sourceairport index on route
-    try:
-        result = scope.query("""
-            SELECT * FROM route 
+    non_selective_queries = [
+        """
+            SELECT * FROM route
             WHERE sourceairport >= 'A' AND sourceairport < 'Z'
             AND destinationairport = 'XXXXX'
-        """)
-        list(result)
-    except Exception:
-        pass
-
-    # Use city index on airport
-    try:
-        result = scope.query("""
-            SELECT * FROM airport 
+        """,
+        """
+            SELECT * FROM airport
             WHERE city >= 'A' AND city < 'Z'
             AND faa = 'XXXX'
-        """)
-        list(result)
-    except Exception:
-        pass
-
-    # Use city index on hotel
-    try:
-        result = scope.query("""
-            SELECT * FROM hotel 
+        """,
+        """
+            SELECT * FROM hotel
             WHERE city >= 'A' AND city < 'Z'
             AND name LIKE 'ZZZZZZ%'
-        """)
-        list(result)
-    except Exception:
-        pass
-
-    # Use faa index on airport
-    try:
-        result = scope.query("""
-            SELECT * FROM airport 
+        """,
+        """
+            SELECT * FROM airport
             WHERE faa >= 'A' AND faa < 'Z'
             AND country = 'XXXXXX'
-        """)
-        list(result)
-    except Exception:
-        pass
+        """,
+    ]
+    for q in non_selective_queries:
+        try:
+            result = scope.query(q)
+            list(result)
+        except Exception:
+            pass
 
-    # Additional varied queries
+
+def _run_inventory_varied_queries(scope) -> None:
+    """Run additional varied queries."""
     print("  - Running additional varied queries...")
-    result = scope.query("SELECT COUNT(*) as cnt FROM airline")
-    list(result)
+    varied_queries = [
+        "SELECT COUNT(*) as cnt FROM airline",
+        "SELECT DISTINCT country FROM airline",
+        "SELECT name, country FROM airline ORDER BY name LIMIT 20",
+        "SELECT name, keyspace_id, index_key FROM system:indexes WHERE bucket_id = 'travel-sample' AND state = 'online'",
+        "SELECT * FROM airport WHERE faa >= 'A' AND faa < 'Z' AND country = 'XXXXXX'",
+        "SELECT * FROM airport WHERE faa >= 'A' AND faa < 'Z' AND country = 'XXXXXX'",
+        "SELECT * FROM hotel WHERE city >= 'A' AND city < 'Z' AND name LIKE 'ZZZZZZ%'",
+    ]
+    for q in varied_queries:
+        result = scope.query(q)
+        list(result)
 
-    result = scope.query("SELECT DISTINCT country FROM airline")
-    list(result)
 
-    result = scope.query("SELECT name, country FROM airline ORDER BY name LIMIT 20")
-    list(result)
+def run_test_queries_inventory(cluster: Cluster, bucket_name: str) -> None:
+    """Run queries against travel-sample inventory scope (full sample data)."""
+    bucket = cluster.bucket(bucket_name)
+    scope = bucket.scope("inventory")
 
-    result = scope.query("SELECT name, keyspace_id, index_key FROM system:indexes WHERE bucket_id = 'travel-sample' AND state = 'online'")
-    list(result)
+    print("  Using inventory scope (travel-sample with sample data)...")
 
-    result = scope.query("SELECT * FROM airport WHERE faa >= 'A' AND faa < 'Z' AND country = 'XXXXXX'")
-    list(result)
-
-    result = scope.query("SELECT * FROM airport WHERE faa >= 'A' AND faa < 'Z' AND country = 'XXXXXX'")
-    list(result)
-
-    result = scope.query("SELECT * FROM hotel WHERE city >= 'A' AND city < 'Z' AND name LIKE 'ZZZZZZ%'")
-    list(result)
+    _run_inventory_select_queries(scope)
+    _run_inventory_fetch_queries(scope)
+    _run_inventory_non_selective_queries(scope)
+    _run_inventory_varied_queries(scope)
 
 
 def run_test_queries_default(cluster: Cluster, bucket_name: str) -> None:
@@ -324,9 +319,7 @@ def run_test_queries_default(cluster: Cluster, bucket_name: str) -> None:
     # Queries using PRIMARY index
     print("  - Running queries using primary index...")
     try:
-        result = scope.query(
-            f"SELECT META().id, * FROM `{collection_name}` LIMIT 10"
-        )
+        result = scope.query(f"SELECT META().id, * FROM `{collection_name}` LIMIT 10")
         list(result)
     except Exception:
         pass
@@ -343,9 +336,7 @@ def run_test_queries_default(cluster: Cluster, bucket_name: str) -> None:
 
     for _ in range(3):
         try:
-            result = scope.query(
-                f"SELECT * FROM `{collection_name}` WHERE id > 0"
-            )
+            result = scope.query(f"SELECT * FROM `{collection_name}` WHERE id > 0")
             list(result)
         except Exception:
             pass
@@ -365,7 +356,9 @@ def run_test_queries_default(cluster: Cluster, bucket_name: str) -> None:
         pass
 
     try:
-        result = scope.query(f"SELECT * FROM `{collection_name}` ORDER BY META().id LIMIT 20")
+        result = scope.query(
+            f"SELECT * FROM `{collection_name}` ORDER BY META().id LIMIT 20"
+        )
         list(result)
     except Exception:
         pass
