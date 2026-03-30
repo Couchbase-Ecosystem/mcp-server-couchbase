@@ -150,19 +150,16 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 @click.option(
     "--ca-cert-path",
     envvar="CB_CA_CERT_PATH",
-    default=None,
     help="Path to the server trust store (CA certificate) file. The certificate at this path is used to verify the server certificate during the authentication process.",
 )
 @click.option(
     "--client-cert-path",
     envvar="CB_CLIENT_CERT_PATH",
-    default=None,
     help="Path to the client certificate file used for mTLS authentication.",
 )
 @click.option(
     "--client-key-path",
     envvar="CB_CLIENT_KEY_PATH",
-    default=None,
     help="Path to the client certificate key file used for mTLS authentication.",
 )
 @click.option(
@@ -216,7 +213,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     "--confirmation-required-tools",
     "confirmation_required_tools",
     envvar="CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
-    default=None,
     help="Comma-separated tool names that require user confirmation before execution. "
     "Also accepts a file path containing one tool name per line. "
     "Requires the MCP client to support elicitation.",
