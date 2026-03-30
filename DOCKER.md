@@ -112,7 +112,7 @@ The detailed explanation for the environment variables can be found on the [GitH
 | `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
 | `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                                                                              | `8000`                                                         |
 | `CB_MCP_DISABLED_TOOLS`       | Tools to disable                                                                                          |                                                                |
-| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (via MCP elicitation)                 | `delete_document_by_id`                                        |
+| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (via MCP elicitation)                 |                                       |
 
 ### Disabling Tools
 
