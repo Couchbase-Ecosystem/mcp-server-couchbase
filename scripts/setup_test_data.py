@@ -10,7 +10,7 @@ This script:
 5. Ensures performance analysis tests have data to validate against
 
 Usage:
-    python scripts/setup_test_data.py
+    uv run scripts/setup_test_data.py
 
 Environment variables required:
     CB_CONNECTION_STRING - Couchbase connection string (e.g., couchbase://localhost)

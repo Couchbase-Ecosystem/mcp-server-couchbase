@@ -212,7 +212,7 @@ export CB_PASSWORD="password"
 export CB_MCP_TEST_BUCKET="travel-sample"
 
 # Run the setup script to create indexes and populate test data
-python scripts/setup_test_data.py
+uv run scripts/setup_test_data.py
 ```
 
 ### Test Categories
