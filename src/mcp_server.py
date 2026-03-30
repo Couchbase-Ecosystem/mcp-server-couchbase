@@ -15,7 +15,6 @@ from tools import TOOL_ANNOTATIONS, get_tools
 # Import utilities
 from utils import (
     ALLOWED_TRANSPORTS,
-    DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
@@ -106,7 +105,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     settings = get_settings()
     read_only_mode = settings.get("read_only_mode", True)
     read_only_query_mode = settings.get("read_only_query_mode", True)
-    confirmation_required_tools = settings.get("confirmation_required_tools", set())
 
     # Note: We don't validate configuration here to allow tool discovery
     # Configuration will be validated when tools are actually used
@@ -151,19 +149,16 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 @click.option(
     "--ca-cert-path",
     envvar="CB_CA_CERT_PATH",
-    default=None,
     help="Path to the server trust store (CA certificate) file. The certificate at this path is used to verify the server certificate during the authentication process.",
 )
 @click.option(
     "--client-cert-path",
     envvar="CB_CLIENT_CERT_PATH",
-    default=None,
     help="Path to the client certificate file used for mTLS authentication.",
 )
 @click.option(
     "--client-key-path",
     envvar="CB_CLIENT_KEY_PATH",
-    default=None,
     help="Path to the client certificate key file used for mTLS authentication.",
 )
 @click.option(
@@ -217,11 +212,9 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     "--confirmation-required-tools",
     "confirmation_required_tools",
     envvar="CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
-    default=DEFAULT_CONFIRMATION_REQUIRED_TOOLS,
     help="Comma-separated tool names that require user confirmation before execution. "
-    "Also accepts a file path containing one tool name per line."
-    "Requires the MCP client to support elicitation. "
-    "Default: 'delete_document_by_id'.",
+    "Also accepts a file path containing one tool name per line. "
+    "Requires the MCP client to support elicitation.",
 )
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
