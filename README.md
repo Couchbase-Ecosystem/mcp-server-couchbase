@@ -10,6 +10,10 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 
 <!-- mcp-name: io.github.Couchbase-Ecosystem/mcp-server-couchbase -->
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/couchbase-ecosystem-mcp-server-couchbase).
+
 ## Features/Tools
 
 ### Cluster setup & health tools
