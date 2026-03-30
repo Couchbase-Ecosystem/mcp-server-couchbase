@@ -105,7 +105,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     settings = get_settings()
     read_only_mode = settings.get("read_only_mode", True)
     read_only_query_mode = settings.get("read_only_query_mode", True)
-    settings.get("confirmation_required_tools", set())
 
     # Note: We don't validate configuration here to allow tool discovery
     # Configuration will be validated when tools are actually used
