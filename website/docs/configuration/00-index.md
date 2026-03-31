@@ -1,7 +1,6 @@
 ---
 title: Configuration
 slug: /configuration
-sidebar_position: 0
 ---
 
 # Configuration
