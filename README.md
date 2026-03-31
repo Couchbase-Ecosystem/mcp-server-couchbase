@@ -599,11 +599,12 @@ docker run --rm -i \
   -e CB_MCP_READ_ONLY_MODE='<true|false>' \
   -e CB_MCP_CONFIRMATION_REQUIRED_TOOLS='delete_document_by_id' \
   -e CB_MCP_PORT=9001 \
+  -e CB_MCP_HOST=0.0.0.0 \
   -p 9001:9001 \
   mcp/couchbase-src
 ```
 
-The `CB_MCP_PORT` environment variable is only applicable in the case of HTTP transport modes like http and sse.
+The `CB_MCP_PORT` and `CB_MCP_HOST` environment variables are only applicable in the case of HTTP transport modes like http and sse.
 
 #### Docker: MCP Client Configuration
 
@@ -624,8 +625,6 @@ The Docker image can be used in `stdio` transport mode with the following config
         "CB_USERNAME=<database_user>",
         "-e",
         "CB_PASSWORD=<database_password>",
-        "-e",
-        "CB_MCP_HOST=0.0.0.0",
         "mcp/couchbase-src"
       ]
     }
