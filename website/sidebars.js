@@ -27,6 +27,7 @@ const sidebars = {
         'configuration/read-only-mode',
         'configuration/disabling-tools',
         'configuration/streamable-http',
+        'configuration/confirmation-required',
       ],
     },
     'security',
