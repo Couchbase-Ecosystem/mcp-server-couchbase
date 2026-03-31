@@ -30,7 +30,7 @@ const sidebars = {
       ],
     },
     'security',
-    'customize-mcp-server',
+    'build-from-source',
     {
       type: 'category',
       label: 'Product Notes',

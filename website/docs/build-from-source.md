@@ -1,10 +1,12 @@
 ---
-title: Customize MCP Server
+title: Build from Source
 ---
 
-# Customize MCP Server
+# Build from Source
 
-If you want to customise the Couchbase MCP server with your own tools, resources or configurations, you may clone the repository and make the changes as you wish. If you would like to contribute towards the official Couchbase MCP server, follow the [Contributing](/product-notes/contributing) guidelines.
+This page provides a step-by-step guide to building the Couchbase MCP Server from source when you want to run it locally, test the latest changes, or extend it directly from the GitHub repository. It covers cloning the repository, configuring your MCP client, and optionally building a Docker image from source.
+
+If you would like to contribute towards the official Couchbase MCP server, follow the [Contributing](/product-notes/contributing) guidelines.
 
 ## Prerequisites
 

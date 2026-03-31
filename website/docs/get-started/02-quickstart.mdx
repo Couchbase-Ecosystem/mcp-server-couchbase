@@ -178,7 +178,7 @@ See the [VS Code MCP documentation](https://code.visualstudio.com/docs/copilot/c
 
 1. Create a configuration file using one of two scopes:
    - **Workspace** — Create `.vscode/mcp.json` in your project root. Settings apply only to that project.
-   - **Global (User)** — Run **MCP: Open User Configuration** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`). Settings apply to all projects.
+   - **Global (User)** — Run **MCP: Open User Configuration** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`). Settings apply to all projects. On macOS, this file is located at `~/Library/Application Support/Code/User/mcp.json`.
 2. Add the Couchbase MCP Server configuration.
 
 :::note
@@ -279,6 +279,63 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 </Tabs>
 
 **Logs:** Help > Show Log in Finder/Explorer > mcp > couchbase
+
+  </TabItem>
+  <TabItem value="factory" label="Factory">
+
+**Option 1: Droid CLI**
+
+Run the following command in the Droid CLI:
+
+```bash
+droid mcp add couchbase-mcp 'uvx couchbase-mcp-server --connection-string=couchbase://localhost --username=Administrator --password=password' --type stdio
+```
+
+**Option 2: Configuration File**
+
+Navigate to the MCP configuration file at `~/.factory/mcp.json` and add the Couchbase MCP Server configuration.
+
+<Tabs groupId="install-method">
+  <TabItem value="uvx" label="uvx" default>
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "your-username",
+        "CB_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=your-username",
+        "-e", "CB_PASSWORD=your-password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+  </TabItem>
+</Tabs>
 
   </TabItem>
 </Tabs>
@@ -415,5 +472,5 @@ To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configurat
 
 - Review all available [Tools](/tools/cluster-health)
 - Explore [Configuration](/configuration) options
-- Want to customize or build from source? See [Customize MCP Server](/customize-mcp-server)
+- Want to customize or build from source? See [Build from Source](/build-from-source)
 - Having issues? See [Troubleshooting](/troubleshooting)

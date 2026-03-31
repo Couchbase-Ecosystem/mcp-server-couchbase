@@ -56,6 +56,7 @@ Tools for running SQL++ queries, listing indexes, and getting index recommendati
 | Tool | Description |
 |------|-------------|
 | `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope |
+| `explain_sql_plus_plus_query` | Generate and evaluate an EXPLAIN plan for a SQL++ query, showing the execution plan including operators like scans, joins, and filters used. Aids in performance tuning by revealing index usage, cost estimates, and data access paths |
 | `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering |
 | `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query |
 

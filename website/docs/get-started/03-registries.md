@@ -21,7 +21,7 @@ The [Docker MCP Catalog](https://hub.docker.com/mcp/server/couchbase/overview) p
 
 - **Image:** [`mcp/couchbase`](https://hub.docker.com/mcp/server/couchbase/overview)
 - **Transport:** stdio (default), HTTP, SSE
-- See [Streamable HTTP](/configuration/streamable-http) for HTTP transport and [Customize MCP Server](/customize-mcp-server#dockerize-from-source) for building from source.
+- See [Streamable HTTP](/configuration/streamable-http) for HTTP transport and [Build from Source](/build-from-source#dockerize-from-source) for building from source.
 
 ## Glama.ai
 
