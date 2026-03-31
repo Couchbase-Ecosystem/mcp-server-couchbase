@@ -38,13 +38,47 @@ Full functionality requires client support for [elicitation](https://modelcontex
 }
 ```
 
+## Supported Formats
+
+### Comma-Separated List
+
+```bash
+# Environment variable
+CB_MCP_CONFIRMATION_REQUIRED="delete_document_by_id, upsert_document_by_id"
+
+# Command line
+uvx couchbase-mcp-server --confirmation-required "delete_document_by_id, upsert_document_by_id"
+```
+
+### File Path (One Tool Per Line)
+
+```bash
+# Environment variable
+CB_MCP_CONFIRMATION_REQUIRED=confirmation_required_tools.txt
+
+# Command line
+uvx couchbase-mcp-server --confirmation-required confirmation_required_tools.txt
+```
+
+File format example (`confirmation_required_tools.txt`):
+
+```text
+# Write operations
+upsert_document_by_id
+delete_document_by_id
+
+# Replace operations
+replace_document_by_id
+```
+
+Lines starting with `#` are treated as comments and ignored.
+
 ## Important Limitations
 
-- Setting `CB_MCP_CONFIRMATION_REQUIRED` for a tool that **didn't load** has no impact, as no confirmation is needed for unloaded tools.
-- Tools fail to load when:
-  - Added to the `CB_MCP_DISABLED_TOOLS` configuration, or
-  - Not included in the loaded tools when `CB_MCP_READ_ONLY_MODE` is enabled.
+- Setting `CB_MCP_CONFIRMATION_REQUIRED` for a tool that **didn't load** has no impact, as no confirmation is needed for unloaded tools. A tool doesn't load if it is explicitly listed under the `disabled_tools` configuration or if **READ_ONLY** mode is enabled and the tool is not a **READ_ONLY** tool.
 
 :::warning
-The confirmation_required setting applies **specifically to tools**, not to individual actions (read/update/delete, etc.). Tool execution via SQL++ or the `run_sql_plus_plus_query` tool bypasses confirmation, even if confirmation_required is enabled for that tool.
+The confirmation_required setting applies explicitly to tools, not to individual actions (such as read, update, or delete operations).
+
+For example, if confirmation_required is enabled for the `delete_document_by_id` tool, the MCP server prompts for confirmation only when the MCP client selects that specific tool. No confirmation is requested if the client selects a different tool, such as `run_sql_plus_plus_query`.
 :::
