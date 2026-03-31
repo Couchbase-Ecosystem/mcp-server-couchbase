@@ -220,7 +220,7 @@ Lines starting with `#` are treated as comments and ignored.
 >
 > **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use `CB_MCP_READ_ONLY_MODE=true` (the default) for comprehensive write protection, and tool disabling as an additional layer to guide LLM behavior.
 
-### Confirmation Required Tools
+### Elicitation/Confirmation for Tool Calls
 
 You can require explicit user confirmation for specific tools before execution (when the MCP client supports [elicitation](https://modelcontextprotocol.io/specification/2025-06-18/server/elicitation)).
 
