@@ -2,7 +2,7 @@
 
 This document describes how to create a new release of `mcp-server-couchbase`.
 
-## How to Release a new Version
+## How to Release a New Version
 
 ### Update Version Numbers
 
@@ -146,7 +146,7 @@ Verify the release is available on:
 - [Docker Hub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase)
 - [MCP Registry](https://hub.docker.com/mcp/server/couchbase/overview)
 
-There is a delay between PyPI/Docker publish and MCP Registry update due to the images being built independently by Docker. So check the MCP Registry after few days.
+There is a delay between PyPI/Docker publish and MCP Registry update due to the images being built independently by Docker on a regular schedule. So check the MCP Registry the next day.
 
 ## Release Candidates
 

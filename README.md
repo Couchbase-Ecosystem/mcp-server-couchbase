@@ -505,7 +505,7 @@ There is an option to run the MCP server in [Server-Sent Events (SSE)](https://m
 
 > Note: SSE mode has been [deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) by MCP. We have support for [Streamable HTTP](#streamable-http-transport-mode).
 
-### SSE:Usage
+### SSE: Usage
 
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `CB_MCP_PORT` environment variable.
 
@@ -520,7 +520,7 @@ uvx couchbase-mcp-server \
 
 The server will be available on <http://localhost:8000/sse>. This can be used in MCP clients supporting SSE transport mode such as Cursor.
 
-### SSE:MCP Client Configuration
+### SSE: MCP Client Configuration
 
 ```json
 {
@@ -625,7 +625,7 @@ The Docker image can be used in `stdio` transport mode with the following config
         "-e",
         "CB_PASSWORD=<database_password>",
         "-e",
-        "CB_MCP_HOST='0.0.0.0'",
+        "CB_MCP_HOST=0.0.0.0",
         "mcp/couchbase-src"
       ]
     }
