@@ -2,7 +2,7 @@
 
 This document describes how to create a new release of `mcp-server-couchbase`.
 
-## Release Process
+## How to Release a new Version
 
 ### Update Version Numbers
 
@@ -67,6 +67,7 @@ Update the version in all locations:
    ```
 
 5. Update lock file:
+
    ```bash
    uv lock
    ```
@@ -137,13 +138,15 @@ Once the tag is pushed, three GitHub Actions workflows run **in parallel/sequenc
 
 Check that all three workflows succeeded:
 
-- https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/actions
+- [GitHub Actions](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/actions)
 
-Verify the release is available:
+Verify the release is available on:
 
-- PyPI: https://pypi.org/project/couchbase-mcp-server/
-- Docker Hub: https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase
-- MCP Registry
+- [PyPI](https://pypi.org/project/couchbase-mcp-server/)
+- [Docker Hub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase)
+- [MCP Registry](https://hub.docker.com/mcp/server/couchbase/overview)
+
+There is a delay between PyPI/Docker publish and MCP Registry update due to the images being built independently by Docker. So check the MCP Registry after few days.
 
 ## Release Candidates
 
