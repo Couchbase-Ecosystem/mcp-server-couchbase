@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import time
+from contextlib import suppress
 from datetime import timedelta
 from typing import Any
 
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
+from couchbase.management.buckets import BucketType, CreateBucketSettings
 from couchbase.options import ClusterOptions, QueryOptions, RemoveOptions, UpsertOptions
 
 __all__ = ["CB"]
@@ -131,6 +134,66 @@ class CB:
             f".{self.__quote_identifier(scope_name)};"
         )
         self.__run_query(statement, timeout_seconds)
+
+    def create_bucket(
+        self,
+        bucket_name: str,
+        timeout_seconds: int = 60,
+    ) -> None:
+        """Create a new bucket in the cluster with standard settings."""
+        if self.__cluster is None:
+            raise RuntimeError(
+                "Cluster is not connected. Call connect_to_cluster first."
+            )
+
+        try:
+            bucket_manager = self.__cluster.buckets()
+
+            settings = CreateBucketSettings(
+                name=bucket_name,
+                bucket_type=BucketType.COUCHBASE,
+                ram_quota_mb=256,
+                num_replicas=0,
+            )
+            bucket_manager.create_bucket(
+                settings,
+                timeout=timedelta(seconds=timeout_seconds),
+            )
+        except Exception:
+            # Bucket may already exist, which is fine
+            pass
+
+    def delete_bucket(
+        self,
+        bucket_name: str,
+        timeout_seconds: int = 60,
+    ) -> None:
+        """Delete a bucket from the cluster and wait for removal."""
+        if self.__cluster is None:
+            raise RuntimeError(
+                "Cluster is not connected. Call connect_to_cluster first."
+            )
+
+        bucket_manager = self.__cluster.buckets()
+        # Bucket may already be absent, which is fine.
+        with suppress(Exception):
+            bucket_manager.drop_bucket(
+                bucket_name,
+                timeout=timedelta(seconds=timeout_seconds),
+            )
+
+        deadline = time.time() + timeout_seconds
+        while time.time() < deadline:
+            all_buckets = bucket_manager.get_all_buckets(
+                timeout=timedelta(seconds=timeout_seconds)
+            )
+            if bucket_name not in all_buckets:
+                return
+            time.sleep(0.5)
+
+        raise TimeoutError(
+            f"Bucket {bucket_name!r} was not deleted within {timeout_seconds} seconds"
+        )
 
     def delete_scope(
         self,
