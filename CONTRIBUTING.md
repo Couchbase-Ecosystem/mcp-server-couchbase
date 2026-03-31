@@ -17,7 +17,11 @@ Thank you for your interest in contributing to the Couchbase MCP Server! This gu
 # Clone the repository
 git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
 cd mcp-server-couchbase
+```
 
+**Note:** External contributors do not have commit permissions on the main repository. [Fork the repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/fork) to your own GitHub account and clone your fork instead of this repo.
+
+```bash
 # Install dependencies (including development tools)
 uv sync --extra dev
 ```
@@ -142,7 +146,6 @@ mcp-server-couchbase/
 
 ### Making Changes
 
-> **Note:** External contributors do not have commit permissions on the main repository. [Fork the repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/fork) to your own GitHub account and clone your fork before starting.
 1. **Create a branch** for your feature/fix:
 
    ```bash
