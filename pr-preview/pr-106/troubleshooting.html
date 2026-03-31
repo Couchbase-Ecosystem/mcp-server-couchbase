@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Troubleshooting | Couchbase MCP Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Troubleshooting | Couchbase MCP Server"><meta data-rh="true" name="description" content="Common issues and solutions when using the Couchbase MCP Server."><meta data-rh="true" property="og:description" content="Common issues and solutions when using the Couchbase MCP Server."><link data-rh="true" rel="icon" href="/mcp-server-couchbase/pr-preview/pr-106/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting"><link data-rh="true" rel="alternate" href="https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting" hreflang="en"><link data-rh="true" rel="alternate" href="https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Troubleshooting","item":"https://Couchbase-Ecosystem.github.io/mcp-server-couchbase/pr-preview/pr-106/troubleshooting"}]}</script><link rel="stylesheet" href="/mcp-server-couchbase/pr-preview/pr-106/assets/css/styles.a64e1761.css">
-<script src="/mcp-server-couchbase/pr-preview/pr-106/assets/js/runtime~main.e4387e82.js" defer="defer"></script>
-<script src="/mcp-server-couchbase/pr-preview/pr-106/assets/js/main.6bedb290.js" defer="defer"></script>
+<script src="/mcp-server-couchbase/pr-preview/pr-106/assets/js/runtime~main.4b6002a5.js" defer="defer"></script>
+<script src="/mcp-server-couchbase/pr-preview/pr-106/assets/js/main.a83673de.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -32,6 +32,7 @@
 <li class="">Use <code>couchbase://</code> for unencrypted connections as you do not need to encrypt the connection in trusted environments.</li>
 </ul>
 </li>
+<li class=""><strong>Certificates for TLS</strong> — If you are connecting with TLS enabled on non-Capella clusters, ensure that the certificate is configured correctly via <code>CB_CA_CERT_PATH</code>.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="transport-mode-issues">Transport Mode Issues<a href="#transport-mode-issues" class="hash-link" aria-label="Direct link to Transport Mode Issues" title="Direct link to Transport Mode Issues" translate="no">​</a></h2>
 <ul>
@@ -57,7 +58,7 @@
 <li class="">Verify tool names are spelled exactly as listed in the <a class="" href="/mcp-server-couchbase/pr-preview/pr-106/tools/cluster-health">Tools</a> reference.</li>
 <li class="">If using a file path for <code>CB_MCP_CONFIRMATION_REQUIRED</code>, ensure the file exists and is readable by the server process.</li>
 <li class="">Ensure that the MCP client supports <a href="https://modelcontextprotocol.io/docs/concepts/elicitation" target="_blank" rel="noopener noreferrer" class="">Elicitation</a>. If the client does not support it, the tools will be executed without requiring confirmation.</li>
-<li class="">See <a class="" href="/mcp-server-couchbase/pr-preview/pr-106/configuration/confirmation-required">Elicitation/Confirmation for Tool Calls</a> for configuration details.</li>
+<li class="">See <a class="" href="/mcp-server-couchbase/pr-preview/pr-106/configuration/elicitation_for_tools">Elicitation/Confirmation for Tool Calls</a> for configuration details.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="environment-variable-issues">Environment Variable Issues<a href="#environment-variable-issues" class="hash-link" aria-label="Direct link to Environment Variable Issues" title="Direct link to Environment Variable Issues" translate="no">​</a></h2>
 <ul>
