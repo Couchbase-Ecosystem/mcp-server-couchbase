@@ -99,6 +99,13 @@
           "isRequired": false,
           "format": "string",
           "isSecret": false
+        },
+        {
+          "name": "CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
+          "description": "Comma-separated tool names that require user confirmation before execution. Also accepts a file path containing one tool name per line. Requires the MCP client to support elicitation.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
         }
       ],
       "packageArguments": [
@@ -197,6 +204,14 @@
           "isRequired": false,
           "format": "string",
           "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--confirmation-required-tools",
+          "description": "Comma-separated tool names that require user confirmation before execution. Also accepts a file path containing one tool name per line. Requires the MCP client to support elicitation.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
         }
       ]
     },
@@ -287,6 +302,13 @@
         {
           "name": "CB_MCP_DISABLED_TOOLS",
           "description": "Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') or a file path containing one tool name per line.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
+          "description": "Comma-separated tool names that require user confirmation before execution. Also accepts a file path containing one tool name per line. Requires the MCP client to support elicitation.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
