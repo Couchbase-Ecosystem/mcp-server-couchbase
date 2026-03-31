@@ -540,7 +540,7 @@ Alternatively, we are part of the [Docker MCP Catalog](https://hub.docker.com/mc
 ### Building Image
 
 ```bash
-docker build -t mcp/couchbase .
+docker build -t mcp/couchbase-src .
 ```
 
 <details>
@@ -550,17 +550,22 @@ If you want to build with the build arguments for commit hash and the build time
 ```bash
 docker build --build-arg GIT_COMMIT_HASH=$(git rev-parse HEAD) \
   --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-  -t mcp/couchbase .
+  -t mcp/couchbase-src .
 ```
 
 **Alternatively, use the provided build script:**
 
 ```bash
+# Build with default image name (mcp/couchbase-src)
 ./build.sh
+
+# Build with custom image name
+./build.sh my-custom/image-name
 ```
 
 This script automatically:
 
+- Accepts an optional image name parameter (defaults to `mcp/couchbase-src`)
 - Generates git commit hash and build timestamp
 - Creates multiple useful tags (`latest`, `<short-commit>`)
 - Shows build information and results
@@ -570,10 +575,10 @@ This script automatically:
 
 ```bash
 # View git commit hash in image
-docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase:latest
+docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase-src:latest
 
 # View all metadata labels
-docker inspect --format='{{json .Config.Labels}}' mcp/couchbase:latest
+docker inspect --format='{{json .Config.Labels}}' mcp/couchbase-src:latest
 ```
 
 </details>
@@ -594,7 +599,7 @@ docker run --rm -i \
   -e CB_MCP_CONFIRMATION_REQUIRED_TOOLS='delete_document_by_id' \
   -e CB_MCP_PORT=9001 \
   -p 9001:9001 \
-  mcp/couchbase
+  mcp/couchbase-src
 ```
 
 The `CB_MCP_PORT` environment variable is only applicable in the case of HTTP transport modes like http and sse.
@@ -618,7 +623,7 @@ The Docker image can be used in `stdio` transport mode with the following config
         "CB_USERNAME=<database_user>",
         "-e",
         "CB_PASSWORD=<database_password>",
-        "mcp/couchbase"
+        "mcp/couchbase-src"
       ]
     }
   }
