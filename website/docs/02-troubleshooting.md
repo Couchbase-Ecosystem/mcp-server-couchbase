@@ -39,6 +39,13 @@ Common issues and solutions when using the Couchbase MCP Server.
 - If using a file path for `CB_MCP_DISABLED_TOOLS`, ensure the file exists and is readable by the server process.
 - Remember that disabling tools alone does not prevent operations — RBAC is the authoritative security control. See [Security](/security).
 
+## Tools Requiring Confirmation
+
+- Verify tool names are spelled exactly as listed in the [Tools](/tools/cluster-health) reference.
+- If using a file path for `CB_MCP_CONFIRMATION_REQUIRED`, ensure the file exists and is readable by the server process.
+- Ensure that the MCP client supports [Elicitation](https://modelcontextprotocol.io/docs/concepts/elicitation). If the client does not support it, the tools will be executed without requiring confirmation.
+- See [Elicitation/Confirmation for Tool Calls](/configuration/confirmation-required) for configuration details.
+
 ## Environment Variable Issues
 
 - **Variables not taking effect** — Ensure variables are set in the `env` block of your MCP client configuration, not as system environment variables (unless your client supports that).

@@ -1,9 +1,9 @@
 ---
 sidebar_position: 6
-title: Confirmation Required
+title: Elicitation/Confirmation for Tool Calls
 ---
 
-# Confirmation Required
+# Elicitation/Confirmation for Tool Calls
 
 The `CB_MCP_CONFIRMATION_REQUIRED` environment variable enables user confirmation prompts for tools marked as requiring confirmation. This allows users to double-check before the LLM executes important actions.
 
@@ -27,16 +27,6 @@ Full functionality requires client support for [elicitation](https://modelcontex
 | Environment Variable | CLI Argument | Description | Default |
 |---|---|---|---|
 | `CB_MCP_CONFIRMATION_REQUIRED` | `--confirmation-required` | Comma-separated list of tool names that require user confirmation before execution | None |
-
-### Example
-
-```json
-{
-  "env": {
-    "CB_MCP_CONFIRMATION_REQUIRED": "upsert_document_by_id,delete_document_by_id"
-  }
-}
-```
 
 ## Supported Formats
 
@@ -72,6 +62,46 @@ replace_document_by_id
 ```
 
 Lines starting with `#` are treated as comments and ignored.
+
+## MCP Client Configuration Examples
+
+**Using comma-separated list:**
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
+        "CB_MCP_CONFIRMATION_REQUIRED": "upsert_document_by_id,delete_document_by_id"
+      }
+    }
+  }
+}
+```
+
+**Using file path (recommended for many tools):**
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
+        "CB_MCP_CONFIRMATION_REQUIRED": "/path/to/confirmation_required_tools.txt"
+      }
+    }
+  }
+}
+```
 
 ## Important Limitations
 

@@ -25,8 +25,8 @@ const sidebars = {
       items: [
         'configuration/environment-variables',
         'configuration/read-only-mode',
-        'configuration/disabling-tools',
         'configuration/streamable-http',
+        'configuration/disabling-tools',
         'configuration/confirmation-required',
       ],
     },

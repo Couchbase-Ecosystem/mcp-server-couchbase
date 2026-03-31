@@ -23,12 +23,12 @@ The MCP server can be configured using environment variables or command line arg
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
 | `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](/configuration/disabling-tools)) | None |
-| `CB_MCP_CONFIRMATION_REQUIRED` | `--confirmation-required` | Tools requiring user confirmation before execution (see [Confirmation Required](/configuration/confirmation-required)) | None |
+| `CB_MCP_CONFIRMATION_REQUIRED` | `--confirmation-required` | Tools requiring user confirmation before execution (see [Elicitation/Confirmation for Tool Calls](/configuration/confirmation-required)) | None |
 
 ## Configuring Authentication
 
 For authentication, you need **either**:
-- Username and Password ([basic authentication](#how-to-basic-based-auth)), **or**
+- Username and Password ([basic authentication](#how-to-basic-auth)), **or**
 - Client Certificate and Key paths ([mTLS authentication](#how-to-mtls-based-auth))
 
 If both are specified, client certificates take priority.
@@ -49,34 +49,22 @@ uvx couchbase-mcp-server --version
 All examples below use `uvx` to run the server. These can be replaced with the corresponding `docker run` commands — see [Streamable HTTP](/configuration/streamable-http) for the Docker HTTP configuration.
 :::
 
-### How to: Connect to Self-Managed Server
+### How to: Basic Auth
 
-- **Connection string**: Use `couchbase://` for unencrypted connections or `couchbases://` for TLS.
-- **TLS certificates**: If using TLS with self-signed or untrusted certificates, set `CB_CA_CERT_PATH` to your CA root certificate.
-- **mTLS**: For certificate-based authentication, use `CB_CLIENT_CERT_PATH` and `CB_CLIENT_KEY_PATH` instead of username/password.
-
-**Basic auth with custom CA:**
+Provide a Couchbase database username and password. For Basic Authentication setup, see [Manage Database Credentials](https://docs.couchbase.com/cloud/clusters/manage-database-users.html) (Capella) or [Manage Users and Roles](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) (self-managed).
 
 ```json
 {
-  "env": {
-    "CB_CONNECTION_STRING": "couchbases://your-server-hostname",
-    "CB_USERNAME": "username",
-    "CB_PASSWORD": "password",
-    "CB_CA_CERT_PATH": "/path/to/ca-certificate.pem"
-  }
-}
-```
-
-**mTLS (no username/password):**
-
-```json
-{
-  "env": {
-    "CB_CONNECTION_STRING": "couchbases://your-server-hostname",
-    "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
-    "CB_CLIENT_KEY_PATH": "/path/to/client.key",
-    "CB_CA_CERT_PATH": "/path/to/ca-certificate.pem"
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
   }
 }
 ```
@@ -89,10 +77,60 @@ All examples below use `uvx` to run the server. These can be replaced with the c
 
 ```json
 {
-  "env": {
-    "CB_CONNECTION_STRING": "couchbases://cb.your-capella-endpoint.cloud.couchbase.com",
-    "CB_USERNAME": "username",
-    "CB_PASSWORD": "password"
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://cb.your-capella-endpoint.cloud.couchbase.com",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+### How to: Connect to Self-Managed Server with Certificates
+
+- **Connection string**: Use `couchbase://` for unencrypted connections or `couchbases://` for TLS.
+- **TLS certificates**: If using TLS with self-signed or untrusted certificates, set `CB_CA_CERT_PATH` to your CA root certificate.
+- **mTLS**: For certificate-based authentication, use `CB_CLIENT_CERT_PATH` and `CB_CLIENT_KEY_PATH` instead of username/password.
+
+**Basic auth with custom CA:**
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-server-hostname",
+        "CB_USERNAME": "username",
+        "CB_PASSWORD": "password",
+        "CB_CA_CERT_PATH": "/path/to/ca-certificate.pem"
+      }
+    }
+  }
+}
+```
+
+**mTLS (no username/password):**
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-server-hostname",
+        "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
+        "CB_CLIENT_KEY_PATH": "/path/to/client.key",
+        "CB_CA_CERT_PATH": "/path/to/ca-certificate.pem"
+      }
+    }
   }
 }
 ```
@@ -111,26 +149,6 @@ For environments requiring certificate-based authentication. For mTLS setup, see
         "CB_CONNECTION_STRING": "couchbases://your-connection-string",
         "CB_CLIENT_CERT_PATH": "/path/to/client-certificate.pem",
         "CB_CLIENT_KEY_PATH": "/path/to/client.key"
-      }
-    }
-  }
-}
-```
-
-### How to: Basic Based Auth
-
-Provide a Couchbase database username and password. For Basic Authentication setup, see [Manage Database Credentials](https://docs.couchbase.com/cloud/clusters/manage-database-users.html) (Capella) or [Manage Users and Roles](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) (self-managed).
-
-```json
-{
-  "mcpServers": {
-    "couchbase": {
-      "command": "uvx",
-      "args": ["couchbase-mcp-server"],
-      "env": {
-        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
-        "CB_USERNAME": "username",
-        "CB_PASSWORD": "password"
       }
     }
   }

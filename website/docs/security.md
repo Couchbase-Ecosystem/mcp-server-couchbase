@@ -12,7 +12,8 @@ The Couchbase MCP Server provides multiple layers of security to protect your da
 - **Keep read-only mode enabled** — `CB_MCP_READ_ONLY_MODE=true` (default) blocks all write operations.
 - **Use TLS** — Use `couchbases://` connection strings for encrypted connections.
 - **Disable unnecessary tools** — Reduce the attack surface by removing tools you don't need.
-- **Don't rely on a single layer** — Combine RBAC, read-only mode, tool disabling, and TLS for defense in depth.
+- **Enable confirmation for sensitive tools** — Use `CB_MCP_CONFIRMATION_REQUIRED` to prompt users before executing critical operations.
+- **Don't rely on a single layer** — Combine RBAC, read-only mode, tool disabling, confirmation, and TLS for defense in depth.
 
 ## Read-Only Mode (Default)
 
@@ -58,6 +59,16 @@ The server supports:
 
 For Capella connections, TLS is always enabled and the bundled Capella root CA is used automatically.
 
+## Elicitation/Confirmation for Tool Calls
+
+You can require user confirmation before specific tools are executed by configuring `CB_MCP_CONFIRMATION_REQUIRED`. When enabled, the server sends an [elicitation](https://modelcontextprotocol.io/docs/concepts/elicitation) request to the client, prompting the user to approve the action before it proceeds.
+
+:::important
+Full functionality requires client support for [elicitation](https://modelcontextprotocol.io/docs/concepts/elicitation). If the client does not support it, the tools will be executed without requiring confirmation.
+:::
+
+See [Elicitation/Confirmation for Tool Calls](/configuration/confirmation-required) for configuration details.
+
 ## Risks Associated with LLMs
 
 - The use of large language models involves risks, including the potential for inaccurate or harmful outputs.
@@ -71,4 +82,5 @@ For maximum security, layer these controls:
 1. **RBAC** — Least-privilege database user permissions (primary control).
 2. **Read-Only Mode** — `CB_MCP_READ_ONLY_MODE=true` (default) blocks all write operations.
 3. **Tool Disabling** — Remove unnecessary tools from LLM discovery.
-4. **TLS/mTLS** — Encrypt all network traffic.
+4. **Confirmation** — Require user approval before executing sensitive tools.
+5. **TLS/mTLS** — Encrypt all network traffic.
