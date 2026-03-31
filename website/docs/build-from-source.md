@@ -80,6 +80,27 @@ Or use the provided build script:
 
 The script automatically generates git commit hash and build timestamp, creates multiple tags (`latest`, `<short-commit>`), and shows build results.
 
+### MCP Client Configuration
+
+Once the image is built, configure your MCP client to use it:
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=your-username",
+        "-e", "CB_PASSWORD=your-password",
+        "mcp/couchbase-src"
+      ]
+    }
+  }
+}
+```
+
 ### Verify Image Labels
 
 ```bash
