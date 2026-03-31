@@ -77,79 +77,73 @@ Our Ruff configuration includes:
 3. **Add proper logging**: Use the hierarchical logging system
 4. **Handle errors gracefully**: Provide helpful error messages
 5. **Consider read-only mode**: If your tool modifies data, respect `read_only_mode` settings
-6. **Update documentation**: Update README.md if adding user-facing features
+6. **Update documentation**: Update README.md and DOCKER.md if adding user-facing features
 
 ## 🏗️ Project Structure
 
 ```
 mcp-server-couchbase/
 ├── src/
-│   ├── mcp_server.py              # MCP server entry point
-│   ├── certs/                     # SSL/TLS certificates
-│   │   ├── __init__.py            # Package marker
-│   │   └── capella_root_ca.pem    # Capella root CA certificate (for Capella connections)
-│   ├── tools/                     # MCP tool implementations
-│   │   ├── __init__.py            # Tool exports and ALL_TOOLS list
-│   │   ├── server.py              # Server status and connection tools
-│   │   ├── kv.py                  # Key-value operations (CRUD)
-│   │   ├── query.py               # SQL++ query and EXPLAIN operations
-│   │   └── index.py               # Index operations and recommendations
-│   └── utils/                     # Utility modules
-│       ├── __init__.py            # Utility exports
-│       ├── constants.py           # Project constants
-│       ├── config.py              # Configuration management
-│       ├── connection.py          # Couchbase connection handling
-│       ├── context.py             # Application context management
-│       ├── elicitation.py         # Confirmation/elicitation support
-│       ├── index_utils.py         # Index-related helper functions
-│       └── query_utils.py         # Query-related helper functions
-├── scripts/                       # Development scripts
-│   ├── lint.sh                    # Manual linting script
-│   ├── lint_fix.sh                # Auto-fix linting issues
-│   ├── setup_test_data.py         # Setup script for integration tests
-│   └── update_version.sh          # Version update script
-├── tests/                         # Test suite
-│   ├── conftest.py                # Shared test fixtures
-│   ├── test_confirmation_tools.py # Tests for confirmation/elicitation
-│   ├── test_index_tools.py        # Tests for index tools
-│   ├── test_is_explain_statement.py # Tests for EXPLAIN detection
-│   ├── test_kv_tools.py           # Tests for KV operations
-│   ├── test_mcp_integration.py    # MCP integration tests
-│   ├── test_parse_tool_names.py   # Tests for tool name parsing
-│   ├── test_performance_tools.py  # Tests for performance analysis tools
-│   ├── test_query_plan_evaluation.py # Tests for query plan evaluation
-│   ├── test_query_tools.py        # Tests for query tools
-│   ├── test_read_only_mode.py     # Tests for read-only mode
-│   ├── test_server_configuration_status_tool.py
-│   ├── test_server_tools.py       # Tests for server tools
-│   ├── test_tool_registration.py  # Tests for tool registration
-│   └── test_utils.py              # Tests for utility functions
-├── .pre-commit-config.yaml        # Pre-commit hook configuration
-├── build.sh                       # Docker image build script
-├── Dockerfile                     # Docker container definition
-├── DOCKER.md                      # Docker usage documentation
-├── glama.json                     # Glama MCP catalog metadata
-├── LICENSE                        # Apache 2.0 license
-├── pyproject.toml                 # Project dependencies and Ruff config
-├── RELEASE.md                     # Release process documentation
-├── server.json                    # MCP server metadata
-├── smithery.yaml                  # Smithery.ai deployment config
-├── CONTRIBUTING.md                # Contribution Guide
-└── README.md                      # Usage
+│   ├── mcp_server.py                              # MCP server entry point
+│   ├── certs/                                     # SSL/TLS certificates
+│   │   ├── __init__.py                            # Package marker
+│   │   └── capella_root_ca.pem                    # Capella root CA certificate (for Capella connections)
+│   ├── tools/                                     # MCP tool implementations
+│   │   ├── __init__.py                            # Tool exports and ALL_TOOLS list
+│   │   ├── server.py                              # Server status and connection tools
+│   │   ├── kv.py                                  # Key-value operations (CRUD)
+│   │   ├── query.py                               # SQL++ Query based tools
+│   │   └── index.py                               # Index operations and recommendations
+│   └── utils/                                     # Utility modules
+│       ├── __init__.py                            # Utility exports
+│       ├── constants.py                           # Project constants
+│       ├── config.py                              # Configuration management
+│       ├── connection.py                          # Couchbase connection handling
+│       ├── context.py                             # Application context management
+│       ├── elicitation.py                         # Confirmation/elicitation support
+│       ├── index_utils.py                         # Index-related helper functions
+│       └── query_utils.py                         # Query-related helper functions
+├── scripts/                                       # Development scripts
+│   ├── lint.sh                                    # Manual linting script
+│   ├── lint_fix.sh                                # Auto-fix linting issues
+│   ├── setup_test_data.py                         # Setup script for integration tests
+│   └── update_version.sh                          # Script to bump package version
+├── tests/                                         # Test suite
+│   ├── conftest.py                                # Shared test fixtures
+│   ├── test_confirmation_tools.py                 # Tests for confirmation/elicitation
+│   ├── test_index_tools.py                        # Tests for index tools
+│   ├── test_is_explain_statement.py               # Tests for EXPLAIN detection
+│   ├── test_kv_tools.py                           # Tests for KV operations
+│   ├── test_mcp_integration.py                    # MCP integration tests
+│   ├── test_parse_tool_names.py                   # Tests for tool name parsing
+│   ├── test_performance_tools.py                  # Tests for performance analysis tools
+│   ├── test_query_plan_evaluation.py              # Tests for query plan evaluation
+│   ├── test_query_tools.py                        # Tests for query tools
+│   ├── test_read_only_mode.py                     # Tests for read-only mode
+│   ├── test_server_configuration_status_tool.py   # Tests for server configuration status
+│   ├── test_server_tools.py                       # Tests for server tools
+│   ├── test_tool_registration.py                  # Tests for tool registration
+│   └── test_utils.py                              # Tests for utility functions
+├── .pre-commit-config.yaml                        # Pre-commit hook configuration
+├── build.sh                                       # Docker image build script
+├── Dockerfile                                     # Docker container definition
+├── DOCKER.md                                      # Docker usage documentation
+├── glama.json                                     # Glama MCP catalog metadata
+├── LICENSE                                        # Apache 2.0 license
+├── pyproject.toml                                 # Project dependencies and Ruff config
+├── RELEASE.md                                     # Release process documentation
+├── server.json                                    # MCP Registry configuration
+├── smithery.yaml                                  # Smithery.ai deployment config
+├── CONTRIBUTING.md                                # Contribution Guide
+└── README.md                                      # Usage
 ```
 
 ## 🛠️ Development Workflow
 
 ### Making Changes
 
-1. **Fork the repository**: External contributors do not have commit permissions on the main repository. [Fork the repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/fork) to your own GitHub account and clone your fork.
-
-   ```bash
-   git clone https://github.com/<your-username>/mcp-server-couchbase.git
-   cd mcp-server-couchbase
-   ```
-
-2. **Create a branch** for your feature/fix:
+> **Note:** External contributors do not have commit permissions on the main repository. [Fork the repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/fork) to your own GitHub account and clone your fork before starting.
+1. **Create a branch** for your feature/fix:
 
    ```bash
    git checkout -b feature/your-feature-name
@@ -196,9 +190,17 @@ When adding new MCP tools:
 
 ## 🧪 Testing
 
-### Running Tests
+### Manual Testing
 
-The project has a comprehensive test suite in the `tests/` directory:
+Currently, testing is done manually with MCP clients:
+
+1. **Set up environment variables** for your Couchbase cluster
+2. **Run the server** with an MCP client like Claude Desktop
+3. **Test tool functionality** through the client interface
+
+### Automated Tests
+
+Ensure all existing tests pass so your changes don't break anything. The project has a comprehensive test suite in the `tests/` directory:
 
 ```bash
 # Run all tests
