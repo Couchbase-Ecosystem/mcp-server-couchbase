@@ -259,7 +259,9 @@ When adding new features or tools, add corresponding tests:
    uv run pre-commit run --all-files
    ```
 
-2. **Push your branch** and create a pull request
+2. **Push your branch** and create a pull request (PR)
+
+   If you are working on a forked version of the repo, follow [these instructions](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork) to create the PR.
 
 3. **Describe your changes** in the PR description:
    - What does this change do?
