@@ -67,7 +67,7 @@ You can require user confirmation before specific tools are executed by configur
 Full functionality requires client support for [elicitation](https://modelcontextprotocol.io/docs/concepts/elicitation). If the client does not support it, the tools will be executed without requiring confirmation.
 :::
 
-See [Elicitation/Confirmation for Tool Calls](/configuration/confirmation-required) for configuration details.
+See [Elicitation/Confirmation for Tool Calls](/configuration/elicitation_for_tools) for configuration details.
 
 ## Risks Associated with LLMs
 

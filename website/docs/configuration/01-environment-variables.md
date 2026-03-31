@@ -23,7 +23,7 @@ The MCP server can be configured using environment variables or command line arg
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
 | `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](/configuration/disabling-tools)) | None |
-| `CB_MCP_CONFIRMATION_REQUIRED` | `--confirmation-required` | Tools requiring user confirmation before execution (see [Elicitation/Confirmation for Tool Calls](/configuration/confirmation-required)) | None |
+| `CB_MCP_CONFIRMATION_REQUIRED` | `--confirmation-required` | Tools requiring user confirmation before execution (see [Elicitation/Confirmation for Tool Calls](/configuration/elicitation_for_tools)) | None |
 
 ## Configuring Authentication
 

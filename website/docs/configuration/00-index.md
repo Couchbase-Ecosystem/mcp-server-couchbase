@@ -14,4 +14,4 @@ The Couchbase MCP Server can be configured through environment variables set in 
 - **[Read-Only Mode](/configuration/read-only-mode)** — Control write access to your cluster. Enabled by default for safety.
 - **[Disabling Tools](/configuration/disabling-tools)** — Selectively disable individual tools via configuration.
 - **[Streamable HTTP Transport Mode](/configuration/streamable-http)** — Run the server in HTTP transport mode for multi-client access.
-- **[Elicitation/Confirmation for Tool Calls](/configuration/confirmation-required)** — Require user confirmation before executing specific tools.
+- **[Elicitation/Confirmation for Tool Calls](/configuration/elicitation_for_tools)** — Require user confirmation before executing specific tools.

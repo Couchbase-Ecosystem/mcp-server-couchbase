@@ -60,10 +60,6 @@ Tools for running SQL++ queries, listing indexes, and getting index recommendati
 | `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering |
 | `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query |
 
-:::note
-For Capella connections using the Index Service REST API (e.g. `list_indexes`), the bundled Capella root CA is applied automatically. For the main SDK connection, Capella's public certificates are typically trusted by the system trust store. If you encounter TLS errors, set `CB_CA_CERT_PATH` explicitly.
-:::
-
 ## Query Performance Analysis
 
 Tools for identifying slow queries, missing indexes, and optimization opportunities. These tools query `system:completed_requests`.

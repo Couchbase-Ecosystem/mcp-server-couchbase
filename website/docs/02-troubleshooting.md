@@ -19,6 +19,7 @@ Common issues and solutions when using the Couchbase MCP Server.
 - **Bucket permissions** — Check that the database user has proper permissions to access at least one bucket.
 - **Connection string format** — Use `couchbases://` for Capella and TLS-enabled clusters, `couchbase://` for unencrypted local connections.
   - Use `couchbase://` for unencrypted connections as you do not need to encrypt the connection in trusted environments.
+- **Certificates for TLS** — If you are connecting with TLS enabled on non-Capella clusters, ensure that the certificate is configured correctly via `CB_CA_CERT_PATH`.
 
 ## Transport Mode Issues
 
@@ -44,7 +45,7 @@ Common issues and solutions when using the Couchbase MCP Server.
 - Verify tool names are spelled exactly as listed in the [Tools](/tools/cluster-health) reference.
 - If using a file path for `CB_MCP_CONFIRMATION_REQUIRED`, ensure the file exists and is readable by the server process.
 - Ensure that the MCP client supports [Elicitation](https://modelcontextprotocol.io/docs/concepts/elicitation). If the client does not support it, the tools will be executed without requiring confirmation.
-- See [Elicitation/Confirmation for Tool Calls](/configuration/confirmation-required) for configuration details.
+- See [Elicitation/Confirmation for Tool Calls](/configuration/elicitation_for_tools) for configuration details.
 
 ## Environment Variable Issues
 
