@@ -362,13 +362,29 @@ Follow steps below to use Couchbase MCP server with Cursor:
 
 2. In Cursor, go to Cursor > Cursor Settings > Tools & Integrations > MCP Tools. Also, checkout the docs on [setting up MCP server configuration](https://docs.cursor.com/en/context/mcp#configuring-mcp-servers) from Cursor.
 
-3. Specify the same [configuration](#configuration). You may need to add the server configuration under a parent key of mcpServers.
+3. Specify the same [configuration](#configuration) manually, or use one of the [Cursor install links](https://cursor.com/docs/context/mcp/install-links) below. You may need to add the server configuration under a parent key of `mcpServers`.
 
 4. Save the configuration.
 
 5. You will see couchbase as an added server in MCP servers list. Refresh to see if server is enabled.
 
 6. You can now use the Couchbase MCP server in Cursor to query your Couchbase cluster using natural language and perform CRUD operations on documents.
+
+#### Cursor install links
+
+These one-click install links use the same example configurations shown above:
+
+- [PyPI package (basic auth)][cursor-install-basic]
+- [PyPI package (mTLS)][cursor-install-mtls]
+- [Source checkout][cursor-install-source]
+- [Streamable HTTP transport][cursor-install-http]
+
+> Note: These install links use the same placeholder values shown in the configuration examples above. Update the connection string, credentials, certificate paths, or local repository path after installation.
+
+[cursor-install-basic]: cursor://anysphere.cursor-deeplink/mcp/install?name=couchbase&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyJjb3VjaGJhc2UtbWNwLXNlcnZlciJdLCJlbnYiOnsiQ0JfQ09OTkVDVElPTl9TVFJJTkciOiJjb3VjaGJhc2VzOi8vY29ubmVjdGlvbi1zdHJpbmciLCJDQl9VU0VSTkFNRSI6InVzZXJuYW1lIiwiQ0JfUEFTU1dPUkQiOiJwYXNzd29yZCJ9fQ==
+[cursor-install-mtls]: cursor://anysphere.cursor-deeplink/mcp/install?name=couchbase&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyJjb3VjaGJhc2UtbWNwLXNlcnZlciJdLCJlbnYiOnsiQ0JfQ09OTkVDVElPTl9TVFJJTkciOiJjb3VjaGJhc2VzOi8vY29ubmVjdGlvbi1zdHJpbmciLCJDQl9DTElFTlRfQ0VSVF9QQVRIIjoiL3BhdGgvdG8vY2xpZW50LWNlcnRpZmljYXRlLnBlbSIsIkNCX0NMSUVOVF9LRVlfUEFUSCI6Ii9wYXRoL3RvL2NsaWVudC5rZXkifX0=
+[cursor-install-source]: cursor://anysphere.cursor-deeplink/mcp/install?name=couchbase&config=eyJjb21tYW5kIjoidXYiLCJhcmdzIjpbIi0tZGlyZWN0b3J5IiwicGF0aC90by9jbG9uZWQvcmVwby9tY3Atc2VydmVyLWNvdWNoYmFzZS8iLCJydW4iLCJzcmMvbWNwX3NlcnZlci5weSJdLCJlbnYiOnsiQ0JfQ09OTkVDVElPTl9TVFJJTkciOiJjb3VjaGJhc2VzOi8vY29ubmVjdGlvbi1zdHJpbmciLCJDQl9VU0VSTkFNRSI6InVzZXJuYW1lIiwiQ0JfUEFTU1dPUkQiOiJwYXNzd29yZCJ9fQ==
+[cursor-install-http]: cursor://anysphere.cursor-deeplink/mcp/install?name=couchbase-http&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjgwMDAvbWNwIn0=
 
 For more details about MCP integration with Cursor, refer to the [official Cursor MCP documentation](https://docs.cursor.com/en/context/mcp).
 
