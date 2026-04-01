@@ -49,7 +49,6 @@ website/
 ├── static/
 │   └── img/                    # Images (logos, architecture diagrams, etc.)
 ├── docusaurus.config.js        # Site configuration (navbar, footer, plugins)
-├── docusaurus.config.js        # Site configuration (navbar, footer, plugins)
 ├── sidebars.js                 # Sidebar structure configuration
 ├── package.json                # npm dependencies and scripts
 ├── package-lock.json           # npm lock file

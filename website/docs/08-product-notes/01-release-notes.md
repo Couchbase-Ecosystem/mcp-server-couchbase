@@ -10,7 +10,6 @@ Full release details are published on the [GitHub Releases](https://github.com/C
 
 - **Elicitation for Tool Calls** - New `CB_MCP_CONFIRMATION_REQUIRED` setting enables user confirmation prompts for specified tools before execution.
 
-
 ### v0.6.1
 
 - **Read-Only Mode** - New `CB_MCP_READ_ONLY_MODE` setting disables all write operations (KV write tools not loaded, SQL++ write queries blocked). Enabled by default for safety.
@@ -21,13 +20,13 @@ Full release details are published on the [GitHub Releases](https://github.com/C
 
 - **IDE Support** - Added support for VS Code and JetBrains IDEs (AI Assistant and Junie plugins).
 
-### v0.5.2
-
-- **MCP Registry Support** - MCP server added to the [MCP Registry](https://modelcontextprotocol.io/registry) for easier discovery and installation by clients.
-
 ### v0.5.3
 
 - **Query Performance Analysis** - Added 7 tools for identifying slow-running queries, frequently executed queries, primary index usage, non-covering indexes, non-selective queries, large response sizes, and large result counts.
+
+### v0.5.2
+
+- **MCP Registry Support** - MCP server added to the [MCP Registry](https://modelcontextprotocol.io/registry) for easier discovery and installation by clients.
 
 ### v0.5.1
 

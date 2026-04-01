@@ -266,7 +266,7 @@ To configure the Couchbase MCP server using the Factory MCP registry, type `/mcp
 
 <TabItem value="vscode" label="VS Code">
 
-**Option 1: MCP Server bundled with CouchbaseVS Code Extension**
+**Option 1: MCP Server bundled with Couchbase VS Code Extension**
 
 The [Couchbase VS Code Extension](https://marketplace.visualstudio.com/items?itemName=Couchbase.vscode-couchbase) (v3.0.0+) bundles the MCP server out-of-the-box. It auto-prompts to start MCP server on cluster connect.
 
