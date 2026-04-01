@@ -38,7 +38,6 @@ Full release details are published on the [GitHub Releases](https://github.com/C
 
 ## Upcoming Features
 
-- **Explain Queries** - New tool to retrieve query execution plans for LLM analysis.
 - **Search-Based Tools** - Tools for Search queries, indexes, and performance analysis.
 
 ## Checking Your Version
