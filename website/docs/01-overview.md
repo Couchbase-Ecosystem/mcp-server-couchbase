@@ -17,7 +17,7 @@ It exposes capabilities like cluster health checks, schema discovery, document k
 
 ## Tools
 
-The server exposes several tools across multiple categories. See the [Tools](/tools/cluster-health) page for full details.
+The server exposes several tools across multiple categories. See the [Tools](./tools/01-cluster-health.md) page for full details.
 
 | Category | Tools |
 | -------- | ----- |
@@ -42,7 +42,7 @@ The server exposes several tools across multiple categories. See the [Tools](/to
 
 ## Releases
 
-The latest release is available on [PyPI](https://pypi.org/project/couchbase-mcp-server/) and [Docker Hub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase). See the [Release Notes](/product-notes/release-notes) for version history and details.
+The latest release is available on [PyPI](https://pypi.org/project/couchbase-mcp-server/) and [Docker Hub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase). See the [Release Notes](./product-notes/01-release-notes.md) for version history and details.
 
 The latest version (v0.7.0) introduces support for explaining queries and elicitation for tool calls.
 
@@ -57,7 +57,7 @@ Our support portal is unable to assist with requests related to this project, so
 - **Feature requests**: [Open a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues) with the "enhancement" label
 - **Questions**: [Open a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues)
 
-Your collaboration helps us all move forward together - thank you! Pull requests and contributions from the community are welcome - see [Contributing](/product-notes/contributing).
+Your collaboration helps us all move forward together - thank you! Pull requests and contributions from the community are welcome - see [Contributing](./product-notes/02-contributing.md).
 
 ## Learn More
 
