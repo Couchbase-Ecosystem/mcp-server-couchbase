@@ -17,7 +17,7 @@ It exposes capabilities like cluster health checks, schema discovery, document k
 
 ## Tools
 
-The server exposes several tools across multiple categories. See the [Tools](./03-tools.md) page for full details.
+The server exposes several tools across multiple categories. See the [Tools](./04-tools.md) page for full details.
 
 | Category | Tools |
 | -------- | ----- |

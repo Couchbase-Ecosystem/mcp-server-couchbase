@@ -54,7 +54,7 @@ If you are trying to perform write operations but they are not working as expect
 
 If a tool you expect to be disabled is still executing, check the following:
 
-- Verify tool names are spelled exactly as listed in the [Tools](./03-tools.md) reference.
+- Verify tool names are spelled exactly as listed in the [Tools](./04-tools.md) reference.
 
 - If using a file path for `CB_MCP_DISABLED_TOOLS`, ensure the file exists and is readable by the server process.
 
@@ -66,7 +66,7 @@ If the tool you expect to require confirmation is executing without it, check th
 
 - Ensure that the MCP client supports [Elicitation](https://modelcontextprotocol.io/docs/concepts/elicitation). If the client does not support it, the tools will be executed without requiring confirmation.
 
-- Verify tool names are spelled exactly as listed in the [Tools](./03-tools.md) reference.
+- Verify tool names are spelled exactly as listed in the [Tools](./04-tools.md) reference.
 
 - If using a file path for `CB_MCP_CONFIRMATION_REQUIRED`, ensure the file exists and is readable by the server process.
 
