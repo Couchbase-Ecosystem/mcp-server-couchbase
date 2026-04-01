@@ -409,7 +409,7 @@ def main() -> int:
 
     # Connect to cluster
     auth = PasswordAuthenticator(username, password)
-    cluster = Cluster(connection_string, ClusterOptions(auth))
+    cluster = Cluster.connect(connection_string, ClusterOptions(auth))  # type: ignore
 
     try:
         cluster.wait_until_ready(timedelta(seconds=30))
