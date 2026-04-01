@@ -14,7 +14,7 @@ const sidebars = {
       ],
     },
     "troubleshooting",
-    "tools/cluster-health",
+    "tools",
     {
       type: "category",
       label: "Configuration",
