@@ -38,7 +38,7 @@ Full release details are published on the [GitHub Releases](https://github.com/C
 
 ## Upcoming Features
 
-- **Search-Based Tools** - Tools for Search queries, indexes, and performance analysis.
+- **Search-Based Tools** - Tools for Full Text Search (FTS).
 
 ## Checking Your Version
 
