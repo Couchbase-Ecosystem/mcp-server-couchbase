@@ -93,7 +93,7 @@ const config = {
               },
               {
                 label: "Tools",
-                to: "/tools/cluster-health",
+                to: "/tools",
               },
               {
                 label: "Configuration",

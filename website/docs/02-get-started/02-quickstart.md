@@ -396,7 +396,7 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 </Tabs>
 
 :::tip
-Replace the placeholder values with your actual Couchbase cluster credentials. See [Environment Variables](./05-configuration/01-environment-variables.md) for all available options.
+Replace the placeholder values with your actual Couchbase cluster credentials. See [Environment Variables](../05-configuration/01-environment-variables.md) for all available options.
 :::
 
 ## Step 2: Set Your Connection String
