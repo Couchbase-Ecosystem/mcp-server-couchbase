@@ -32,9 +32,9 @@ def _parse_file(file_path: Path, valid_tool_names: set[str]) -> set[str]:
             logger.warning(
                 f"Ignored {invalid_count} invalid tool name(s) from file: {file_path}"
             )
-        logger.debug(f"Loaded {len(tools)} disabled tools from file: {file_path}")
+        logger.debug(f"Loaded {len(tools)} tool name(s) from file: {file_path}")
     except OSError as e:
-        logger.warning(f"Failed to read disabled tools file {file_path}: {e}")
+        logger.warning(f"Failed to read tool names file {file_path}: {e}")
     return tools
 
 
@@ -53,32 +53,32 @@ def _parse_comma_separated(value: str, valid_tool_names: set[str]) -> set[str]:
         logger.warning(
             f"Ignored {invalid_count} invalid tool name(s) from comma-separated input"
         )
-    logger.debug(f"Parsed disabled tools from comma-separated string: {tools}")
+    logger.debug(f"Parsed tool names from comma-separated string: {tools}")
     return tools
 
 
-def parse_disabled_tools(
-    disabled_tools_input: str | None,
+def parse_tool_names(
+    tool_names_input: str | None,
     valid_tool_names: set[str],
 ) -> set[str]:
     """
-    Parse disabled tools from CLI argument or environment variable.
+    Parse tool names from CLI argument or environment variable.
 
     Supported formats:
     1. Comma-separated string: "tool_1,tool_2"
     2. File path containing one tool name per line: "disabled_tools.txt"
 
     Args:
-        disabled_tools_input: Comma-separated tools or file path
+        tool_names_input: Comma-separated tools or file path
         valid_tool_names: Set of valid tool names to validate against
 
     Returns:
-        Set of tool names to disable
+        Set of valid tool names
     """
-    if not disabled_tools_input:
+    if not tool_names_input:
         return set()
 
-    value = disabled_tools_input.strip()
+    value = tool_names_input.strip()
 
     # Check if it's a file path
     potential_path = Path(value)

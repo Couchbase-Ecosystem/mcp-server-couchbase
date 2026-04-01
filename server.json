@@ -6,12 +6,12 @@
     "url": "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase",
     "source": "github"
   },
-  "version": "0.6.1",
+  "version": "0.7.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "couchbase-mcp-server",
-      "version": "0.6.1",
+      "version": "0.7.0",
       "transport": {
         "type": "stdio"
       },
@@ -96,6 +96,13 @@
         {
           "name": "CB_MCP_DISABLED_TOOLS",
           "description": "Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') or a file path containing one tool name per line.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
+          "description": "Comma-separated tool names that require user confirmation before execution. Also accepts a file path containing one tool name per line. Requires the MCP client to support elicitation.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
@@ -197,12 +204,20 @@
           "isRequired": false,
           "format": "string",
           "isSecret": false
+        },
+        {
+          "type": "named",
+          "name": "--confirmation-required-tools",
+          "description": "Comma-separated tool names that require user confirmation before execution. Also accepts a file path containing one tool name per line. Requires the MCP client to support elicitation.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
         }
       ]
     },
     {
       "registryType": "oci",
-      "identifier": "docker.io/couchbaseecosystem/mcp-server-couchbase:0.6.1",
+      "identifier": "docker.io/couchbaseecosystem/mcp-server-couchbase:0.7.0",
       "transport": {
         "type": "stdio"
       },
@@ -287,6 +302,13 @@
         {
           "name": "CB_MCP_DISABLED_TOOLS",
           "description": "Tools to disable. Accepts comma-separated tool names (e.g., 'tool_1,tool_2') or a file path containing one tool name per line.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
+          "description": "Comma-separated tool names that require user confirmation before execution. Also accepts a file path containing one tool name per line. Requires the MCP client to support elicitation.",
           "isRequired": false,
           "format": "string",
           "isSecret": false

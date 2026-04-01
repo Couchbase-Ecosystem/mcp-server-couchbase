@@ -3,6 +3,7 @@
 An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase that allows LLMs to directly interact with Couchbase clusters.
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/) [![PyPI version](https://badge.fury.io/py/couchbase-mcp-server.svg)](https://pypi.org/project/couchbase-mcp-server/) [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/13fce476-0e74-4b1e-ab82-1df2a3204809) [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/Couchbase-Ecosystem/mcp-server-couchbase)](https://archestra.ai/mcp-catalog/couchbase-ecosystem__mcp-server-couchbase)
+[![Install in Cursor](https://img.shields.io/badge/Cursor-Install_Server-1e1e1e?logo=data:image/svg%2bxml;base64,PHN2ZyBoZWlnaHQ9IjFlbSIgc3R5bGU9ImZsZXg6bm9uZTtsaW5lLWhlaWdodDoxIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIxZW0iCiAgICB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogICAgPHRpdGxlPkN1cnNvcjwvdGl0bGU+CiAgICA8cGF0aCBkPSJNMTEuOTI1IDI0bDEwLjQyNS02LTEwLjQyNS02TDEuNSAxOGwxMC40MjUgNnoiCiAgICAgICAgZmlsbD0idXJsKCNsb2JlLWljb25zLWN1cnNvcnVuZGVmaW5lZC1maWxsLTApIj48L3BhdGg+CiAgICA8cGF0aCBkPSJNMjIuMzUgMThWNkwxMS45MjUgMHYxMmwxMC40MjUgNnoiIGZpbGw9InVybCgjbG9iZS1pY29ucy1jdXJzb3J1bmRlZmluZWQtZmlsbC0xKSI+PC9wYXRoPgogICAgPHBhdGggZD0iTTExLjkyNSAwTDEuNSA2djEybDEwLjQyNS02VjB6IiBmaWxsPSJ1cmwoI2xvYmUtaWNvbnMtY3Vyc29ydW5kZWZpbmVkLWZpbGwtMikiPjwvcGF0aD4KICAgIDxwYXRoIGQ9Ik0yMi4zNSA2TDExLjkyNSAyNFYxMkwyMi4zNSA2eiIgZmlsbD0iIzU1NSI+PC9wYXRoPgogICAgPHBhdGggZD0iTTIyLjM1IDZsLTEwLjQyNSA2TDEuNSA2aDIwLjg1eiIgZmlsbD0iI2ZmZiI+PC9wYXRoPgogICAgPGRlZnM+CiAgICAgICAgPGxpbmVhckdyYWRpZW50IGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIiBpZD0ibG9iZS1pY29ucy1jdXJzb3J1bmRlZmluZWQtZmlsbC0wIgogICAgICAgICAgICB4MT0iMTEuOTI1IiB4Mj0iMTEuOTI1IiB5MT0iMTIiIHkyPSIyNCI+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iLjE2IiBzdG9wLWNvbG9yPSIjZmZmIiBzdG9wLW9wYWNpdHk9Ii4zOSI+PC9zdG9wPgogICAgICAgICAgICA8c3RvcCBvZmZzZXQ9Ii42NTgiIHN0b3AtY29sb3I9IiNmZmYiIHN0b3Atb3BhY2l0eT0iLjgiPjwvc3RvcD4KICAgICAgICA8L2xpbmVhckdyYWRpZW50PgogICAgICAgIDxsaW5lYXJHcmFkaWVudCBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgaWQ9ImxvYmUtaWNvbnMtY3Vyc29ydW5kZWZpbmVkLWZpbGwtMSIKICAgICAgICAgICAgeDE9IjIyLjM1IiB4Mj0iMTEuOTI1IiB5MT0iNi4wMzciIHkyPSIxMi4xNSI+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iLjE4MiIgc3RvcC1jb2xvcj0iI2ZmZiIgc3RvcC1vcGFjaXR5PSIuMzEiPjwvc3RvcD4KICAgICAgICAgICAgPHN0b3Agb2Zmc2V0PSIuNzE1IiBzdG9wLWNvbG9yPSIjZmZmIiBzdG9wLW9wYWNpdHk9IjAiPjwvc3RvcD4KICAgICAgICA8L2xpbmVhckdyYWRpZW50PgogICAgICAgIDxsaW5lYXJHcmFkaWVudCBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgaWQ9ImxvYmUtaWNvbnMtY3Vyc29ydW5kZWZpbmVkLWZpbGwtMiIKICAgICAgICAgICAgeDE9IjExLjkyNSIgeDI9IjEuNSIgeTE9IjAiIHkyPSIxOCI+CiAgICAgICAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiNmZmYiIHN0b3Atb3BhY2l0eT0iLjYiPjwvc3RvcD4KICAgICAgICAgICAgPHN0b3Agb2Zmc2V0PSIuNjY3IiBzdG9wLWNvbG9yPSIjZmZmIiBzdG9wLW9wYWNpdHk9Ii4yMiI+PC9zdG9wPgogICAgICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8L2RlZnM+Cjwvc3ZnPgo=)][cursor-install-basic]
 
 <a href="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@Couchbase-Ecosystem/mcp-server-couchbase/badge" alt="Couchbase Server MCP server" />
@@ -15,7 +16,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 ### Cluster setup & health tools
 
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `get_server_configuration_status` | Get the status of the MCP server |
 | `test_cluster_connection` | Check the cluster credentials by connecting to the cluster |
 | `get_cluster_health_and_services` | Get cluster health status and list of all running services |
@@ -23,7 +24,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 ### Data model & schema discovery tools
 
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `get_buckets_in_cluster` | Get a list of all the buckets in the cluster |
 | `get_scopes_in_bucket` | Get a list of all the scopes in the specified bucket |
 | `get_collections_in_scope` | Get a list of all the collections in a specified scope and bucket. Note that this tool requires the cluster to have Query service. |
@@ -33,7 +34,7 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 ### Document KV operations tools
 
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `get_document_by_id` | Get a document by ID from a specified scope and collection |
 | `upsert_document_by_id` | Upsert a document by ID to a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
 | `insert_document_by_id` | Insert a new document by ID (fails if document exists). **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
@@ -43,15 +44,16 @@ An [MCP](https://modelcontextprotocol.io/) server implementation of Couchbase th
 ### Query and indexing tools
 
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name. |
 | `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance |
 | `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_MODE` is `true` by default, which means that **all write operations (KV and Query)** are disabled. When enabled, KV write tools are not loaded and SQL++ queries that modify data are blocked. |
+| `explain_sql_plus_plus_query` | Generate and evaluate an EXPLAIN plan for a SQL++ query. Returns query metadata, extracted plan, and plan evaluation findings. |
 
 ### Query performance analysis tools
 
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `get_longest_running_queries` | Get longest running queries by average service time |
 | `get_most_frequent_queries` | Get most frequently executed queries |
 | `get_queries_with_largest_response_sizes` | Get queries with the largest response sizes |
@@ -161,12 +163,12 @@ This is the common configuration for the MCP clients such as Claude Desktop, Cur
 The server can be configured using environment variables or command line arguments:
 
 | Environment Variable | CLI Argument | Description | Default |
-|--------------------------------|--------------------------|---------------------------------------------------------------------------------------------|------------------------------------------|
+| ---------------------------- | ------------------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster | **Required** |
 | `CB_USERNAME` | `--username` | Username with access to required buckets for basic authentication | **Required (or Client Certificate and Key needed for mTLS)** |
 | `CB_PASSWORD` | `--password` | Password for basic authentication | **Required (or Client Certificate and Key needed for mTLS)** |
-| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
-| `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to the client key file for mTLS authentication| **Required if using mTLS (or Username and Password required)** |
+| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to the client certificate file for mTLS authentication | **Required if using mTLS (or Username and Password required)** |
+| `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to the client key file for mTLS authentication | **Required if using mTLS (or Username and Password required)** |
 | `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. This will not be required if you are connecting to Capella | |
 | `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). When enabled, KV write tools are not loaded. | `true` |
 | `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | **[DEPRECATED]** Prevent queries that modify data. Note that data modification would still be possible via document operations tools. Use `CB_MCP_READ_ONLY_MODE` instead. | `true` |
@@ -174,6 +176,7 @@ The server can be configured using environment variables or command line argumen
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
 | `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](#disabling-tools)) | None |
+| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | `--confirmation-required-tools` | Tools that require explicit user confirmation before execution via MCP elicitation (see [Elicitation/Confirmation Required Tools](#elicitationconfirmation-for-tool-calls)) | None |
 
 #### Read-Only Mode Configuration
 
@@ -192,7 +195,7 @@ The MCP server provides two configuration options for controlling write operatio
 **Mode Behavior Truth Table:**
 
 | `READ_ONLY_MODE` | `READ_ONLY_QUERY_MODE` | Result |
-|------------------|------------------------|--------|
+| ---------------- | ---------------------- | ------ |
 | `true` | `true` | Read-only KV and Query operations. All writes disabled. |
 | `true` | `false` | Read-only KV and Query operations. All writes disabled. |
 | `false` | `true` | Only Query writes disabled. KV writes allowed. |
@@ -293,6 +296,30 @@ Lines starting with `#` are treated as comments and ignored.
 >
 > **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use tool disabling as an additional layer to guide LLM behavior and reduce the attack surface, not as the sole security control.
 
+### Elicitation/Confirmation for Tool Calls
+
+You can require explicit user confirmation for specific tools before execution (when the MCP client supports elicitation).
+
+`CB_MCP_CONFIRMATION_REQUIRED_TOOLS` / `--confirmation-required-tools` supports these formats:
+
+- Comma-separated list
+- File path (one tool name per line, `#` comments supported)
+
+**Example:**
+
+```bash
+# Environment variable
+CB_MCP_CONFIRMATION_REQUIRED_TOOLS="delete_document_by_id,replace_document_by_id"
+
+# Command line
+uvx couchbase-mcp-server --confirmation-required-tools delete_document_by_id,replace_document_by_id
+```
+
+When a listed tool is invoked:
+
+- If the client supports elicitation, the user is prompted to confirm.
+- If the client does not support elicitation, the tool executes without confirmation for backward compatibility.
+
 You can also check the version of the server using:
 
 ```bash
@@ -337,13 +364,17 @@ Follow steps below to use Couchbase MCP server with Cursor:
 
 2. In Cursor, go to Cursor > Cursor Settings > Tools & Integrations > MCP Tools. Also, checkout the docs on [setting up MCP server configuration](https://docs.cursor.com/en/context/mcp#configuring-mcp-servers) from Cursor.
 
-3. Specify the same [configuration](#configuration). You may need to add the server configuration under a parent key of mcpServers.
+3. Specify the same [configuration](#configuration) manually, or use the one-click [Install in Cursor][cursor-install-basic] link. You may need to add the server configuration under a parent key of `mcpServers`.
+
+   > Note: The install link uses placeholder values from the configuration examples above. Update the connection string and credentials after installation.
 
 4. Save the configuration.
 
 5. You will see couchbase as an added server in MCP servers list. Refresh to see if server is enabled.
 
 6. You can now use the Couchbase MCP server in Cursor to query your Couchbase cluster using natural language and perform CRUD operations on documents.
+
+[cursor-install-basic]: https://cursor.com/en-US/install-mcp?name=Couchbase&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyJjb3VjaGJhc2UtbWNwLXNlcnZlciJdLCJlbnYiOnsiQ0JfQ09OTkVDVElPTl9TVFJJTkciOiJjb3VjaGJhc2VzOi8vY29ubmVjdGlvbi1zdHJpbmciLCJDQl9VU0VSTkFNRSI6InVzZXJuYW1lIiwiQ0JfUEFTU1dPUkQiOiJwYXNzd29yZCJ9fQ%3D%3D
 
 For more details about MCP integration with Cursor, refer to the [official Cursor MCP documentation](https://docs.cursor.com/en/context/mcp).
 
@@ -474,7 +505,7 @@ There is an option to run the MCP server in [Server-Sent Events (SSE)](https://m
 
 > Note: SSE mode has been [deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) by MCP. We have support for [Streamable HTTP](#streamable-http-transport-mode).
 
-### Usage
+### SSE: Usage
 
 By default, the MCP server will run on port 8000 but this can be configured using the `--port` or `CB_MCP_PORT` environment variable.
 
@@ -489,7 +520,7 @@ uvx couchbase-mcp-server \
 
 The server will be available on <http://localhost:8000/sse>. This can be used in MCP clients supporting SSE transport mode such as Cursor.
 
-### MCP Client Configuration
+### SSE: MCP Client Configuration
 
 ```json
 {
@@ -510,7 +541,7 @@ Alternatively, we are part of the [Docker MCP Catalog](https://hub.docker.com/mc
 ### Building Image
 
 ```bash
-docker build -t mcp/couchbase .
+docker build -t mcp/couchbase-src .
 ```
 
 <details>
@@ -520,17 +551,22 @@ If you want to build with the build arguments for commit hash and the build time
 ```bash
 docker build --build-arg GIT_COMMIT_HASH=$(git rev-parse HEAD) \
   --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-  -t mcp/couchbase .
+  -t mcp/couchbase-src .
 ```
 
 **Alternatively, use the provided build script:**
 
 ```bash
+# Build with default image name (mcp/couchbase-src)
 ./build.sh
+
+# Build with custom image name
+./build.sh my-custom/image-name
 ```
 
 This script automatically:
 
+- Accepts an optional image name parameter (defaults to `mcp/couchbase-src`)
 - Generates git commit hash and build timestamp
 - Creates multiple useful tags (`latest`, `<short-commit>`)
 - Shows build information and results
@@ -540,17 +576,17 @@ This script automatically:
 
 ```bash
 # View git commit hash in image
-docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase:latest
+docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase-src:latest
 
 # View all metadata labels
-docker inspect --format='{{json .Config.Labels}}' mcp/couchbase:latest
+docker inspect --format='{{json .Config.Labels}}' mcp/couchbase-src:latest
 ```
 
 </details>
 
 ### Running
 
-The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Configuration section](#server-configuration-for-mcp-clients).
+The MCP server can be run with the environment variables being used to configure the Couchbase settings. The environment variables are the same as described in the [Additional Configuration section](#additional-configuration-for-mcp-server).
 
 #### Independent Docker Container
 
@@ -560,15 +596,17 @@ docker run --rm -i \
   -e CB_USERNAME='<database_user>' \
   -e CB_PASSWORD='<database_password>' \
   -e CB_MCP_TRANSPORT='<http|sse|stdio>' \
-  -e CB_MCP_READ_ONLY_QUERY_MODE='<true|false>' \
+  -e CB_MCP_READ_ONLY_MODE='<true|false>' \
+  -e CB_MCP_CONFIRMATION_REQUIRED_TOOLS='delete_document_by_id' \
   -e CB_MCP_PORT=9001 \
+  -e CB_MCP_HOST=0.0.0.0 \
   -p 9001:9001 \
-  mcp/couchbase
+  mcp/couchbase-src
 ```
 
-The `CB_MCP_PORT` environment variable is only applicable in the case of HTTP transport modes like http and sse.
+The `CB_MCP_PORT` and `CB_MCP_HOST` environment variables are only applicable in the case of HTTP transport modes like http and sse.
 
-#### MCP Client Configuration
+#### Docker: MCP Client Configuration
 
 The Docker image can be used in `stdio` transport mode with the following configuration.
 
@@ -587,7 +625,7 @@ The Docker image can be used in `stdio` transport mode with the following config
         "CB_USERNAME=<database_user>",
         "-e",
         "CB_PASSWORD=<database_password>",
-        "mcp/couchbase"
+        "mcp/couchbase-src"
       ]
     }
   }
