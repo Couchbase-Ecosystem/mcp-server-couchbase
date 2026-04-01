@@ -58,7 +58,7 @@ If a tool you expect to be disabled is still executing, check the following:
 
 - If using a file path for `CB_MCP_DISABLED_TOOLS`, ensure the file exists and is readable by the server process.
 
-- Remember that disabling tools alone does not prevent operations - RBAC is the authoritative security control. See [Security](./security.md).
+- Remember that disabling tools alone does not prevent operations - RBAC is the authoritative security control. See [Security](./06-security.md).
 
 ## Elicitation/Tools Requiring Confirmation
 

@@ -528,5 +528,5 @@ To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configurat
 
 - Review all available [Tools](../04-tools.md)
 - Explore [Configuration](../configuration/00-index.md) options
-- Want to customize or build from source? See [Build from Source](../build-from-source.md)
+- Want to customize or build from source? See [Build from Source](../07-build-from-source.md)
 - Having issues? See [Troubleshooting](../03-troubleshooting.md)

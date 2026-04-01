@@ -1,6 +1,6 @@
 # Read-Only Mode
 
-The MCP server provides configuration options for controlling write operations, ensuring safe interaction between LLMs and your database. Use this mode to start in a safe default that prevents data mutations by not loading write-capable tools; see the [Security](../security.md) page for best practices. This mode is enabled by default.
+The MCP server provides configuration options for controlling write operations, ensuring safe interaction between LLMs and your database. Use this mode to start in a safe default that prevents data mutations by not loading write-capable tools; see the [Security](../06-security.md) page for best practices. This mode is enabled by default.
 
 ## Read-Only Mode (Recommended)
 
