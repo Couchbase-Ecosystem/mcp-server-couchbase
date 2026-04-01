@@ -522,7 +522,7 @@ By default, the server runs in **read-only mode** (`CB_MCP_READ_ONLY_MODE=true`)
 
 - SQL++ queries that modify data are **not loaded**
 
-To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configuration. See [Read-Only Mode](../configuration/03-read-only-mode.md) for details.
+To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configuration. See [Read-Only Mode](../configuration/02-read-only-mode.md) for details.
 
 ## Next Steps
 

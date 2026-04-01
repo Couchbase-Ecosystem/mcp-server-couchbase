@@ -1,16 +1,19 @@
 ---
-title: Configuration
 slug: /configuration
 ---
 
 # Configuration
 
-The Couchbase MCP Server can be configured through environment variables set in your MCP client configuration. Equivalent command line arguments are also available — see [Environment Variables & Command Line Arguments](/configuration/environment-variables) for the full reference.
+The Couchbase MCP Server can be configured through environment variables or command line arguments set in your MCP client configuration. See [Environment Variables & Command Line Arguments](./01-environment-variables.md) for the full reference.
 
 ## Configuration Topics
 
-- **[Environment Variables & Command Line Arguments](/configuration/environment-variables)** — Full reference of all configuration options, authentication examples, and transport settings.
-- **[Read-Only Mode](/configuration/read-only-mode)** — Control write access to your cluster. Enabled by default for safety.
-- **[Disabling Tools](/configuration/disabling-tools)** — Selectively disable individual tools via configuration.
-- **[Streamable HTTP Transport Mode](/configuration/streamable-http)** — Run the server in HTTP transport mode for multi-client access.
-- **[Elicitation/Confirmation for Tool Calls](/configuration/elicitation_for_tools)** — Require user confirmation before executing specific tools.
+- **[Environment Variables & Command Line Arguments](./01-environment-variables.md)** - Full reference of all configuration options, authentication examples, and transport settings.
+
+- **[Read-Only Mode](./02-read-only-mode.md)** - Control write access to your cluster. Enabled by default for safety.
+
+- **[Streamable HTTP Transport Mode](./03-streamable-http.md)** - Run the server in Streamable HTTP transport mode for multi-client access.
+
+- **[Disabling Tools](./04-disabling-tools.md)** - Selectively disable individual tools via configuration.
+
+- **[Elicitation/Confirmation for Tool Calls](./05-elicitation-for-tools.md)** - Require user confirmation before executing specific tools.
