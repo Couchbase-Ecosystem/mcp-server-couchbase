@@ -280,10 +280,10 @@ uv add package-name
 uv add --dev package-name
 
 # Update all package dependencies to the latest compatible versions
-uv lock --upgrade
+uv sync --upgrade
 
 # Update specific package to the latest compatible version
-uv lock --upgrade-package package-name
+uv sync --upgrade-package package-name
 
 # Run the server for testing
 uv run src/mcp_server.py --connection-string "..." --username "..." --password "..."

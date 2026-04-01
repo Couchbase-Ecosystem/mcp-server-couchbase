@@ -50,7 +50,7 @@ Dockerfile: <https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/ma
 ### Query performance analysis tools
 
 | Tool Name | Description |
-| ---------- | ----------- |
+| --------- | ----------- |
 | `get_longest_running_queries` | Get longest running queries by average service time |
 | `get_most_frequent_queries` | Get most frequently executed queries |
 | `get_queries_with_largest_response_sizes` | Get queries with the largest response sizes |
@@ -112,7 +112,7 @@ The detailed explanation for the environment variables can be found on the [GitH
 | `CB_MCP_HOST`                        | Server host (HTTP/SSE modes)                                                                                                                             | `127.0.0.1`                                                    |
 | `CB_MCP_PORT`                        | Server port (HTTP/SSE modes)                                                                                                                             | `8000`                                                         |
 | `CB_MCP_DISABLED_TOOLS`              | Tools to disable (see [Disabling Tools](#disabling-tools))                                                                                               | None                                                           |
-| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (see [Elicitation/Confirmation for Tool Calls](#elicitationconfirmation-for-tool-calls)). | None                                                           |
+| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (see [Elicitation/Confirmation for Tool Calls](#elicitationconfirmation-for-tool-calls))  | None                                                           |
 
 ### Disabling Tools
 
