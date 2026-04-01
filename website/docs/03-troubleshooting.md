@@ -56,7 +56,7 @@ If a tool you expect to be disabled is still executing, check the following:
 
 - Verify tool names are spelled exactly as listed in the [Tools](./04-tools.md) reference.
 
-- If using a file path for `CB_MCP_DISABLED_TOOLS`, ensure the file exists and is readable by the server process.
+- If using a file path for `CB_MCP_DISABLED_TOOLS`, ensure the file exists and is readable by the server process. If using Docker, ensure the file is included in the container and the path is correct.
 
 - Remember that disabling tools alone does not prevent operations - RBAC is the authoritative security control. See [Security](./06-security.md).
 
@@ -68,7 +68,7 @@ If the tool you expect to require confirmation is executing without it, check th
 
 - Verify tool names are spelled exactly as listed in the [Tools](./04-tools.md) reference.
 
-- If using a file path for `CB_MCP_CONFIRMATION_REQUIRED`, ensure the file exists and is readable by the server process.
+- If using a file path for `CB_MCP_CONFIRMATION_REQUIRED`, ensure the file exists and is readable by the server process. If using Docker, ensure the file is included in the container and the path is correct.
 
 ## Environment Variable Issues
 

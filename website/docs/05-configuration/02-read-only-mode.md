@@ -2,6 +2,19 @@
 
 The MCP server provides configuration options for controlling write operations, ensuring safe interaction between LLMs and your database. Use this mode to start in a safe default that prevents data mutations by not loading write-capable tools; see the [Security](../06-security.md) page for best practices. This mode is enabled by default.
 
+## Affected Tools
+
+When read-only mode is enabled, the following tools are affected:
+
+| Tool | Description |
+| ---- | ----------- |
+| `upsert_document_by_id` | Insert or update a document by ID |
+| `insert_document_by_id` | Insert a new document by ID |
+| `replace_document_by_id` | Replace an existing document by ID |
+| `delete_document_by_id` | Delete a document by ID |
+| `run_sql_plus_plus_query` | Run SQL++ queries that modify data |
+
+
 ## Read-Only Mode (Recommended)
 
 This is the primary security control (`CB_MCP_READ_ONLY_MODE`):
