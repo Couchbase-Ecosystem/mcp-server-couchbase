@@ -34,7 +34,7 @@ If the MCP client is unable to communicate with the server, check the following 
 
 - **stdio** - Ensure the MCP client is configured to launch the server as a subprocess. Check the client's server configuration for the correct command and arguments to start the server.
 
-- **HTTP** - Check that the configured port is not in use. Verify that the URL matches the transport mode (`/mcp` for HTTP, `/sse` for SSE). Also check if the [client configuration](./configuration/03-streamable-http.md) is set correctly.
+- **HTTP** - Check that the configured port is not in use. Verify that the URL matches the transport mode (`/mcp` for HTTP, `/sse` for SSE). Also check if the [client configuration](./05-configuration/03-streamable-http.md) is set correctly.
 
 - **Port conflicts** - If the default port 8000 is in use, set a different port with `CB_MCP_PORT` or `--port`.
 
@@ -48,7 +48,7 @@ If you are trying to perform write operations but they are not working as expect
 
 - When `CB_MCP_READ_ONLY_MODE=true`, KV write tools are not loaded and SQL++ write queries are blocked — regardless of `CB_MCP_READ_ONLY_QUERY_MODE`.
 
-- See [Read-Only Mode](./configuration/02-read-only-mode.md) for the full behavior truth table.
+- See [Read-Only Mode](./05-configuration/02-read-only-mode.md) for the full behavior truth table.
 
 ## Tool Disabling Issues
 
@@ -80,7 +80,7 @@ If you are setting environment variables but they do not seem to be taking effec
 
 - **Deprecated variables** - `CB_MCP_READ_ONLY_QUERY_MODE` is deprecated. Use `CB_MCP_READ_ONLY_MODE` instead.
 
-- See [Environment Variables](./configuration/01-environment-variables.md) for the full reference.
+- See [Environment Variables](./05-configuration/01-environment-variables.md) for the full reference.
 
 ## Checking Logs
 

@@ -396,7 +396,7 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 </Tabs>
 
 :::tip
-Replace the placeholder values with your actual Couchbase cluster credentials. See [Environment Variables](/configuration/environment-variables) for all available options.
+Replace the placeholder values with your actual Couchbase cluster credentials. See [Environment Variables](./05-configuration/01-environment-variables.md) for all available options.
 :::
 
 ## Step 2: Set Your Connection String
@@ -469,7 +469,7 @@ Set `CB_CLIENT_CERT_PATH` and `CB_CLIENT_KEY_PATH`:
 }
 ```
 
-See [Configuring Authentication](../configuration/01-environment-variables.md#configuring-authentication) for full details.
+See [Configuring Authentication](../05-configuration/01-environment-variables.md#configuring-authentication) for full details.
 
 ## Step 4: Validate the Setup
 
@@ -522,11 +522,11 @@ By default, the server runs in **read-only mode** (`CB_MCP_READ_ONLY_MODE=true`)
 
 - SQL++ queries that modify data are **not loaded**
 
-To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configuration. See [Read-Only Mode](../configuration/02-read-only-mode.md) for details.
+To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configuration. See [Read-Only Mode](../05-configuration/02-read-only-mode.md) for details.
 
 ## Next Steps
 
 - Review all available [Tools](../04-tools.md)
-- Explore [Configuration](../configuration/00-index.md) options
+- Explore [Configuration](../05-configuration/00-index.md) options
 - Want to customize or build from source? See [Build from Source](../07-build-from-source.md)
 - Having issues? See [Troubleshooting](../03-troubleshooting.md)

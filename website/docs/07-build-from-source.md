@@ -2,7 +2,7 @@
 
 This page provides a step-by-step guide to building the Couchbase MCP Server from source when you want to run it locally, test the latest changes, or extend it directly from the GitHub repository. It covers cloning the repository, configuring your MCP client, and optionally building a Docker image from source.
 
-If you would like to contribute towards the official Couchbase MCP server, follow the [Contributing](./product-notes/02-contributing.md) guidelines.
+If you would like to contribute towards the official Couchbase MCP server, follow the [Contributing](./08-product-notes/02-contributing.md) guidelines.
 
 ## Prerequisites
 
@@ -127,4 +127,4 @@ Once the image is built, configure your MCP client to use it:
 
 ## Next Steps
 
-See the [Quick Start](./get-started/02-quickstart.md) for client-specific configuration instructions.
+See the [Quick Start](./02-get-started/02-quickstart.md) for client-specific configuration instructions.

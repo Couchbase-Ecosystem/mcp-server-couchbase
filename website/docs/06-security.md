@@ -24,7 +24,7 @@ By default, `CB_MCP_READ_ONLY_MODE=true`. This:
 
 - **Blocks SQL++ write queries** - INSERT, UPDATE, DELETE, MERGE, and DDL statements are rejected.
 
-See [Read-Only Mode](/configuration/read-only-mode) for the full configuration reference.
+See [Read-Only Mode](./05-configuration/02-read-only-mode.md) for the full configuration reference.
 
 ## RBAC Best Practices
 
@@ -46,7 +46,7 @@ See [RBAC for Couchbase Server](https://docs.couchbase.com/server/current/manage
 
 ## Tool Disabling
 
-You can [disable specific tools](/configuration/disabling-tools) to reduce the attack surface.
+You can [disable specific tools](./05-configuration/04-disabling-tools.md) to reduce the attack surface.
 
 :::warning
 Disabling tools alone does not guarantee operations cannot be performed.
@@ -74,7 +74,7 @@ You can require user confirmation before specific tools are executed by configur
 Full functionality requires client support for [elicitation](https://modelcontextprotocol.io/clients). If the client does not support it, the tools will be executed without requiring confirmation.
 :::
 
-See [Elicitation / Confirmation for Tool Calls](./configuration/05-elicitation-for-tools.md) for configuration details.
+See [Elicitation / Confirmation for Tool Calls](./05-configuration/05-elicitation-for-tools.md) for configuration details.
 
 ## Risks Associated with LLMs
 
