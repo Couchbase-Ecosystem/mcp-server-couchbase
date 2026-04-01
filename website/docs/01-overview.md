@@ -1,6 +1,5 @@
 ---
-sidebar_position: 1
-title: Overview
+sidebar_label: Overview
 slug: /
 ---
 
@@ -21,7 +20,7 @@ It exposes capabilities like cluster health checks, schema discovery, document k
 The server exposes several tools across multiple categories. See the [Tools](/tools/cluster-health) page for full details.
 
 | Category | Tools |
-|----------|-------|
+| -------- | ----- |
 | **Cluster Setup & Health** | `get_server_configuration_status`, `test_cluster_connection`, `get_cluster_health_and_services` |
 | **Data Model & Schema Discovery** | `get_buckets_in_cluster`, `get_scopes_in_bucket`, `get_collections_in_scope`, `get_scopes_and_collections_in_bucket`, `get_schema_for_collection` |
 | **Document KV Operations** | `get_document_by_id`, `upsert_document_by_id`, `insert_document_by_id`, `replace_document_by_id`, `delete_document_by_id` |
@@ -45,7 +44,7 @@ The server exposes several tools across multiple categories. See the [Tools](/to
 
 The latest release is available on [PyPI](https://pypi.org/project/couchbase-mcp-server/) and [Docker Hub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase). See the [Release Notes](/product-notes/release-notes) for version history and details.
 
-The latest version (v0.6.1) introduces comprehensive read-only mode, tool disabling, expanded CRUD support, and VS Code / JetBrains IDE support.
+The latest version (v0.7.0) introduces support for explaining queries and elicitation for tool calls.
 
 ## Support Policy
 
@@ -58,8 +57,18 @@ Our support portal is unable to assist with requests related to this project, so
 - **Feature requests**: [Open a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues) with the "enhancement" label
 - **Questions**: [Open a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues)
 
-Your collaboration helps us all move forward together — thank you! Pull requests and contributions from the community are welcome — see [Contributing](/product-notes/contributing).
+Your collaboration helps us all move forward together - thank you! Pull requests and contributions from the community are welcome - see [Contributing](/product-notes/contributing).
 
 ## Learn More
 
-- [Introducing the Couchbase MCP Server for AI Agents](https://www.youtube.com/watch?v=sU40zTRjWcc) — Video walkthrough.
+### Video Walkthrough
+
+<iframe
+  width="100%"
+  style={{aspectRatio: "16/9"}}
+  src="https://www.youtube.com/embed/sU40zTRjWcc"
+  title="Introducing the Couchbase MCP Server for AI Agents"
+  frameBorder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
