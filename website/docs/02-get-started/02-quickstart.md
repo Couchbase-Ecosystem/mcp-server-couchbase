@@ -74,6 +74,7 @@ Select your MCP client and add the Couchbase MCP Server configuration.
 </TabItem>
 
 <TabItem value="cursor" label="Cursor" default>
+You can integrate the Couchbase MCP Server into Cursor using either of the following methods.
 
 **Option 1: Add via the Cursor MCP Links**
 
@@ -89,7 +90,7 @@ Select your MCP client and add the Couchbase MCP Server configuration.
 </a>
 
 :::note
-The install link uses placeholder values from the configuration examples. Update the connection string and credentials after installation.
+The [install link](https://cursor.com/docs/mcp/install-links) uses placeholder values from the configuration examples. Update the connection string and credentials after installation.
 :::
 
 **Option 2: Manual Addition**
@@ -201,10 +202,11 @@ You may need to add the server configuration under a parent key of `mcpServers`.
 </TabItem>
 
 <TabItem value="vscode" label="VS Code">
+You can integrate the Couchbase MCP Server into VS Code using either of the following methods.
 
-**Option 1: MCP Server bundled with Couchbase VS Code Extension**
+**Option 1: MCP Server bundled with Couchbase VS Code Extension** <span className="badge badge--primary">Preferred</span>
 
-The [Couchbase VS Code Extension](https://marketplace.visualstudio.com/items?itemName=Couchbase.vscode-couchbase) (v3.0.0+) bundles the MCP server out-of-the-box. It auto-prompts to start MCP server on cluster connect.
+The [Couchbase VS Code Extension](https://marketplace.visualstudio.com/items?itemName=Couchbase.vscode-couchbase) (v3.0.0+) bundles the MCP server out-of-the-box. It auto-prompts to start MCP server on cluster connect in stdio transport mode.
 
 From Command Palette (Ctrl+Shift+P / Cmd+Shift+P):
 
@@ -213,6 +215,8 @@ From Command Palette (Ctrl+Shift+P / Cmd+Shift+P):
 - `Couchbase: MCP Server Settings` - Customize disabled tools, elicitation for tools, read-only mode, export paths, etc.
 
 Quick Start: Install extension → Connect cluster → Accept prompt to start MCP Server.
+
+![Couchbase MCP Server installation using the Couchbase VS Code Extension](/img/vs-code-mcp.gif)
 
 **Option 2: Manual Configuration**
 
@@ -331,6 +335,8 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 </TabItem>
 
 <TabItem value="factory" label="Factory">
+
+You can integrate the Couchbase MCP Server into Factory using any of the following methods.
 
 See the [Factory AI MCP documentation](https://docs.factory.ai/cli/configuration/mcp) for details.
 
