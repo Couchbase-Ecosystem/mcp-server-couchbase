@@ -55,6 +55,22 @@ def parse_relationship_text_to_dicts(relationship_text: str) -> list[dict[str, A
         seen.add(comparison_key)
         relationship_entries.append(pk_entry)
 
+    for primary_key_alternative in parsed["primary_key_alternatives"]:
+        pka_entry = {
+            "kind": "PKA",
+            "table": str(primary_key_alternative["table_name"]),
+            "columns": list(primary_key_alternative["columns"]),
+        }
+        comparison_key = (
+            pka_entry["kind"],
+            _normalize_name(pka_entry["table"]),
+            tuple(_normalize_name(column) for column in pka_entry["columns"]),
+        )
+        if comparison_key in seen:
+            continue
+        seen.add(comparison_key)
+        relationship_entries.append(pka_entry)
+
     for foreign_key in parsed["foreign_keys"]:
         fk_entry = {
             "kind": "FK",
@@ -112,6 +128,7 @@ def _parse_relationship_text(relationship_text: str) -> dict[str, Any]:
     normalized_text = _normalize_llm_text(relationship_text)
 
     primary_keys: list[dict[str, Any]] = []
+    primary_key_alternatives: list[dict[str, Any]] = []
     foreign_keys: list[dict[str, Any]] = []
     relationships: list[dict[str, str]] = []
 
@@ -124,6 +141,16 @@ def _parse_relationship_text(relationship_text: str) -> dict[str, Any]:
         if len(parts) < 2:
             continue
         primary_keys.append({"table_name": parts[0], "columns": parts[1:]})
+
+    for primary_key_alternative_expression in re.findall(
+        r"\bPKA\s*\(([^)]*)\)",
+        normalized_text,
+        flags=re.IGNORECASE,
+    ):
+        parts = _split_csv_like_args(primary_key_alternative_expression)
+        if len(parts) < 2:
+            continue
+        primary_key_alternatives.append({"table_name": parts[0], "columns": parts[1:]})
 
     for foreign_key_expression in re.findall(
         r"\bFK\s*\(([^)]*)\)",
@@ -158,6 +185,7 @@ def _parse_relationship_text(relationship_text: str) -> dict[str, Any]:
 
     return {
         "primary_keys": primary_keys,
+        "primary_key_alternatives": primary_key_alternatives,
         "foreign_keys": foreign_keys,
         "relationships": relationships,
     }

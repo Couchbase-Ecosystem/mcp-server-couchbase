@@ -13,6 +13,7 @@ from catalog.enrichment.relationship_verifier.common.relationships import (
     AnyRelationship,
     ForeignKeyRelationship,
     InferredRelationship,
+    PrimaryKeyAlternativeRelationship,
     PrimaryKeyRelationship,
 )
 from catalog.enrichment.relationship_verifier.couchbase_utils.cb_utils import CB
@@ -35,6 +36,9 @@ def _extract_relationship_tables(relationship: AnyRelationship) -> tuple[str, ..
     if isinstance(relationship, PrimaryKeyRelationship):
         return (relationship.table,)
 
+    if isinstance(relationship, PrimaryKeyAlternativeRelationship):
+        return (relationship.table,)
+
     if isinstance(relationship, ForeignKeyRelationship):
         return (relationship.child_table, relationship.parent_table)
 
@@ -48,12 +52,18 @@ def _extract_relationship_tables(relationship: AnyRelationship) -> tuple[str, ..
     return ()
 
 
-def _relationship_to_expression(relationship: AnyRelationship) -> str:
+def _relationship_to_expression(relationship: AnyRelationship) -> str:  # noqa: PLR0911
     if isinstance(relationship, PrimaryKeyRelationship):
         columns = ",".join(relationship.columns)
         if not columns:
             return f"PK({relationship.table})"
         return f"PK({relationship.table},{columns})"
+
+    if isinstance(relationship, PrimaryKeyAlternativeRelationship):
+        columns = ",".join(relationship.columns)
+        if not columns:
+            return f"PKA({relationship.table})"
+        return f"PKA({relationship.table},{columns})"
 
     if isinstance(relationship, ForeignKeyRelationship):
         child_columns = ",".join(relationship.child_columns)
@@ -301,12 +311,18 @@ async def append_verified_relationships_to_prompt(
         return enriched_prompt
 
     verified_count = sum(1 for result in verification_results if result.is_valid)
-    failed_count = len(verification_results) - verified_count
+    unable_count = sum(
+        1 for result in verification_results if result.is_unable_to_verify
+    )
+    failed_count = len(verification_results) - verified_count - unable_count
 
     status_lines = []
     for result in verification_results:
         expression = _relationship_to_expression(result.relationship)
-        if result.is_valid:
+        if result.is_unable_to_verify:
+            reason = result.failure_reason or "unable_to_verify"
+            status_lines.append(f"- UNABLE: {expression} — {reason}")
+        elif result.is_valid:
             status_lines.append(f"- VERIFIED: {expression}")
         else:
             reason = result.failure_reason or "verification_failed"
@@ -322,7 +338,7 @@ async def append_verified_relationships_to_prompt(
             "## Relationship Verification Status",
             "Verification uses live SQL++ checks against sampled/queryable data for column presence, nullability, uniqueness, and FK inclusion.",
             "Results are data-backed but sample-sensitive, so unseen values can still fail candidate checks.",
-            f"Summary: {verified_count} verified, {failed_count} failed, {skipped_count} skipped.",
+            f"Summary: {verified_count} verified, {failed_count} failed, {unable_count} unable, {skipped_count} skipped.",
             *status_lines,
         ]
     )

@@ -9,7 +9,7 @@ from typing import Any, Literal
 META_ID_SENTINEL = "$meta_id"
 
 InferredRelationshipKind = Literal["OO", "OM", "MM"]
-RelationshipKind = Literal["PK", "FK", "OO", "OM", "MM"]
+RelationshipKind = Literal["PK", "PKA", "FK", "OO", "OM", "MM"]
 
 __all__ = [
     "META_ID_SENTINEL",
@@ -18,6 +18,7 @@ __all__ = [
     "InferredRelationship",
     "InferredRelationshipKind",
     "PrimaryKeyRelationship",
+    "PrimaryKeyAlternativeRelationship",
     "RelationshipKind",
     "relationship_from_dict",
     "uses_meta_id",
@@ -66,6 +67,22 @@ class PrimaryKeyRelationship:
 
 
 @dataclass(frozen=True, slots=True)
+class PrimaryKeyAlternativeRelationship:
+    """Logical key candidate for one collection (index/small-data verified)."""
+
+    table: str
+    columns: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable view of the relationship."""
+        return {
+            "kind": "PKA",
+            "table": self.table,
+            "columns": list(self.columns),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ForeignKeyRelationship:
     """Foreign-key candidate from one collection to another."""
 
@@ -85,7 +102,12 @@ class ForeignKeyRelationship:
         }
 
 
-AnyRelationship = InferredRelationship | PrimaryKeyRelationship | ForeignKeyRelationship
+AnyRelationship = (
+    InferredRelationship
+    | PrimaryKeyRelationship
+    | PrimaryKeyAlternativeRelationship
+    | ForeignKeyRelationship
+)
 
 
 def uses_meta_id(columns: tuple[str, ...]) -> bool:
@@ -114,6 +136,12 @@ def relationship_from_dict(data: Mapping[str, Any]) -> AnyRelationship:
 
     if kind == "PK":
         return PrimaryKeyRelationship(
+            table=str(data["table"]),
+            columns=_as_tuple_of_strings(data.get("columns", [])),
+        )
+
+    if kind == "PKA":
+        return PrimaryKeyAlternativeRelationship(
             table=str(data["table"]),
             columns=_as_tuple_of_strings(data.get("columns", [])),
         )

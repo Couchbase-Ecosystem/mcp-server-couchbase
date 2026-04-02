@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import time
 from dataclasses import dataclass
 from itertools import chain
 from typing import Any
@@ -15,6 +17,7 @@ from catalog.enrichment.relationship_verifier.common.relationships import (
     AnyRelationship,
     ForeignKeyRelationship,
     InferredRelationship,
+    PrimaryKeyAlternativeRelationship,
     PrimaryKeyRelationship,
     uses_meta_id,
 )
@@ -39,13 +42,18 @@ class VerificationResult:
 
     relationship: AnyRelationship
     is_valid: bool
+    is_unable_to_verify: bool = False
     failure_reason: str | None = None
 
 
 class RelationshipVerifier:
     """Plan, dedupe, execute, and evaluate data-backed relationship checks."""
 
-    MAX_UNINDEXED_SCAN_ROWS = 50_000
+    MAX_UNINDEXED_SCAN_ROWS = 10_000
+    VALUE_SET_TIMEOUT_SAMPLE_SIZE = 500
+    VALUE_SET_TIMEOUT_SAMPLE_SEED = 20260402
+    SMALL_COLLECTION_DOC_THRESHOLD = 30_000
+    _UNAVAILABLE_QUERY_PREFIX = "__UNAVAILABLE__::"
 
     def __init__(
         self,
@@ -58,6 +66,9 @@ class RelationshipVerifier:
         self.bucket_name = bucket_name
         self.keyspace_map = keyspace_map or {}
         self.index_map = index_map or {}
+        self._collection_doc_count_cache: dict[str, int | None] = {}
+        self._latest_operations: dict[str, AnyTask] = {}
+        self._sdk_operation_logs: list[dict[str, Any]] = []
 
     def verify(self, relationships: list[AnyRelationship]) -> list[VerificationResult]:
         """Verify relationship candidates against data in Couchbase."""
@@ -88,6 +99,9 @@ class RelationshipVerifier:
         """Return a short relationship kind label for logging."""
         if isinstance(relationship, PrimaryKeyRelationship):
             return "PK"
+
+        if isinstance(relationship, PrimaryKeyAlternativeRelationship):
+            return "PKA"
 
         if isinstance(relationship, ForeignKeyRelationship):
             return "FK"
@@ -121,6 +135,9 @@ class RelationshipVerifier:
         """Build the per-relationship operation list."""
         if isinstance(relationship, PrimaryKeyRelationship):
             return self._plan_primary_key_operations(relationship)
+
+        if isinstance(relationship, PrimaryKeyAlternativeRelationship):
+            return self._plan_primary_key_alternative_operations(relationship)
 
         if isinstance(relationship, ForeignKeyRelationship):
             return self._plan_foreign_key_operations(relationship)
@@ -157,10 +174,16 @@ class RelationshipVerifier:
         logger = get_verifier_logger()
         logger.info("Stage 3: Converting operations to SQL++ queries")
 
-        queries = {
-            task_id: self._operation_to_query(operation)
-            for task_id, operation in operations.items()
-        }
+        queries: dict[str, str] = {}
+        self._latest_operations = dict(operations)
+        for task_id, operation in operations.items():
+            unavailable_reason = self._task_unavailable_reason(operation)
+            if unavailable_reason is not None:
+                queries[task_id] = (
+                    f"{self._UNAVAILABLE_QUERY_PREFIX}{unavailable_reason}"
+                )
+                continue
+            queries[task_id] = self._operation_to_query(operation)
 
         logger.info(f"Generated {len(queries)} SQL++ queries")
         return queries
@@ -172,17 +195,180 @@ class RelationshipVerifier:
 
         task_outputs: dict[str, Any] = {}
         for task_id, query in task_queries.items():
-            try:
-                rows = self.cb.run_query(query)
-                task_outputs[task_id] = rows[0] if rows else None
-            except Exception as error:
-                logger.warning(f"Query failed for task {task_id}: {error}")
-                task_outputs[task_id] = {
-                    "error": str(error),
-                }
+            task_output, execution_mode, error_reason, _ = self.execute_task_query(
+                task_id,
+                query,
+            )
+            if error_reason is not None:
+                logger.warning(
+                    "Task %s failed during %s execution: %s",
+                    task_id,
+                    execution_mode,
+                    error_reason,
+                )
+            task_outputs[task_id] = task_output
 
         logger.info(f"Query execution complete: {len(task_outputs)} results")
         return task_outputs
+
+    def execute_task_query(  # noqa: PLR0911
+        self, task_id: str, query: str
+    ) -> tuple[Any, str, str | None, dict[str, Any] | None]:
+        """Execute one task using SQL++ or SDK fallback.
+
+        Returns (task_output, execution_mode, error_reason, execution_metadata).
+        """
+        if query.startswith(self._UNAVAILABLE_QUERY_PREFIX):
+            unavailable_reason = query.replace(self._UNAVAILABLE_QUERY_PREFIX, "", 1)
+            operation = self._latest_operations.get(task_id)
+            # Policy: ValueSet/Type checks use SDK fallback only when SQL++ was skipped
+            # due to missing covering indexes. Indexed SQL++ query failures are not
+            # re-routed to SDK and remain unable-to-verify.
+            if isinstance(
+                operation, ValueSetInclusionTask
+            ) and unavailable_reason.startswith(
+                "inclusion_check_requires_covering_index"
+            ):
+                started_ms = time.perf_counter() * 1000
+                try:
+                    fallback_output = self._sdk_fallback_value_set_inclusion(operation)
+                    elapsed_ms = time.perf_counter() * 1000 - started_ms
+                    self._sdk_operation_logs.append(
+                        {
+                            "task_id": task_id,
+                            "operation_type": "value_set_inclusion",
+                            "elapsed_ms": elapsed_ms,
+                            "success": True,
+                            "fallback_reason": unavailable_reason,
+                            "error": None,
+                        }
+                    )
+                    return fallback_output, "sdk_fallback", None, None
+                except Exception as error:
+                    elapsed_ms = time.perf_counter() * 1000 - started_ms
+                    self._sdk_operation_logs.append(
+                        {
+                            "task_id": task_id,
+                            "operation_type": "value_set_inclusion",
+                            "elapsed_ms": elapsed_ms,
+                            "success": False,
+                            "fallback_reason": unavailable_reason,
+                            "error": str(error),
+                        }
+                    )
+                    error_text = str(error)
+                    if self._is_timeout_error(error_text):
+                        (
+                            fallback_output,
+                            fallback_error,
+                            fallback_metadata,
+                        ) = self._sampled_value_set_fallback(
+                            operation,
+                            fallback_stage="sdk_timeout",
+                            first_error=error_text,
+                        )
+                        return (
+                            fallback_output,
+                            "sample_fallback",
+                            fallback_error,
+                            fallback_metadata,
+                        )
+                    return {"error": error_text}, "sdk_fallback", error_text, None
+
+            if isinstance(
+                operation, ColumnTypeCompatibilityTask
+            ) and unavailable_reason.startswith("type_check_requires_covering_index"):
+                started_ms = time.perf_counter() * 1000
+                try:
+                    fallback_output = self._sdk_fallback_type_compatibility(operation)
+                    elapsed_ms = time.perf_counter() * 1000 - started_ms
+                    self._sdk_operation_logs.append(
+                        {
+                            "task_id": task_id,
+                            "operation_type": "column_type_compatibility",
+                            "elapsed_ms": elapsed_ms,
+                            "success": True,
+                            "fallback_reason": unavailable_reason,
+                            "error": None,
+                        }
+                    )
+                    return fallback_output, "sdk_fallback", None, None
+                except Exception as error:
+                    elapsed_ms = time.perf_counter() * 1000 - started_ms
+                    self._sdk_operation_logs.append(
+                        {
+                            "task_id": task_id,
+                            "operation_type": "column_type_compatibility",
+                            "elapsed_ms": elapsed_ms,
+                            "success": False,
+                            "fallback_reason": unavailable_reason,
+                            "error": str(error),
+                        }
+                    )
+                    return {"error": str(error)}, "sdk_fallback", str(error), None
+
+            return {"unavailable": unavailable_reason}, "unavailable", None, None
+
+        try:
+            rows = self.cb.run_query(query)
+            return (rows[0] if rows else None), "query", None, None
+        except Exception as error:
+            error_text = str(error)
+            operation = self._latest_operations.get(task_id)
+            if isinstance(operation, ValueSetInclusionTask) and self._is_timeout_error(
+                error_text
+            ):
+                fallback_output, fallback_error, fallback_metadata = (
+                    self._sampled_value_set_fallback(
+                        operation,
+                        fallback_stage="query_timeout",
+                        first_error=error_text,
+                    )
+                )
+                return (
+                    fallback_output,
+                    "sample_fallback",
+                    fallback_error,
+                    fallback_metadata,
+                )
+            return {"error": error_text}, "query", error_text, None
+
+    def get_sdk_operation_metrics(self) -> list[dict[str, Any]]:
+        return [dict(row) for row in self._sdk_operation_logs]
+
+    @staticmethod
+    def _is_timeout_error(error_text: str) -> bool:
+        normalized = error_text.strip().lower()
+        timeout_markers = (
+            "timeout",
+            "timed out",
+            "unambiguous_timeout",
+            "timeout 29.5s exceeded",
+            "seq_scan.timeout",
+            "datastore.seq_scan.timeout",
+            'code":1080',
+        )
+        return any(marker in normalized for marker in timeout_markers)
+
+    def _sampled_value_set_fallback(
+        self,
+        task: ValueSetInclusionTask,
+        *,
+        fallback_stage: str,
+        first_error: str,
+    ) -> tuple[Any, str | None, dict[str, Any]]:
+        sampled_query = self._value_set_inclusion_sample_fallback_query(task)
+        metadata: dict[str, Any] = {
+            "fallback_stage": fallback_stage,
+            "first_error": first_error,
+            "sample_size": self.VALUE_SET_TIMEOUT_SAMPLE_SIZE,
+            "sampled_query": sampled_query,
+        }
+        try:
+            rows = self.cb.run_query(sampled_query)
+            return (rows[0] if rows else None), None, metadata
+        except Exception as sampled_error:
+            return {"error": str(sampled_error)}, str(sampled_error), metadata
 
     def coalesce_results(
         self,
@@ -203,9 +389,13 @@ class RelationshipVerifier:
                 operations,
                 task_outputs,
             )
+            is_unable_to_verify = (
+                failure_reason is not None and "_check_unavailable:" in failure_reason
+            )
             result = VerificationResult(
                 relationship=relationship,
                 is_valid=is_valid,
+                is_unable_to_verify=is_unable_to_verify,
                 failure_reason=failure_reason,
             )
             results.append(result)
@@ -224,7 +414,13 @@ class RelationshipVerifier:
     def _plan_primary_key_operations(
         self, relationship: PrimaryKeyRelationship
     ) -> list[AnyTask]:
-        """Plan existence, not-object, not-null, and uniqueness checks for a PK candidate."""
+        """PK is strict META().id; no data-scan operations are needed."""
+        return []
+
+    def _plan_primary_key_alternative_operations(
+        self, relationship: PrimaryKeyAlternativeRelationship
+    ) -> list[AnyTask]:
+        """Plan lightweight checks for logical PK alternatives (PKA)."""
         operations: list[AnyTask] = []
 
         for column in relationship.columns:
@@ -248,34 +444,12 @@ class RelationshipVerifier:
                     column=column,
                 )
             )
-            operations.append(
-                ColumnNotNullTask(
-                    task_id=self._build_column_not_null_task_id(
-                        collection=relationship.table,
-                        column=column,
-                    ),
-                    collection=relationship.table,
-                    column=column,
-                )
-            )
-
-        operations.append(
-            ColumnUniquenessTask(
-                task_id=self._build_uniqueness_task_id(
-                    collection=relationship.table,
-                    columns=relationship.columns,
-                ),
-                collection=relationship.table,
-                columns=relationship.columns,
-            )
-        )
-
         return operations
 
     def _plan_foreign_key_operations(
         self, relationship: ForeignKeyRelationship
     ) -> list[AnyTask]:
-        """Plan inclusion, type, and parent key integrity checks for an FK candidate."""
+        """Plan child/parent existence, inclusion, and type checks for an FK candidate."""
         operations: list[AnyTask] = []
 
         # Check that all child columns exist
@@ -343,38 +517,12 @@ class RelationshipVerifier:
                 )
             )
 
-        if uses_meta_id(relationship.parent_columns):
-            return operations
-
-        operations.append(
-            ColumnUniquenessTask(
-                task_id=self._build_uniqueness_task_id(
-                    collection=relationship.parent_table,
-                    columns=relationship.parent_columns,
-                ),
-                collection=relationship.parent_table,
-                columns=relationship.parent_columns,
-            )
-        )
-
-        for parent_column in relationship.parent_columns:
-            operations.append(
-                ColumnNotNullTask(
-                    task_id=self._build_column_not_null_task_id(
-                        collection=relationship.parent_table,
-                        column=parent_column,
-                    ),
-                    collection=relationship.parent_table,
-                    column=parent_column,
-                )
-            )
-
         return operations
 
     def _plan_one_to_one_operations(
         self, relationship: InferredRelationship
     ) -> list[AnyTask]:
-        """Plan FK-style validity plus child-side uniqueness for inferred 1-1 (`OO`)."""
+        """Plan FK-style validity checks for inferred 1-1 (`OO`)."""
         return self._plan_inferred_relationship_operations(relationship)
 
     def _plan_one_to_many_operations(
@@ -386,20 +534,9 @@ class RelationshipVerifier:
     def _plan_inferred_relationship_operations(
         self, relationship: InferredRelationship
     ) -> list[AnyTask]:
-        operations = self._plan_foreign_key_operations(
+        return self._plan_foreign_key_operations(
             self._foreign_key_relationship_from_inferred(relationship)
         )
-        operations.append(
-            ColumnUniquenessTask(
-                task_id=self._build_uniqueness_task_id(
-                    collection=relationship.foreign_key_table,
-                    columns=relationship.from_columns,
-                ),
-                collection=relationship.foreign_key_table,
-                columns=relationship.from_columns,
-            )
-        )
-        return operations
 
     def _operation_to_query(self, operation: AnyTask) -> str:
         """Translate one task model into a single SQL++ statement."""
@@ -464,7 +601,7 @@ class RelationshipVerifier:
         )
 
     def _column_not_null_query(self, task: ColumnNotNullTask) -> str:
-        """Count rows where the target column is NULL or MISSING."""
+        """Return 1 when NULL/MISSING exists in sampled rows, else 0."""
         keyspace = self._keyspace_expression(task.collection)
         column_path = self._parse_path("document", task.column)
         scan_limit = self._query_limit_for_collection(task.collection, (task.column,))
@@ -476,9 +613,11 @@ class RelationshipVerifier:
         )
         column_expression = column_path.column_ref
         return (
-            "SELECT COUNT(*) AS null_count "
+            "SELECT CASE WHEN EXISTS ("
+            "SELECT 1 "
             f"{from_clause} "
-            f"WHERE {column_expression} IS NULL OR {column_expression} IS MISSING;"
+            f"WHERE {column_expression} IS NULL OR {column_expression} IS MISSING"
+            ") THEN 1 ELSE 0 END AS null_count;"
         )
 
     def _column_uniqueness_query(self, task: ColumnUniquenessTask) -> str:
@@ -516,7 +655,49 @@ class RelationshipVerifier:
         )
 
     def _value_set_inclusion_query(self, task: ValueSetInclusionTask) -> str:
-        """Count child rows whose FK tuple has no corresponding parent tuple."""
+        """Return 1 when any sampled child row has no matching parent tuple, else 0."""
+        child_limit = self._query_limit_for_collection(
+            task.child_collection, task.child_columns
+        )
+        parent_limit = self._query_limit_for_collection(
+            task.parent_collection, task.parent_columns
+        )
+        return self._build_value_set_inclusion_query(
+            task,
+            child_limit=child_limit,
+            parent_limit=parent_limit,
+        )
+
+    def _value_set_inclusion_sample_fallback_query(
+        self, task: ValueSetInclusionTask
+    ) -> str:
+        sample_size = self.VALUE_SET_TIMEOUT_SAMPLE_SIZE
+        child_count = self._collection_doc_count(task.child_collection)
+        child_offset = 0
+        if child_count is not None and child_count > sample_size:
+            max_offset = child_count - sample_size
+            hash_source = (
+                f"{self.VALUE_SET_TIMEOUT_SAMPLE_SEED}:{task.task_id}".encode()
+            )
+            random_value = int(hashlib.md5(hash_source).hexdigest()[:8], 16)
+            child_offset = random_value % (max_offset + 1)
+
+        return self._build_value_set_inclusion_query(
+            task,
+            child_limit=sample_size,
+            parent_limit=None,
+            child_offset=child_offset,
+        )
+
+    def _build_value_set_inclusion_query(
+        self,
+        task: ValueSetInclusionTask,
+        *,
+        child_limit: int | None,
+        parent_limit: int | None,
+        child_offset: int = 0,
+    ) -> str:
+        """Build ValueSetInclusion query with configurable child sampling."""
         child_keyspace = self._keyspace_expression(task.child_collection)
         parent_keyspace = self._keyspace_expression(task.parent_collection)
 
@@ -529,18 +710,12 @@ class RelationshipVerifier:
             for parent_column in task.parent_columns
         ]
 
-        child_limit = self._query_limit_for_collection(
-            task.child_collection, task.child_columns
-        )
-        parent_limit = self._query_limit_for_collection(
-            task.parent_collection, task.parent_columns
-        )
-
         child_from_clause = self._build_from_clause(
             child_keyspace,
             "child_row",
             *child_paths,
             limit_rows=child_limit,
+            offset_rows=child_offset,
         )
         parent_from_clause = self._build_from_clause(
             parent_keyspace,
@@ -572,18 +747,20 @@ class RelationshipVerifier:
             join_conditions = "TRUE"
 
         return (
-            "SELECT COUNT(*) AS missing_count "
+            "SELECT CASE WHEN EXISTS ("
+            "SELECT 1 "
             f"{child_from_clause} "
             f"WHERE {child_presence_filters} "
             "AND NOT EXISTS ("
             "SELECT 1 "
             f"{parent_from_clause} "
             f"WHERE {join_conditions}"
-            ");"
+            ")"
+            ") THEN 1 ELSE 0 END AS missing_count;"
         )
 
     def _type_compatibility_query(self, task: ColumnTypeCompatibilityTask) -> str:
-        """Count child rows whose type is incompatible with the parent column types.
+        """Return 1 when any sampled child value has incompatible parent-side type, else 0.
 
         String/number values are treated as compatible when the parent side contains
         at least one non-null string or number value.
@@ -620,10 +797,10 @@ class RelationshipVerifier:
         parent_expression = parent_path.column_ref
 
         return (
-            "SELECT COUNT(*) AS type_mismatch_count "
+            "SELECT CASE WHEN EXISTS ("
+            "SELECT 1 "
             f"{child_from_clause} "
-            f"WHERE {child_expression} IS NOT NULL AND {child_expression} IS NOT MISSING "
-            "AND NOT ("
+            "WHERE NOT ("
             f'TYPE({child_expression}) IN ["string", "number"] '
             "AND EXISTS ("
             "SELECT 1 "
@@ -636,7 +813,8 @@ class RelationshipVerifier:
             "SELECT DISTINCT RAW TYPE(" + parent_expression + ") "
             f"{parent_from_clause} "
             f"WHERE {parent_expression} IS NOT NULL AND {parent_expression} IS NOT MISSING"
-            ");"
+            ")"
+            ") THEN 1 ELSE 0 END AS type_mismatch_count;"
         )
 
     def _evaluate_relationship_with_reason(  # noqa: PLR0911, PLR0912
@@ -646,7 +824,15 @@ class RelationshipVerifier:
         task_outputs: dict[str, Any],
     ) -> tuple[bool, str | None]:
         if isinstance(relationship, PrimaryKeyRelationship):
-            # First check that all columns exist
+            if not uses_meta_id(relationship.columns):
+                return False, (
+                    "pk_must_be_meta_id: "
+                    f"{relationship.table}{relationship.columns} must use ($meta_id)"
+                )
+
+            return True, None
+
+        if isinstance(relationship, PrimaryKeyAlternativeRelationship):
             exists_task_ids = [
                 operation.task_id
                 for operation in operations
@@ -662,13 +848,13 @@ class RelationshipVerifier:
                 )
                 if exists_count is None:
                     return False, (
-                        "pk_check_unavailable: "
+                        "pka_check_unavailable: "
                         f"could not read sampled evidence for {relationship.table}.{column}"
                         f" ({error_reason})"
                     )
                 if exists_count == 0:
                     return False, (
-                        "pk_column_not_observed_in_sample: "
+                        "pka_column_not_observed_in_sample: "
                         f"{relationship.table}.{column} had no non-null values in sampled rows"
                     )
 
@@ -687,64 +873,15 @@ class RelationshipVerifier:
                 )
                 if nested_count is None:
                     return False, (
-                        "pk_check_unavailable: "
+                        "pka_check_unavailable: "
                         f"could not read nested-value check for {relationship.table}.{column}"
                         f" ({error_reason})"
                     )
                 if nested_count > 0:
                     return False, (
-                        "pk_column_contains_nested_values: "
+                        "pka_column_contains_nested_values: "
                         f"{relationship.table}.{column} has {nested_count} sampled row(s) "
                         "with object/array values"
-                    )
-
-            uniqueness_task_ids = [
-                operation.task_id
-                for operation in operations
-                if isinstance(operation, ColumnUniquenessTask)
-            ]
-            for task_id in uniqueness_task_ids:
-                duplicate_groups, error_reason = self._get_task_count(
-                    task_outputs,
-                    task_id,
-                    "duplicate_groups",
-                )
-                if duplicate_groups is None:
-                    return False, (
-                        "pk_check_unavailable: "
-                        f"could not read uniqueness check for {relationship.table}{relationship.columns}"
-                        f" ({error_reason})"
-                    )
-                if duplicate_groups > 0:
-                    return False, (
-                        "pk_key_not_unique: "
-                        f"{relationship.table}{relationship.columns} has {duplicate_groups} duplicate group(s)"
-                    )
-
-            not_null_task_ids = [
-                operation.task_id
-                for operation in operations
-                if isinstance(operation, ColumnNotNullTask)
-            ]
-            for task_id, column in zip(
-                not_null_task_ids, relationship.columns, strict=True
-            ):
-                null_count, error_reason = self._get_task_count(
-                    task_outputs,
-                    task_id,
-                    "null_count",
-                )
-                if null_count is None:
-                    return False, (
-                        "pk_check_unavailable: "
-                        f"could not read null check for {relationship.table}.{column}"
-                        f" ({error_reason})"
-                    )
-                if null_count > 0:
-                    return False, (
-                        "pk_column_contains_null_or_missing: "
-                        f"{relationship.table}.{column} has {null_count} sampled row(s) "
-                        "with NULL/MISSING values"
                     )
 
             return True, None
@@ -767,30 +904,10 @@ class RelationshipVerifier:
             )
             if not fk_valid:
                 return False, fk_failure_reason
-
-            child_uniqueness_task_id = self._build_uniqueness_task_id(
-                collection=relationship.foreign_key_table,
-                columns=relationship.from_columns,
+            return False, (
+                "oo_check_unavailable: "
+                "child-side uniqueness verification is disabled for performance"
             )
-            duplicate_groups, error_reason = self._get_task_count(
-                task_outputs,
-                child_uniqueness_task_id,
-                "duplicate_groups",
-            )
-            if duplicate_groups is None:
-                return False, (
-                    "oo_check_unavailable: "
-                    f"could not read child-side uniqueness check for "
-                    f"{relationship.foreign_key_table}{relationship.from_columns}"
-                    f" ({error_reason})"
-                )
-            if duplicate_groups != 0:
-                return False, (
-                    "oo_child_key_not_unique: "
-                    f"{relationship.foreign_key_table}{relationship.from_columns} "
-                    f"has {duplicate_groups} duplicate group(s)"
-                )
-            return True, None
 
         if relationship.kind == "OM":
             foreign_key_relationship = self._foreign_key_relationship_from_inferred(
@@ -918,54 +1035,6 @@ class RelationshipVerifier:
                     f"{mismatch_count} incompatible sampled value(s)"
                 )
 
-        if uses_meta_id(relationship.parent_columns):
-            return True, None
-
-        parent_uniqueness_task_id = self._build_uniqueness_task_id(
-            collection=relationship.parent_table,
-            columns=relationship.parent_columns,
-        )
-        duplicate_groups, error_reason = self._get_task_count(
-            task_outputs,
-            parent_uniqueness_task_id,
-            "duplicate_groups",
-        )
-        if duplicate_groups is None:
-            return False, (
-                "fk_check_unavailable: "
-                f"could not read parent uniqueness check for "
-                f"{relationship.parent_table}{relationship.parent_columns} ({error_reason})"
-            )
-        if duplicate_groups > 0:
-            return False, (
-                "fk_parent_key_not_unique: "
-                f"{relationship.parent_table}{relationship.parent_columns} has "
-                f"{duplicate_groups} duplicate group(s)"
-            )
-
-        for parent_column in relationship.parent_columns:
-            parent_not_null_task_id = self._build_column_not_null_task_id(
-                collection=relationship.parent_table,
-                column=parent_column,
-            )
-            null_count, error_reason = self._get_task_count(
-                task_outputs,
-                parent_not_null_task_id,
-                "null_count",
-            )
-            if null_count is None:
-                return False, (
-                    "fk_check_unavailable: "
-                    f"could not read parent null check for "
-                    f"{relationship.parent_table}.{parent_column} ({error_reason})"
-                )
-            if null_count > 0:
-                return False, (
-                    "fk_parent_key_contains_null_or_missing: "
-                    f"{relationship.parent_table}.{parent_column} has {null_count} sampled row(s) "
-                    "with NULL/MISSING values"
-                )
-
         return True, None
 
     def _get_task_count(  # noqa: PLR0911
@@ -988,6 +1057,12 @@ class RelationshipVerifier:
             return (
                 None,
                 f"query execution failed for task_id={task_id!r}: {output_row['error']}",
+            )
+
+        if "unavailable" in output_row:
+            return (
+                None,
+                f"task unavailable for task_id={task_id!r}: {output_row['unavailable']}",
             )
 
         if count_key not in output_row:
@@ -1092,6 +1167,229 @@ class RelationshipVerifier:
             f"__{self._normalize_name(parent_column)}"
         )
 
+    def _sdk_fallback_value_set_inclusion(
+        self, task: ValueSetInclusionTask
+    ) -> dict[str, int]:
+        child_limit = self._query_limit_for_collection(
+            task.child_collection, task.child_columns
+        )
+        parent_limit = self._query_limit_for_collection(
+            task.parent_collection, task.parent_columns
+        )
+
+        parent_rows = self._scan_collection_rows_for_columns(
+            task.parent_collection,
+            task.parent_columns,
+            limit_rows=parent_limit,
+        )
+        parent_values = {
+            row_values
+            for row_values in parent_rows
+            if row_values is not None and len(row_values) == len(task.parent_columns)
+        }
+
+        child_rows = self._scan_collection_rows_for_columns(
+            task.child_collection,
+            task.child_columns,
+            limit_rows=child_limit,
+        )
+        for row_values in child_rows:
+            if row_values is None or len(row_values) != len(task.child_columns):
+                continue
+            if any(value is None for value in row_values):
+                continue
+            if row_values not in parent_values:
+                return {"missing_count": 1}
+
+        return {"missing_count": 0}
+
+    def _sdk_fallback_type_compatibility(
+        self, task: ColumnTypeCompatibilityTask
+    ) -> dict[str, int]:
+        child_limit = self._query_limit_for_collection(
+            task.child_collection,
+            (task.child_column,),
+        )
+        parent_limit = self._query_limit_for_collection(
+            task.parent_collection,
+            (task.parent_column,),
+        )
+
+        parent_values = self._scan_collection_rows_for_columns(
+            task.parent_collection,
+            (task.parent_column,),
+            limit_rows=parent_limit,
+        )
+        parent_types = {
+            self._python_value_type_name(parent_value[0])
+            for parent_value in parent_values
+            if parent_value is not None and parent_value[0] is not None
+        }
+        has_parent_string_or_number = bool({"string", "number"} & parent_types)
+
+        child_values = self._scan_collection_rows_for_columns(
+            task.child_collection,
+            (task.child_column,),
+            limit_rows=child_limit,
+        )
+        for child_value in child_values:
+            if child_value is None:
+                child_type = "missing"
+            else:
+                child_type = self._python_value_type_name(child_value[0])
+
+            if child_type in {"string", "number"} and has_parent_string_or_number:
+                continue
+            if child_type not in parent_types:
+                return {"type_mismatch_count": 1}
+
+        return {"type_mismatch_count": 0}
+
+    def _scan_collection_rows_for_columns(
+        self,
+        collection: str,
+        columns: tuple[str, ...],
+        *,
+        limit_rows: int | None,
+    ) -> list[tuple[Any, ...] | None]:
+        if any("[]" in column for column in columns):
+            raise ValueError("SDK fallback does not support array path columns")
+
+        scope_name, collection_name = self._resolve_collection_keyspace(collection)
+        scanned_rows = self.cb.scan_collection_documents(
+            bucket_name=self.bucket_name,
+            scope_name=scope_name,
+            collection_name=collection_name,
+            limit=limit_rows,
+        )
+
+        resolved_rows: list[tuple[Any, ...] | None] = []
+        for document_id, document_body in scanned_rows:
+            row_values: list[Any] = []
+            missing_column = False
+            for column in columns:
+                value, is_present = self._extract_column_value(
+                    document_body,
+                    column,
+                    document_id=document_id,
+                )
+                if not is_present:
+                    missing_column = True
+                    break
+                row_values.append(value)
+
+            if missing_column:
+                resolved_rows.append(None)
+            else:
+                resolved_rows.append(tuple(row_values))
+
+        return resolved_rows
+
+    def _extract_column_value(
+        self, document_body: Any, column: str, *, document_id: str
+    ) -> tuple[Any, bool]:
+        if column == META_ID_SENTINEL:
+            return document_id, True
+
+        current_value: Any = document_body
+        for segment in (part.strip() for part in column.split(".")):
+            if not segment:
+                continue
+            if segment == "[]":
+                return None, False
+            if not isinstance(current_value, dict):
+                return None, False
+            if segment not in current_value:
+                return None, False
+            current_value = current_value.get(segment)
+
+        return current_value, True
+
+    @staticmethod
+    def _python_value_type_name(value: Any) -> str:
+        if value is None:
+            return "null"
+        if isinstance(value, bool):
+            return "boolean"
+        if isinstance(value, int | float):
+            return "number"
+        if isinstance(value, str):
+            return "string"
+        if isinstance(value, list):
+            return "array"
+        return "object" if isinstance(value, dict) else "unknown"
+
+    def _task_unavailable_reason(self, operation: AnyTask) -> str | None:
+        """Return a reason when task should not run due to index/doc-count policy."""
+        if isinstance(operation, ValueSetInclusionTask):
+            child_ok = self._has_covering_index(
+                operation.child_collection, operation.child_columns
+            )
+            parent_ok = self._has_covering_index(
+                operation.parent_collection, operation.parent_columns
+            )
+            if child_ok and parent_ok:
+                return None
+            return (
+                "inclusion_check_requires_covering_index"
+                f": {operation.child_collection}{operation.child_columns}"
+                f" -> {operation.parent_collection}{operation.parent_columns}"
+            )
+
+        if isinstance(operation, ColumnTypeCompatibilityTask):
+            child_ok = self._has_covering_index(
+                operation.child_collection, (operation.child_column,)
+            )
+            parent_ok = self._has_covering_index(
+                operation.parent_collection, (operation.parent_column,)
+            )
+            if child_ok and parent_ok:
+                return None
+            return (
+                "type_check_requires_covering_index"
+                f": {operation.child_collection}.{operation.child_column}"
+                f" -> {operation.parent_collection}.{operation.parent_column}"
+            )
+
+        return None
+
+    def _collection_is_indexed_or_small(
+        self, collection: str, columns: tuple[str, ...]
+    ) -> bool:
+        if self._has_covering_index(collection, columns):
+            return True
+        document_count = self._collection_doc_count(collection)
+        if document_count is None:
+            return False
+        return document_count <= self.SMALL_COLLECTION_DOC_THRESHOLD
+
+    def _collection_doc_count(self, collection: str) -> int | None:
+        normalized_collection = self._normalize_name(collection)
+        if normalized_collection in self._collection_doc_count_cache:
+            return self._collection_doc_count_cache[normalized_collection]
+
+        logger = get_verifier_logger()
+        try:
+            scope_name, resolved_collection = self._resolve_collection_keyspace(
+                collection
+            )
+            count = self.cb.get_collection_document_count(
+                bucket_name=self.bucket_name,
+                scope_name=scope_name,
+                collection_name=resolved_collection,
+            )
+            self._collection_doc_count_cache[normalized_collection] = count
+            return count
+        except Exception as error:
+            logger.warning(
+                "Could not resolve document count for %s.%s: %s",
+                self.bucket_name,
+                collection,
+                error,
+            )
+            self._collection_doc_count_cache[normalized_collection] = None
+            return None
+
     def _keyspace_expression(self, collection_name: str) -> str:
         """Render `bucket.scope.collection` with escaped SQL++ identifiers.
 
@@ -1144,13 +1442,17 @@ class RelationshipVerifier:
         root_alias: str,
         *paths: ParsedPath,
         limit_rows: int | None = None,
+        offset_rows: int = 0,
     ) -> str:
         """Build a FROM clause and append unique UNNESTs required by parsed paths."""
         if limit_rows is None:
             from_clause = f"FROM {keyspace} AS {root_alias}"
         else:
+            offset_clause = f" OFFSET {offset_rows}" if offset_rows > 0 else ""
             from_clause = (
-                f"FROM (SELECT * FROM {keyspace} LIMIT {limit_rows}) AS {root_alias}"
+                "FROM ("
+                f"SELECT RAW source_doc FROM {keyspace} AS source_doc LIMIT {limit_rows}{offset_clause}"
+                f") AS {root_alias}"
             )
 
         unique_unnests: list[str] = []

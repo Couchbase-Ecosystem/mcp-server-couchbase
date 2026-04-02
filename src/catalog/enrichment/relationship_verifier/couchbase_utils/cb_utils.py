@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import random
 import time
 from contextlib import suppress
 from datetime import timedelta
@@ -9,14 +11,27 @@ from typing import Any
 
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
+from couchbase.kv_range_scan import RangeScan
 from couchbase.management.buckets import BucketType, CreateBucketSettings
-from couchbase.options import ClusterOptions, QueryOptions, RemoveOptions, UpsertOptions
+from couchbase.options import (
+    ClusterOptions,
+    QueryOptions,
+    RemoveOptions,
+    ScanOptions,
+    UpsertOptions,
+)
 
 __all__ = ["CB"]
+
+logger = logging.getLogger(__name__)
 
 
 class CB:
     """Minimal Couchbase helper with an internal cluster handle."""
+
+    UPSERT_RETRY_ATTEMPTS = 3
+    UPSERT_RETRY_BACKOFF_SECONDS = 0.5
+    UPSERT_RETRY_JITTER_MAX_SECONDS = 0.2
 
     def __init__(self) -> None:
         self.__cluster: Cluster | None = None
@@ -121,6 +136,29 @@ class CB:
     def run_query(self, statement: str, timeout_seconds: int = 30) -> list[Any]:
         """Run a raw SQL++ query and return all rows."""
         return self.__run_query(statement, timeout_seconds)
+
+    def get_collection_document_count(
+        self,
+        bucket_name: str,
+        scope_name: str,
+        collection_name: str,
+        timeout_seconds: int = 30,
+    ) -> int:
+        """Return number of documents in a collection."""
+        keyspace = ".".join(
+            (
+                self.__quote_identifier(bucket_name),
+                self.__quote_identifier(scope_name),
+                self.__quote_identifier(collection_name),
+            )
+        )
+        rows = self.__run_query(
+            f"SELECT RAW COUNT(1) FROM {keyspace};",
+            timeout_seconds,
+        )
+        if not rows:
+            return 0
+        return int(rows[0])
 
     def create_scope(
         self,
@@ -249,11 +287,41 @@ class CB:
     ) -> None:
         """Insert or update a document in a collection."""
         collection = self.__get_collection(bucket_name, scope_name, collection_name)
-        collection.upsert(
-            document_id,
-            document_body,
-            UpsertOptions(timeout=timedelta(seconds=timeout_seconds)),
-        )
+        last_error: Exception | None = None
+
+        for attempt in range(1, self.UPSERT_RETRY_ATTEMPTS + 1):
+            try:
+                collection.upsert(
+                    document_id,
+                    document_body,
+                    UpsertOptions(timeout=timedelta(seconds=timeout_seconds)),
+                )
+                return
+            except Exception as error:
+                if not self._is_transient_upsert_error(error):
+                    raise
+                last_error = error
+                if attempt >= self.UPSERT_RETRY_ATTEMPTS:
+                    break
+                sleep_seconds = self.UPSERT_RETRY_BACKOFF_SECONDS + random.uniform(
+                    0,
+                    self.UPSERT_RETRY_JITTER_MAX_SECONDS,
+                )
+                logger.debug(
+                    "Retrying upsert after transient KV error (attempt %s/%s): %s.%s.%s key=%s error=%s",
+                    attempt + 1,
+                    self.UPSERT_RETRY_ATTEMPTS,
+                    bucket_name,
+                    scope_name,
+                    collection_name,
+                    document_id,
+                    error,
+                )
+                time.sleep(sleep_seconds)
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Upsert failed without an exception")
 
     def remove_document(
         self,
@@ -269,6 +337,40 @@ class CB:
             document_id,
             RemoveOptions(timeout=timedelta(seconds=timeout_seconds)),
         )
+
+    def scan_collection_documents(
+        self,
+        bucket_name: str,
+        scope_name: str,
+        collection_name: str,
+        *,
+        limit: int | None = None,
+        timeout_seconds: int = 60,
+        batch_item_limit: int = 200,
+    ) -> list[tuple[str, Any]]:
+        """Scan documents in a collection using KV range scan."""
+        collection = self.__get_collection(bucket_name, scope_name, collection_name)
+        scan_options = ScanOptions(
+            timeout=timedelta(seconds=timeout_seconds),
+            ids_only=False,
+            batch_item_limit=batch_item_limit,
+            concurrency=4,
+        )
+        scan_results = collection.scan(RangeScan(), scan_options)
+
+        rows: list[tuple[str, Any]] = []
+        for scan_result in scan_results:
+            document_id = getattr(scan_result, "id", None)
+            if document_id is None:
+                document_id = getattr(scan_result, "key", None)
+            value = getattr(scan_result, "value", None)
+            if document_id is None:
+                continue
+            rows.append((str(document_id), value))
+            if limit is not None and len(rows) >= limit:
+                break
+
+        return rows
 
     def __run_query(self, statement: str, timeout_seconds: int) -> list[Any]:
         if self.__cluster is None:
@@ -293,6 +395,19 @@ class CB:
         bucket = self.__cluster.bucket(bucket_name)
         scope = bucket.scope(scope_name)
         return scope.collection(collection_name)
+
+    @staticmethod
+    def _is_transient_upsert_error(error: Exception) -> bool:
+        message = str(error).lower()
+        transient_markers = (
+            "request_canceled",
+            "scope not found",
+            "collection not found",
+            "keyspace not found",
+            "manifest",
+            "not ready",
+        )
+        return any(marker in message for marker in transient_markers)
 
     @staticmethod
     def __quote_identifier(identifier: str) -> str:
