@@ -131,7 +131,7 @@ const config = {
               },
               {
                 label: "Contributing",
-                to: "/product-notes/contributing",
+                to: "/product-notes/contributing-to-server",
               },
             ],
           },

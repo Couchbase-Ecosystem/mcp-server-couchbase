@@ -1,6 +1,8 @@
-# Contributing
+# Contributing to the MCP Server
 
 Guide for contributing to the Couchbase MCP Server.
+
+If you want to contribute to the documentation site, see [Contributing to the Documentation](./03-contributing-to-docs.md).
 
 ## Development Setup
 
@@ -358,6 +360,8 @@ The project uses [Ruff](https://docs.astral.sh/ruff/) for fast linting and code 
 - **Error handling**: Include appropriate exception handling with logging
 
 ## Additional Resources
+
+- [Contributing to the Docs](./03-contributing-docs.md) - How to edit and add pages to this documentation site
 
 - [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
 

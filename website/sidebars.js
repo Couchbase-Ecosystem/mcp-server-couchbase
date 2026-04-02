@@ -35,7 +35,11 @@ const sidebars = {
     {
       type: "category",
       label: "Product Notes",
-      items: ["product-notes/release-notes", "product-notes/contributing"],
+      items: [
+        "product-notes/release-notes",
+        "product-notes/contributing-to-server",
+        "product-notes/contributing-to-docs",
+      ],
     },
   ],
 };
