@@ -5,7 +5,7 @@ import TabItem from '@theme/TabItem';
 
 Run the server in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode to allow multiple clients to connect to the same server instance via HTTP.
 
-<Tabs groupId="install-method">
+<Tabs>
 <TabItem value="uvx" label="uvx" default>
 
 **Start the server:**

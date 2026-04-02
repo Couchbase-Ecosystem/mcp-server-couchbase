@@ -26,7 +26,7 @@ Select your MCP client and add the Couchbase MCP Server configuration.
 
 2. Add the Couchbase MCP Server configuration. For detailed instructions, see the [MCP quickstart guide](https://modelcontextprotocol.io/quickstart/user).
 
-<Tabs groupId="install-method">
+<Tabs>
 <TabItem value="uvx" label="uvx" default>
 
 ```json
@@ -100,7 +100,7 @@ The install link uses placeholder values from the configuration examples. Update
 
 You may need to add the server configuration under a parent key of `mcpServers`.
 
-<Tabs groupId="install-method">
+<Tabs>
 <TabItem value="uvx" label="uvx" default>
 
 ```json
@@ -154,7 +154,7 @@ You may need to add the server configuration under a parent key of `mcpServers`.
 
 3. Add the Couchbase MCP Server configuration.
 
-<Tabs groupId="install-method">
+<Tabs>
   <TabItem value="uvx" label="uvx" default>
 
 ```json
@@ -230,7 +230,7 @@ See the [VS Code MCP documentation](https://code.visualstudio.com/docs/copilot/c
 VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 :::
 
-<Tabs groupId="install-method">
+<Tabs>
 <TabItem value="uvx" label="uvx" default>
 
 ```json
@@ -284,7 +284,7 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 
 3. Click **"+"** to add the Couchbase MCP Server configuration and click **Save**.
 
-<Tabs groupId="install-method">
+<Tabs>
 <TabItem value="uvx" label="uvx" default>
 
 ```json
@@ -346,7 +346,7 @@ droid mcp add couchbase-mcp 'uvx couchbase-mcp-server --connection-string=couchb
 
 Navigate to the MCP configuration file at `~/.factory/mcp.json` and add the Couchbase MCP Server configuration.
 
-<Tabs groupId="install-method">
+<Tabs>
 <TabItem value="uvx" label="uvx" default>
 
 ```json
