@@ -38,6 +38,8 @@ Full release details are published on the [GitHub Releases](https://github.com/C
 
 ## Upcoming Features
 
+- **Support for Python 3.14** - We are actively working on ensuring compatibility for the Couchbase MCP Server with Python 3.14.
+
 - **Search-Based Tools** - Tools for Full Text Search (FTS).
 
 ## Checking Your Version
