@@ -136,7 +136,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright ${new Date().getFullYear()} Couchbase, Inc. Licensed under MIT. Built with Docusaurus.`,
+        copyright: `Copyright ${new Date().getFullYear()} Couchbase, Inc. · <a href="https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Licensed under Apache 2.0 </a> · Built with Docusaurus.`,
       },
       prism: {
         theme: prismThemes.github,
