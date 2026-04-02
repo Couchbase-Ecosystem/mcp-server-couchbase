@@ -6,19 +6,19 @@ The MCP server can be configured using environment variables or command line arg
 
 | Environment Variable | CLI Argument | Description | Default |
 | --- | --- | --- | --- |
-| `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster. See [Configuring Connection String](../02-get-started/02-quickstart.md#step-2-set-your-connection-string). | **Required** |
-| `CB_USERNAME` | `--username` | Username for basic authentication. See [Configuring Authentication](#configuring-authentication). | **Required (or mTLS)** |
-| `CB_PASSWORD` | `--password` | Password for basic authentication. See [Configuring Authentication](#configuring-authentication). | **Required (or mTLS)** |
-| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to client certificate for mTLS. See [Configuring Authentication](#configuring-authentication). | **Required if using mTLS** |
-| `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to client key for mTLS. See [Configuring Authentication](#configuring-authentication). | **Required if using mTLS** |
-| `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS (self-signed/untrusted certs). Not required for Capella. | |
-| `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). See [Read-Only Mode](./02-read-only-mode.md) for details. | `true` |
-| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | **[DEPRECATED]** Prevent queries that modify data. Use `CB_MCP_READ_ONLY_MODE` instead. | `true` |
-| `CB_MCP_TRANSPORT` | `--transport` | Transport mode: `stdio` (default — client launches server as subprocess), `http` ([Streamable HTTP](./03-streamable-http.md) - multiple clients, serves at `/mcp`), `sse` ([deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) — use `http` instead) | `stdio` |
+| `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster. <br />See [Configuring Connection String](../02-get-started/02-quickstart.md#step-2-set-your-connection-string). | **Required** |
+| `CB_USERNAME` | `--username` | Username for basic authentication. <br />See [Configuring Authentication](#configuring-authentication). | **Required (or mTLS)** |
+| `CB_PASSWORD` | `--password` | Password for basic authentication. <br />See [Configuring Authentication](#configuring-authentication). | **Required (or mTLS)** |
+| `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to client certificate for mTLS. <br />See [Configuring Authentication](#configuring-authentication). | **Required if using mTLS** |
+| `CB_CLIENT_KEY_PATH` | `--client-key-path` | Path to client key for mTLS. <br />See [Configuring Authentication](#configuring-authentication). | **Required if using mTLS** |
+| `CB_CA_CERT_PATH` | `--ca-cert-path` | Path to server root certificate for TLS (self-signed / untrusted certs). <br />Not required for Capella. | |
+| `CB_MCP_READ_ONLY_MODE` | `--read-only-mode` | Prevent all data modifications (KV and Query). <br />See [Read-Only Mode](./02-read-only-mode.md) for details. | `true` |
+| `CB_MCP_READ_ONLY_QUERY_MODE` | `--read-only-query-mode` | **[DEPRECATED]** Prevent queries that modify data. <br />Use `CB_MCP_READ_ONLY_MODE` instead. | `true` |
+| `CB_MCP_TRANSPORT` | `--transport` | Transport mode selection: <br />`stdio` (client launches server as subprocess), <br />`http` ([Streamable HTTP](./03-streamable-http.md) - multiple clients, serves at `/mcp`), <br />`sse` ([deprecated](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse-deprecated) - use `http` instead) | `stdio` |
 | `CB_MCP_HOST` | `--host` | Host for HTTP/SSE transport modes | `127.0.0.1` |
 | `CB_MCP_PORT` | `--port` | Port for HTTP/SSE transport modes | `8000` |
-| `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable (see [Disabling Tools](./04-disabling-tools.md)) | None |
-| `CB_MCP_CONFIRMATION_REQUIRED` | `--confirmation-required` | Tools requiring user confirmation before execution (see [Elicitation/Confirmation for Tool Calls](./05-elicitation-for-tools.md)) | None |
+| `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Tools to disable. <br />See [Disabling Tools](./04-disabling-tools.md) | None |
+| `CB_MCP_CONFIRMATION_REQUIRED` | `--confirmation-required` | Tools requiring user confirmation before execution. <br />See [Elicitation/Confirmation for Tool Calls](./05-elicitation-for-tools.md) | None |
 
 ## Checking the MCP Server Version
 

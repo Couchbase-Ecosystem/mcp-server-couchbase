@@ -32,7 +32,7 @@
   font-weight: 500;
   color: var(--ifm-color-emphasis-700);
   border: 1px solid transparent;
-  border-bottom: none;
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
   margin-right: 4px;
 }
 
@@ -43,19 +43,18 @@
 
 .tabs__item--active {
   color: var(--ifm-color-primary) !important;
-  border-color: var(--ifm-color-emphasis-300);
+  border-color: var(--ifm-color-primary);
   background: var(--ifm-background-color);
   border-bottom-color: var(--ifm-background-color) !important;
 }
 
 [data-theme='dark'] .tabs__item--active {
-  border-color: var(--ifm-color-emphasis-400);
+  border-color: var(--ifm-color-primary);
   background: var(--ifm-background-color);
   border-bottom-color: var(--ifm-background-color) !important;
 }
 
 .tabs-container .margin-top--md {
-  border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: 0 6px 6px 6px;
   padding: 1rem;
 }
