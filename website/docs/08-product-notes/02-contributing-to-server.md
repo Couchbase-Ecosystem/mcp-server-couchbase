@@ -361,8 +361,6 @@ The project uses [Ruff](https://docs.astral.sh/ruff/) for fast linting and code 
 
 ## Additional Resources
 
-- [Contributing to the Docs](./03-contributing-docs.md) - How to edit and add pages to this documentation site
-
 - [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
 
 - [Couchbase Python SDK Documentation](https://docs.couchbase.com/python-sdk/current/hello-world/start-using-sdk.html)
