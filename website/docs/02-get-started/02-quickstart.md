@@ -208,7 +208,7 @@ Navigate to the MCP configuration file at `~/.factory/mcp.json` and add the Couc
 
 To configure the Couchbase MCP server using the Factory MCP registry, type `/mcp` in the chat interface to launch the interactive UI, or type `/mcp` in the Droid CLI to access the MCP management menu. Browse the registry for "Couchbase" MCP server, and add it. Once added, the Couchbase MCP configuration template will be appended to `~/.factory/mcp.json`. Update the placeholder values with your specific settings.
 
-**Logs:** ~/.factory/logs/
+**Logs:** `~/.factory/logs/`
 </TabItem>
 
 <TabItem value="jetbrains" label="JetBrains">
