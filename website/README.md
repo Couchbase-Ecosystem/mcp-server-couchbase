@@ -41,8 +41,8 @@ website/
 │   ├── 04-tools/               # Tool reference documentation
 │   ├── 05-configuration/       # Environment variables, read-only mode, etc.
 │   ├── 06-security.md          # Security considerations and best practices
-│   └── 07-build-from-source.md # Guide to building from source and running locally
-│   ├── 08-product-notes/       # Release notes and contributing guide
+│   ├── 07-build-from-source.md # Guide to building from source and running locally
+│   └── 08-product-notes/       # Release notes and contributing guide
 ├── src/
 │   └── css/
 │       └── custom.css          # Custom styles and theme overrides
@@ -62,7 +62,7 @@ website/
   - `slug` - custom URL (e.g. `slug: /` for the homepage)
   - `sidebar_label` - sidebar label when it differs from the H1
 - **MDX files** that use JSX imports (e.g. `<Tabs>`) need frontmatter or a comment before the imports to satisfy markdownlint MD041.
-- **Internal links** should use relative file paths (e.g. `../configuration/01-environment-variables.md`) so Docusaurus validates them at build time.
+- **Internal links** should use relative file paths (e.g. `../05-configuration/01-environment-variables.md`) so Docusaurus validates them at build time.
 
 ## Linting
 
