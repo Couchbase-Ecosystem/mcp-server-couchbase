@@ -1,51 +1,51 @@
 // @ts-check
 
-import {themes as prismThemes} from 'prism-react-renderer';
+import { themes as prismThemes } from "prism-react-renderer";
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'Couchbase MCP Server',
-  tagline: 'Connect LLMs to Couchbase clusters via the Model Context Protocol',
-  favicon: 'img/favicon.ico',
+  title: "Couchbase MCP Server",
+  tagline: "Connect LLMs to Couchbase clusters via the Model Context Protocol",
+  favicon: "img/favicon.ico",
 
   future: {
     v4: true,
   },
 
-  url: 'https://Couchbase-Ecosystem.github.io',
-  baseUrl: process.env.BASE_URL || '/mcp-server-couchbase/',
+  url: "https://couchbase-ecosystem.github.io",
+  baseUrl: process.env.BASE_URL || "/mcp-server-couchbase/",
 
-  organizationName: 'Couchbase-Ecosystem',
-  projectName: 'mcp-server-couchbase',
+  organizationName: "Couchbase-Ecosystem",
+  projectName: "mcp-server-couchbase",
   trailingSlash: false,
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: "throw",
 
   markdown: {
     hooks: {
-      onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownLinks: "warn",
     },
   },
 
   i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
+    defaultLocale: "en",
+    locales: ["en"],
   },
 
   presets: [
     [
-      'classic',
+      "classic",
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
-          sidebarPath: './sidebars.js',
-          routeBasePath: '/',
+          sidebarPath: "./sidebars.js",
+          routeBasePath: "/",
           editUrl:
-            'https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/tree/main/website/',
+            "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/tree/main/website/",
         },
         blog: false,
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: "./src/css/custom.css",
         },
       }),
     ],
@@ -58,80 +58,80 @@ const config = {
         respectPrefersColorScheme: true,
       },
       navbar: {
-        title: 'Couchbase MCP Server',
+        title: "Couchbase MCP Server",
         logo: {
-          alt: 'Couchbase Logo',
-          src: 'img/logo.svg',
+          alt: "Couchbase Logo",
+          src: "img/logo.svg",
         },
         items: [
           {
-            href: 'https://pypi.org/project/couchbase-mcp-server/',
-            label: 'PyPI',
-            position: 'right',
+            href: "https://pypi.org/project/couchbase-mcp-server/",
+            label: "PyPI",
+            position: "right",
           },
           {
-            href: 'https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase',
-            label: 'Docker Hub',
-            position: 'right',
+            href: "https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase",
+            label: "Docker Hub",
+            position: "right",
           },
           {
-            href: 'https://github.com/Couchbase-Ecosystem/mcp-server-couchbase',
-            label: 'GitHub',
-            position: 'right',
+            href: "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase",
+            label: "GitHub",
+            position: "right",
           },
         ],
       },
       footer: {
-        style: 'dark',
+        style: "dark",
         links: [
           {
-            title: 'Documentation',
+            title: "Documentation",
             items: [
               {
-                label: 'Overview',
-                to: '/',
+                label: "Overview",
+                to: "/",
               },
               {
-                label: 'Tools',
-                to: '/tools/cluster-health',
+                label: "Tools",
+                to: "/tools",
               },
               {
-                label: 'Configuration',
-                to: '/configuration',
+                label: "Configuration",
+                to: "/configuration",
               },
             ],
           },
           {
-            title: 'Resources',
+            title: "Resources",
             items: [
               {
-                label: 'PyPI Package',
-                href: 'https://pypi.org/project/couchbase-mcp-server/',
+                label: "PyPI Package",
+                href: "https://pypi.org/project/couchbase-mcp-server/",
               },
               {
-                label: 'Docker Hub',
-                href: 'https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase',
+                label: "Docker Hub",
+                href: "https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase",
               },
               {
-                label: 'MCP Protocol',
-                href: 'https://modelcontextprotocol.io/',
+                label: "MCP Protocol",
+                href: "https://modelcontextprotocol.io/",
               },
             ],
           },
           {
-            title: 'Community',
+            title: "Community",
             items: [
               {
-                label: 'GitHub',
-                href: 'https://github.com/Couchbase-Ecosystem/mcp-server-couchbase',
+                label: "GitHub",
+                href: "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase",
               },
               {
-                label: 'Issues',
-                href: 'https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues',
+                label: "Issues",
+                href: "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues",
               },
               {
-                label: 'Contributing',
-                to: '/product-notes/contributing',
+                label: "Contributing",
+                to: "/product-notes/contributing",
               },
             ],
           },
@@ -141,7 +141,7 @@ const config = {
       prism: {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
-        additionalLanguages: ['bash', 'json', 'python'],
+        additionalLanguages: ["bash", "json", "python"],
       },
     }),
 };

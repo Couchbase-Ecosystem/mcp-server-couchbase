@@ -1,12 +1,8 @@
----
-title: Build from Source
----
-
 # Build from Source
 
 This page provides a step-by-step guide to building the Couchbase MCP Server from source when you want to run it locally, test the latest changes, or extend it directly from the GitHub repository. It covers cloning the repository, configuring your MCP client, and optionally building a Docker image from source.
 
-If you would like to contribute towards the official Couchbase MCP server, follow the [Contributing](/product-notes/contributing) guidelines.
+If you would like to contribute towards the official Couchbase MCP server, follow the [Contributing](./08-product-notes/02-contributing.md) guidelines.
 
 ## Prerequisites
 
@@ -21,7 +17,11 @@ git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
 cd mcp-server-couchbase
 ```
 
-## MCP Client Configuration
+## Running the Source Code Directly
+
+You can run the MCP server directly from the source using uv.
+
+### Source: MCP Client Configuration
 
 When configuring an MCP client, use this command format:
 
@@ -72,15 +72,39 @@ docker build --build-arg GIT_COMMIT_HASH=$(git rev-parse HEAD) \
   -t mcp/couchbase-src .
 ```
 
-Or use the provided build script:
+Or use the provided [build script](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/build.sh):
+
+#### Build with default image name (mcp/couchbase-src)
 
 ```bash
 ./build.sh
 ```
 
-The script automatically generates git commit hash and build timestamp, creates multiple tags (`latest`, `<short-commit>`), and shows build results.
+#### Build with custom image name
 
-### MCP Client Configuration
+```bash
+./build.sh my-custom/image-name
+```
+
+The script does the following:
+
+- Accepts an optional image name parameter (defaults to `mcp/couchbase-src`)
+- Generates git commit hash and build timestamp
+- Creates multiple useful tags (`latest`, `<short-commit>`)
+- Shows build information and results
+- Uses the same arguments as CI/CD builds
+
+### Verify Image Labels
+
+```bash
+# View git commit hash
+docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase-src:latest
+
+# View all metadata labels
+docker inspect --format='{{json .Config.Labels}}' mcp/couchbase-src:latest
+```
+
+### Docker: MCP Client Configuration
 
 Once the image is built, configure your MCP client to use it:
 
@@ -101,16 +125,6 @@ Once the image is built, configure your MCP client to use it:
 }
 ```
 
-### Verify Image Labels
-
-```bash
-# View git commit hash
-docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' mcp/couchbase-src:latest
-
-# View all metadata labels
-docker inspect --format='{{json .Config.Labels}}' mcp/couchbase-src:latest
-```
-
 ## Next Steps
 
-See the [Quick Start](/get-started/quickstart) for client-specific configuration instructions.
+See the [Quick Start](./02-get-started/02-quickstart.md) for client-specific configuration instructions.

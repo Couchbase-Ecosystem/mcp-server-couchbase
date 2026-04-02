@@ -1,8 +1,3 @@
----
-sidebar_position: 5
-title: Streamable HTTP Transport Mode
----
-
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
@@ -11,7 +6,7 @@ import TabItem from '@theme/TabItem';
 Run the server in [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) transport mode to allow multiple clients to connect to the same server instance via HTTP.
 
 <Tabs groupId="install-method">
-  <TabItem value="uvx" label="uvx" default>
+<TabItem value="uvx" label="uvx" default>
 
 **Start the server:**
 
@@ -24,7 +19,7 @@ uvx couchbase-mcp-server \
   --transport=http
 ```
 
-The server will be available at `http://localhost:8000/mcp`.
+The server will be available at `http://localhost:8000/mcp` by default.
 
 **MCP client configuration:**
 
@@ -40,8 +35,8 @@ The server will be available at `http://localhost:8000/mcp`.
 
 Set `CB_MCP_PORT` or `--port` to use a different port. Set `CB_MCP_HOST=0.0.0.0` or `--host=0.0.0.0` to allow external connections.
 
-  </TabItem>
-  <TabItem value="docker" label="Docker">
+</TabItem>
+<TabItem value="docker" label="Docker">
 
 **Run the MCP server as an independent container:**
 
@@ -52,7 +47,7 @@ docker run --rm -i \
   -e CB_PASSWORD='<database_password>' \
   -e CB_MCP_TRANSPORT='http' \
   -e CB_MCP_READ_ONLY_MODE='true' \
-  -e CB_MCP_HOST='0.0.0.0' \
+  -e CB_MCP_HOST=0.0.0.0 \
   -e CB_MCP_PORT=9001 \
   -p 9001:9001 \
   couchbaseecosystem/mcp-server-couchbase
@@ -80,4 +75,3 @@ You can specify the container's networking with `--network=<your_network>`. The 
 
   </TabItem>
 </Tabs>
-

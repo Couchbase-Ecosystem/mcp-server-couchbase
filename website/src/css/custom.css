@@ -26,6 +26,40 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
+/* Tabs */
+.tabs__item {
+  border-radius: 6px 6px 0 0;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-700);
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+  margin-right: 4px;
+}
+
+.tabs__item:hover {
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-primary);
+}
+
+.tabs__item--active {
+  color: var(--ifm-color-primary) !important;
+  border-color: var(--ifm-color-primary);
+  background: var(--ifm-background-color);
+  border-bottom-color: var(--ifm-background-color) !important;
+}
+
+[data-theme='dark'] .tabs__item--active {
+  border-color: var(--ifm-color-primary);
+  background: var(--ifm-background-color);
+  border-bottom-color: var(--ifm-background-color) !important;
+}
+
+.tabs-container .margin-top--md {
+  border-radius: 0 6px 6px 6px;
+  padding: 1rem;
+}
+
+/* Tutorial Cards */
 .tutorial-cards {
   display: flex;
   gap: 1rem;

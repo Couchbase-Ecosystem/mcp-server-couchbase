@@ -1,11 +1,16 @@
----
-sidebar_position: 4
-title: Disabling Tools
----
-
 # Disabling Tools
 
 You can disable specific tools to prevent them from being loaded and exposed to the MCP client; disabled tools will not appear in tool discovery, cannot be invoked by the LLM, and help cut noise and unnecessary token consumption.
+
+## How It Works
+
+When you specify tools to disable, the server will not load those tools at startup. If a tool is disabled, any attempt to call it from the client will result in an error response indicating that the tool is unavailable.
+
+## Configuration
+
+| Environment Variable | CLI Argument | Description | Default |
+| --- | --- | --- | --- |
+| `CB_MCP_DISABLED_TOOLS` | `--disabled-tools` | Comma-separated list or file path of tool names to disable | None |
 
 ## Supported Formats
 
@@ -23,10 +28,10 @@ uvx couchbase-mcp-server --disabled-tools "upsert_document_by_id, delete_documen
 
 ```bash
 # Environment variable
-CB_MCP_DISABLED_TOOLS=disabled_tools.txt
+CB_MCP_DISABLED_TOOLS=/path/to/disabled_tools.txt
 
 # Command line
-uvx couchbase-mcp-server --disabled-tools disabled_tools.txt
+uvx couchbase-mcp-server --disabled-tools /path/to/disabled_tools.txt
 ```
 
 File format example (`disabled_tools.txt`):
@@ -89,7 +94,11 @@ Disabling tools alone does not guarantee that certain operations cannot be perfo
 :::
 
 The underlying database user's RBAC (Role-Based Access Control) permissions are the authoritative security control. For example, even if you disable `upsert_document_by_id` and `delete_document_by_id`, data modifications can still occur via the `run_sql_plus_plus_query` tool using SQL++ DML statements (INSERT, UPDATE, DELETE, MERGE) unless:
-- `CB_MCP_READ_ONLY_MODE` is set to `true` (default), **OR**
+
+- `CB_MCP_READ_ONLY_MODE` is set to `true` (default),
+
+  **OR**
+
 - The database user lacks the necessary RBAC permissions
 
 :::tip Best Practice
