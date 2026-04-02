@@ -146,24 +146,16 @@ You may need to add the server configuration under a parent key of `mcpServers`.
 
 </TabItem>
 
-<TabItem value="factory" label="Factory">
+<TabItem value="windsurf" label="Windsurf">
 
-See the [Factory AI MCP documentation](https://docs.factory.ai/cli/configuration/mcp) for details.
+1. Navigate to **Command Palette > Windsurf MCP Configuration Panel** or **Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers**. See the [official documentation](https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin) for details.
 
-**Option 1: Droid CLI**
+2. Click **Add Server** > **Add custom server**.
 
-Run the following command in the Droid CLI:
-
-```bash
-droid mcp add couchbase-mcp 'uvx couchbase-mcp-server --connection-string=couchbases://your-connection-string --username=your-username --password=your-password' --type stdio
-```
-
-**Option 2: Configuration File**
-
-Navigate to the MCP configuration file at `~/.factory/mcp.json` and add the Couchbase MCP Server configuration.
+3. Add the Couchbase MCP Server configuration.
 
 <Tabs groupId="install-method">
-<TabItem value="uvx" label="uvx" default>
+  <TabItem value="uvx" label="uvx" default>
 
 ```json
 {
@@ -204,64 +196,7 @@ Navigate to the MCP configuration file at `~/.factory/mcp.json` and add the Couc
 </TabItem>
 </Tabs>
 
-**Option 3: Factory MCP Registry**
-
-To configure the Couchbase MCP server using the Factory MCP registry, type `/mcp` in the chat interface to launch the interactive UI, or type `/mcp` in the Droid CLI to access the MCP management menu. Browse the registry for "Couchbase" MCP server, and add it. Once added, the Couchbase MCP configuration template will be appended to `~/.factory/mcp.json`. Update the placeholder values with your specific settings.
-
-**Logs:** `~/.factory/logs/`
-</TabItem>
-
-<TabItem value="jetbrains" label="JetBrains">
-
-1. Install the [AI Assistant](https://www.jetbrains.com/help/ai-assistant/mcp.html) or [Junie](https://junie.jetbrains.com/docs/junie-cli-mcp-configuration.html) plugin.
-
-2. Navigate to **Settings > Tools > AI Assistant (or Junie) > MCP Server**.
-
-3. Click **"+"** to add the Couchbase MCP Server configuration and click **Save**.
-
-<Tabs groupId="install-method">
-<TabItem value="uvx" label="uvx" default>
-
-```json
-{
-  "mcpServers": {
-    "couchbase": {
-      "command": "uvx",
-      "args": ["couchbase-mcp-server"],
-      "env": {
-        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
-        "CB_USERNAME": "your-username",
-        "CB_PASSWORD": "your-password"
-      }
-    }
-  }
-}
-```
-
-</TabItem>
-<TabItem value="docker" label="Docker">
-
-```json
-{
-  "mcpServers": {
-    "couchbase": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
-        "-e", "CB_USERNAME=your-username",
-        "-e", "CB_PASSWORD=your-password",
-        "couchbaseecosystem/mcp-server-couchbase"
-      ]
-    }
-  }
-}
-```
-
-</TabItem>
-</Tabs>
-
-**Logs:** Help > Show Log in Finder/Explorer > mcp > couchbase
+**Logs:** Check Windsurf output panel
 
 </TabItem>
 
@@ -341,16 +276,16 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 
 </TabItem>
 
-<TabItem value="windsurf" label="Windsurf">
+<TabItem value="jetbrains" label="JetBrains">
 
-1. Navigate to **Command Palette > Windsurf MCP Configuration Panel** or **Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers**. See the [official documentation](https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin) for details.
+1. Install the [AI Assistant](https://www.jetbrains.com/help/ai-assistant/mcp.html) or [Junie](https://junie.jetbrains.com/docs/junie-cli-mcp-configuration.html) plugin.
 
-2. Click **Add Server** > **Add custom server**.
+2. Navigate to **Settings > Tools > AI Assistant (or Junie) > MCP Server**.
 
-3. Add the Couchbase MCP Server configuration.
+3. Click **"+"** to add the Couchbase MCP Server configuration and click **Save**.
 
 <Tabs groupId="install-method">
-  <TabItem value="uvx" label="uvx" default>
+<TabItem value="uvx" label="uvx" default>
 
 ```json
 {
@@ -391,9 +326,76 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 </TabItem>
 </Tabs>
 
-**Logs:** Check Windsurf output panel
+**Logs:** Help > Show Log in Finder/Explorer > mcp > couchbase
 
 </TabItem>
+
+<TabItem value="factory" label="Factory">
+
+See the [Factory AI MCP documentation](https://docs.factory.ai/cli/configuration/mcp) for details.
+
+**Option 1: Droid CLI**
+
+Run the following command in the Droid CLI:
+
+```bash
+droid mcp add couchbase-mcp 'uvx couchbase-mcp-server --connection-string=couchbases://your-connection-string --username=your-username --password=your-password' --type stdio
+```
+
+**Option 2: Configuration File**
+
+Navigate to the MCP configuration file at `~/.factory/mcp.json` and add the Couchbase MCP Server configuration.
+
+<Tabs groupId="install-method">
+<TabItem value="uvx" label="uvx" default>
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "uvx",
+      "args": ["couchbase-mcp-server"],
+      "env": {
+        "CB_CONNECTION_STRING": "couchbases://your-connection-string",
+        "CB_USERNAME": "your-username",
+        "CB_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "CB_CONNECTION_STRING=couchbases://your-connection-string",
+        "-e", "CB_USERNAME=your-username",
+        "-e", "CB_PASSWORD=your-password",
+        "couchbaseecosystem/mcp-server-couchbase"
+      ]
+    }
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+**Option 3: Factory MCP Registry**
+
+To configure the Couchbase MCP server using the Factory MCP registry, type `/mcp` in the chat interface to launch the interactive UI, or type `/mcp` in the Droid CLI to access the MCP management menu. Browse the registry for "Couchbase" MCP server, and add it. Once added, the Couchbase MCP configuration template will be appended to `~/.factory/mcp.json`. Update the placeholder values with your specific settings.
+
+**Logs:** `~/.factory/logs/`
+</TabItem>
+
+
 </Tabs>
 
 :::tip
