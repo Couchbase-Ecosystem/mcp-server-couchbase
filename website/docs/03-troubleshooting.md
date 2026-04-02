@@ -90,6 +90,7 @@ Check the MCP client logs for errors or warnings:
 | ------ | ----------- |
 | **Claude Desktop** | `~/Library/Logs/Claude` (macOS), `%APPDATA%\Claude\Logs` (Windows) |
 | **Cursor** | Bottom panel > Output > "Cursor MCP" |
+| **Factory** | `~/.factory/logs/` (macOS) |
+| **JetBrains** | Help > Show Log in Finder/Explorer > mcp > couchbase |
 | **VS Code** | Command Palette > "MCP: List Servers" > Show Output |
 | **Windsurf** | Check Windsurf output panel |
-| **JetBrains** | Help > Show Log in Finder/Explorer > mcp > couchbase |
