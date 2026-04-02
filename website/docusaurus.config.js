@@ -113,7 +113,7 @@ const config = {
                 href: "https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase",
               },
               {
-                label: "MCP Protocol",
+                label: "Model Context Protocol",
                 href: "https://modelcontextprotocol.io/",
               },
             ],
@@ -136,7 +136,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright ${new Date().getFullYear()} Couchbase, Inc. Licensed under Apache 2.0. Built with Docusaurus.`,
+        copyright: `Copyright ${new Date().getFullYear()} Couchbase, Inc. Licensed under MIT. Built with Docusaurus.`,
       },
       prism: {
         theme: prismThemes.github,

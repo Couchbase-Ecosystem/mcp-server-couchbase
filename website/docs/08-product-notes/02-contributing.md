@@ -7,7 +7,7 @@ Guide for contributing to the Couchbase MCP Server.
 ### Prerequisites
 
 - **Python 3.10+**
-- **[uv](https://docs.astral.sh/uv/)** — Fast Python package installer and dependency manager
+- **[uv](https://docs.astral.sh/uv/)** - Fast Python package installer and dependency manager
 - **Git**
 - **VS Code** (recommended) - With the Python extension for the best development experience
 
