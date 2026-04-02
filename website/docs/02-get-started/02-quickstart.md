@@ -14,9 +14,9 @@ Make sure you complete the [prerequisites](./01-prerequisites.md) before proceed
 
 Select your MCP client and add the Couchbase MCP Server configuration.
 
-<Tabs groupId="mcp-client">
+<Tabs>
 
-<TabItem value="claude-desktop" label="Claude Desktop">
+<TabItem value="claude-desktop" label="Claude Desktop" default>
 
 1. Open the Claude Desktop configuration file:
 
@@ -73,7 +73,7 @@ Select your MCP client and add the Couchbase MCP Server configuration.
 
 </TabItem>
 
-<TabItem value="cursor" label="Cursor" default>
+<TabItem value="cursor" label="Cursor">
 You can integrate the Couchbase MCP Server into Cursor using either of the following methods.
 
 **Option 1: Add via the Cursor MCP Links**
