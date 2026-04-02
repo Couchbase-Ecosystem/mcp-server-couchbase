@@ -272,11 +272,11 @@ The [Couchbase VS Code Extension](https://marketplace.visualstudio.com/items?ite
 
 From Command Palette (Ctrl+Shift+P / Cmd+Shift+P):
 
-- Couchbase: Start MCP Server - Start the server
-- Couchbase: Get MCP Server Config - Inspect config JSON
-- Couchbase: MCP Server Settings - Customize disabled tools, elicitation for tools, read-only mode, export paths, etc.
+- `Couchbase: Start MCP Server` - Start the server
+- `Couchbase: Get MCP Server Config` - Inspect config JSON
+- `Couchbase: MCP Server Settings` - Customize disabled tools, elicitation for tools, read-only mode, export paths, etc.
 
-**Quick Start**: Install extension → Connect cluster → Accept prompt to start MCP Server.
+Quick Start: Install extension → Connect cluster → Accept prompt to start MCP Server.
 
 **Option 2: Manual Configuration**
 
@@ -442,6 +442,8 @@ If your Couchbase server is running on the host machine and you are using Docker
 Configure authentication for your MCP server. Choose one of the following methods.
 
 ### Basic Authentication (Username and Password)
+
+For Basic Authentication setup, see [Manage Database Credentials](https://docs.couchbase.com/cloud/clusters/manage-database-users.html) (Capella) or [Manage Users and Roles](https://docs.couchbase.com/server/current/manage/manage-security/manage-users-and-roles.html) (self-managed).
 
 Set `CB_USERNAME` and `CB_PASSWORD` in your MCP client configuration:
 

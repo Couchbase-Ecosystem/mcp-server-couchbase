@@ -6,7 +6,7 @@ The MCP server can be configured using environment variables or command line arg
 
 | Environment Variable | CLI Argument | Description | Default |
 | --- | --- | --- | --- |
-| `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster | **Required** |
+| `CB_CONNECTION_STRING` | `--connection-string` | Connection string to the Couchbase cluster. See [Configuring Connection String](../02-get-started/02-quickstart.md#step-2-set-your-connection-string). | **Required** |
 | `CB_USERNAME` | `--username` | Username for basic authentication. See [Configuring Authentication](#configuring-authentication). | **Required (or mTLS)** |
 | `CB_PASSWORD` | `--password` | Password for basic authentication. See [Configuring Authentication](#configuring-authentication). | **Required (or mTLS)** |
 | `CB_CLIENT_CERT_PATH` | `--client-cert-path` | Path to client certificate for mTLS. See [Configuring Authentication](#configuring-authentication). | **Required if using mTLS** |
@@ -70,7 +70,7 @@ Provide a Couchbase database username and password. For Basic Authentication set
 
 ### How to: Connect to Capella
 
-- **Connection string**: Use `couchbases://` (with `s`) — TLS is always enabled.
+- **Connection string**: Use `couchbases://` (with `s`) — TLS is always enabled. Find your connection string in the [Capella UI](https://docs.couchbase.com/cloud/get-started/connect.html) under **Cluster** > **Connect**.
 
 - **TLS certificates**: The bundled Capella root CA is used automatically. You do not need to set `CB_CA_CERT_PATH`.
 
