@@ -446,18 +446,19 @@ def generate_or_modify_sql_plus_plus_query(
         Field(
             description=(
                 "Natural-language request for the desired SQL++ query. "
-                "This tool uses catalog-enriched schema + relationship context "
-                "to generate the SQL++."
+                "Include filters, sort order, limits, other operations, and relevant prior "
+                "conversation context."
             ),
         ),
     ],
 ) -> str:
     """Create or modify a SQL++ query from a natural-language description.
 
-    Uses the generated catalog prompt (schema + relationships + verification status)
-    as context and returns a ready-to-run SQL++ statement.
-    If catalog enrichment is not ready, returns a warning message instead of
-    generating a best-effort query.
+    For efficient and effective SQL++ generation, prefer this tool over calling
+    individual schema/bucket/scope/collection discovery tools.
+    This tool takes the raw question, uses catalog context internally, and
+    returns a ready-to-run SQL++ query.
+    If catalog enrichment is not ready, it returns a warning message instead.
 
     Returns:
         A SQL++ query string, or a warning string if catalog context is unavailable.
