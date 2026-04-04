@@ -4,6 +4,7 @@ Tools for querying the Couchbase database.
 This module contains tools for getting the schema for a collection and running SQL++ queries.
 """
 
+import json
 import logging
 from typing import Annotated, Any
 
@@ -407,6 +408,16 @@ def _build_query_generation_prompt(
     # ── 3. User question ─────────────────────────────────────────────────
     lines.append("## User Question")
     lines.append(user_question)
+    lines.append(
+        ""
+    )  # TODO: We need to move the part about getting bucket, scope to backend like iQ-FastAPI
+    lines.append("## Output Format")
+    lines.append(
+        'Return ONLY valid JSON with keys: "query", "bucket_name", "scope_name".'
+    )
+    lines.append(
+        "If bucket or scope cannot be determined confidently, set them to an empty string."
+    )
 
     return "\n".join(lines)
 
@@ -451,17 +462,19 @@ def generate_or_modify_sql_plus_plus_query(
             ),
         ),
     ],
-) -> str:
+) -> dict[str, str]:
     """Create or modify a SQL++ query from a natural-language description.
 
     For efficient and effective SQL++ generation, prefer this tool over calling
     individual schema/bucket/scope/collection discovery tools.
     This tool takes the raw question, uses catalog context internally, and
     returns a ready-to-run SQL++ query.
+    It also returns the inferred bucket and scope name so you do not need to
+    infer execution context separately.
     If catalog enrichment is not ready, it returns a warning message instead.
 
     Returns:
-        A SQL++ query string, or a warning string if catalog context is unavailable.
+        Dictionary with keys: query, bucket_name, scope_name.
     """
     logger.debug(
         "generate_or_modify_sql_plus_plus_query — message=%s",
@@ -469,15 +482,27 @@ def generate_or_modify_sql_plus_plus_query(
     )
 
     if not message or not message.strip():
-        return "Error: A natural-language message describing the desired query is required."
+        return {
+            "query": "",
+            "bucket_name": "",
+            "scope_name": "",
+            "message": (
+                "Error: A natural-language message describing the desired query is required."
+            ),
+        }
 
     catalog_state = _get_catalog_prompt_state(ctx)
     catalog_prompt = str(catalog_state.get("prompt", "")).strip()
     if not catalog_state.get("has_prompt"):
-        return (
-            "Warning: The catalog for the Couchbase database has not been generated yet; "
-            "it may take some more time. Please retry once enrichment completes."
-        )
+        return {
+            "query": "",
+            "bucket_name": "",
+            "scope_name": "",
+            "message": (
+                "Warning: The catalog for the Couchbase database has not been generated yet; "
+                "it may take some more time. Please retry once enrichment completes."
+            ),
+        }
 
     # ── Build structured prompt ──────────────────────────────────────────
     prompt = _build_query_generation_prompt(
@@ -488,9 +513,30 @@ def generate_or_modify_sql_plus_plus_query(
     # ── Call the agent backend ─────────────────────────────────────
     try:
         resp_body = call_agent(content=prompt)
-        return extract_answer(resp_body)
+        raw_answer = extract_answer(resp_body)
+        try:
+            parsed = json.loads(raw_answer)
+            if isinstance(parsed, dict):
+                return {
+                    "query": str(parsed.get("query", "")).strip(),
+                    "bucket_name": str(parsed.get("bucket_name", "")).strip(),
+                    "scope_name": str(parsed.get("scope_name", "")).strip(),
+                }
+        except Exception:
+            pass
+
+        return {
+            "query": raw_answer.strip(),
+            "bucket_name": "",
+            "scope_name": "",
+        }
     except (ConnectionError, RuntimeError) as exc:
-        return f"Error: {exc}"
+        return {
+            "query": "",
+            "bucket_name": "",
+            "scope_name": "",
+            "message": f"Error: {exc}",
+        }
 
 
 def update_query_function_annotation(enable_query_generation: bool) -> None:
