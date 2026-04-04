@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any
 
 from catalog.enrichment.relationship_verifier.common.relationship_text_parser import (
@@ -30,6 +31,37 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
 
 def _normalize_name(name: str) -> str:
     return name.strip().lower()
+
+
+def _normalize_table_reference(name: str) -> str:
+    return _normalize_name(name).replace("`", "")
+
+
+def _extract_relationship_candidate_text(enriched_prompt: str) -> tuple[str, bool]:
+    lines = enriched_prompt.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    section_start: int | None = None
+
+    for index, raw_line in enumerate(lines):
+        normalized = raw_line.strip().lower()
+        if re.match(r"^##+\s*relationships\b", normalized):
+            section_start = index + 1
+            break
+
+    if section_start is None:
+        return enriched_prompt, False
+
+    candidate_lines: list[str] = []
+    for raw_line in lines[section_start:]:
+        stripped = raw_line.strip()
+        lowered = stripped.lower()
+        if lowered.startswith("## ") and "relationship" not in lowered:
+            break
+        if re.match(
+            r"^(?:[-*]\s*)?(PKA?|FK|OO|OM)\s*\(", stripped, flags=re.IGNORECASE
+        ):
+            candidate_lines.append(stripped.lstrip("-* ").strip())
+
+    return "\n".join(candidate_lines), True
 
 
 def _extract_relationship_tables(relationship: AnyRelationship) -> tuple[str, ...]:
@@ -154,10 +186,13 @@ def _build_verifier_maps(
         bucket_index_map.setdefault(normalized_bucket, {})
 
         qualified = f"{scope_name}.{collection_name}"
+        fully_qualified = f"{bucket_name}.{scope_name}.{collection_name}"
         normalized_qualified = _normalize_name(qualified)
+        normalized_fully_qualified = _normalize_name(fully_qualified)
         normalized_collection = _normalize_name(collection_name)
 
         keyspace_to_bucket[normalized_qualified] = normalized_bucket
+        keyspace_to_bucket[normalized_fully_qualified] = normalized_bucket
         unqualified_occurrences.setdefault(normalized_collection, set()).add(
             normalized_bucket
         )
@@ -177,6 +212,9 @@ def _build_verifier_maps(
 
         bucket_index_map[normalized_bucket][normalized_collection] = parsed_index_keys
         bucket_index_map[normalized_bucket][normalized_qualified] = parsed_index_keys
+        bucket_index_map[normalized_bucket][normalized_fully_qualified] = (
+            parsed_index_keys
+        )
 
     for collection_name, bucket_names in unqualified_occurrences.items():
         if len(bucket_names) == 1:
@@ -188,9 +226,9 @@ def _build_verifier_maps(
 def _group_relationships_by_bucket(
     relationships: list[AnyRelationship],
     keyspace_to_bucket: dict[str, str],
-) -> tuple[dict[str, list[AnyRelationship]], int]:
+) -> tuple[dict[str, list[AnyRelationship]], list[tuple[AnyRelationship, str]]]:
     relationships_by_bucket: dict[str, list[AnyRelationship]] = {}
-    skipped = 0
+    skipped: list[tuple[AnyRelationship, str]] = []
 
     for relationship in relationships:
         tables = _extract_relationship_tables(relationship)
@@ -199,7 +237,7 @@ def _group_relationships_by_bucket(
         has_missing_table = False
 
         for table in tables:
-            bucket = keyspace_to_bucket.get(_normalize_name(table))
+            bucket = _resolve_bucket_for_table(table, keyspace_to_bucket)
             if bucket is None:
                 has_missing_table = True
                 break
@@ -211,7 +249,12 @@ def _group_relationships_by_bucket(
                 break
 
         if has_missing_table or bucket_for_relationship is None or is_cross_bucket:
-            skipped += 1
+            if has_missing_table:
+                skipped.append((relationship, "missing_table_bucket_mapping"))
+            elif bucket_for_relationship is None:
+                skipped.append((relationship, "missing_bucket_resolution"))
+            else:
+                skipped.append((relationship, "cross_bucket_relationship"))
             continue
 
         relationships_by_bucket.setdefault(bucket_for_relationship, []).append(
@@ -221,15 +264,38 @@ def _group_relationships_by_bucket(
     return relationships_by_bucket, skipped
 
 
+def _resolve_bucket_for_table(
+    table_name: str,
+    keyspace_to_bucket: dict[str, str],
+) -> str | None:
+    normalized_table = _normalize_table_reference(table_name)
+    direct_match = keyspace_to_bucket.get(normalized_table)
+    if direct_match is not None:
+        return direct_match
+
+    table_parts = [part for part in normalized_table.split(".") if part]
+    if len(table_parts) >= 2:
+        scoped_name = ".".join(table_parts[-2:])
+        scoped_match = keyspace_to_bucket.get(scoped_name)
+        if scoped_match is not None:
+            return scoped_match
+
+    if table_parts:
+        unqualified_name = table_parts[-1]
+        return keyspace_to_bucket.get(unqualified_name)
+
+    return None
+
+
 def _verify_relationships_blocking(
     *,
     relationships: list[AnyRelationship],
     database_info: dict[str, Any],
-) -> tuple[list[VerificationResult], int]:
+) -> tuple[list[VerificationResult], list[tuple[AnyRelationship, str]]]:
     keyspace_to_bucket, bucket_keyspace_map, bucket_index_map = _build_verifier_maps(
         database_info
     )
-    relationships_by_bucket, skipped_count = _group_relationships_by_bucket(
+    relationships_by_bucket, skipped_relationships = _group_relationships_by_bucket(
         relationships,
         keyspace_to_bucket,
     )
@@ -270,7 +336,7 @@ def _verify_relationships_blocking(
         except Exception:
             logger.debug("Failed to close verifier Couchbase cluster cleanly")
 
-    return verification_results, skipped_count
+    return verification_results, skipped_relationships
 
 
 async def append_verified_relationships_to_prompt(
@@ -283,9 +349,10 @@ async def append_verified_relationships_to_prompt(
     Returns the original text unchanged when parsing or verification is unavailable.
     """
     try:
-        candidate_relationships = parse_relationship_text_to_relationships(
+        parse_text, section_found = _extract_relationship_candidate_text(
             enriched_prompt
         )
+        candidate_relationships = parse_relationship_text_to_relationships(parse_text)
     except Exception as error:
         logger.warning(
             "Could not parse relationship candidates from LLM response: %s",
@@ -294,11 +361,14 @@ async def append_verified_relationships_to_prompt(
         return enriched_prompt
 
     if not candidate_relationships:
-        logger.info("No relationship candidates found in LLM response")
+        if section_found:
+            logger.info("No relationship candidates found in RELATIONSHIPS section")
+        else:
+            logger.info("No relationship candidates found in LLM response")
         return enriched_prompt
 
     try:
-        verification_results, skipped_count = await asyncio.to_thread(
+        verification_results, skipped_relationships = await asyncio.to_thread(
             _verify_relationships_blocking,
             relationships=candidate_relationships,
             database_info=database_info,
@@ -315,6 +385,7 @@ async def append_verified_relationships_to_prompt(
         1 for result in verification_results if result.is_unable_to_verify
     )
     failed_count = len(verification_results) - verified_count - unable_count
+    skipped_count = len(skipped_relationships)
 
     status_lines = []
     for result in verification_results:
@@ -328,10 +399,9 @@ async def append_verified_relationships_to_prompt(
             reason = result.failure_reason or "verification_failed"
             status_lines.append(f"- FAILED: {expression} — {reason}")
 
-    if skipped_count:
-        status_lines.append(
-            f"- SKIPPED: {skipped_count} relationship(s) could not be bucket-mapped for verification"
-        )
+    for skipped_relationship, skip_reason in skipped_relationships:
+        expression = _relationship_to_expression(skipped_relationship)
+        status_lines.append(f"- SKIPPED: {expression} — {skip_reason}")
 
     appended_section = "\n".join(
         [

@@ -1686,15 +1686,22 @@ class RelationshipVerifier:
 
     def _resolve_collection_keyspace(self, collection_name: str) -> tuple[str, str]:
         raw_name = collection_name.strip()
-        if "." in raw_name:
-            scope_name, resolved_collection = raw_name.split(".", maxsplit=1)
-            scope_name = scope_name.strip()
-            resolved_collection = resolved_collection.strip()
-            if not scope_name or not resolved_collection:
-                raise ValueError(
-                    f"Invalid qualified collection identifier: {collection_name!r}"
-                )
+        identifier_parts = [
+            part.strip() for part in raw_name.split(".") if part.strip()
+        ]
+
+        if len(identifier_parts) == 2:
+            scope_name, resolved_collection = identifier_parts
             return scope_name, resolved_collection
+
+        if len(identifier_parts) == 3:
+            _, scope_name, resolved_collection = identifier_parts
+            return scope_name, resolved_collection
+
+        if len(identifier_parts) > 3:
+            raise ValueError(
+                f"Invalid qualified collection identifier: {collection_name!r}"
+            )
 
         normalized_name = self._normalize_name(raw_name)
         mapped_keyspace = self.keyspace_map.get(normalized_name)
