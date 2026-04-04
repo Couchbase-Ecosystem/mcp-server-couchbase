@@ -4,7 +4,6 @@ Tools for querying the Couchbase database.
 This module contains tools for getting the schema for a collection and running SQL++ queries.
 """
 
-import json
 import logging
 from typing import Annotated, Any
 
@@ -12,6 +11,7 @@ from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 from mcp.server.fastmcp import Context
 from pydantic import Field
 
+from catalog.store.store import get_catalog_store
 from utils.agent import call_agent, extract_answer
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
@@ -376,7 +376,8 @@ def _build_query_generation_prompt(
     user_question: str,
     bucket_name: str,
     scope_name: str,
-    collection_metadata: dict[str, dict[str, Any]],
+    collection_names: list[str],
+    catalog_prompt: str,
 ) -> str:
     """Build a structured, multi-section prompt for the query-generation agent.
 
@@ -394,30 +395,58 @@ def _build_query_generation_prompt(
     lines.append(f"- **Bucket:** `{bucket_name}`")
     lines.append(f"- **Scope:** `{scope_name}`")
     lines.append(
+        "- **Collections:** "
+        + ", ".join(f"`{collection_name}`" for collection_name in collection_names)
+    )
+    lines.append(
         "- The query will be executed with the scope context already set. "
         "Use collection names directly — do NOT prefix with bucket or scope."
     )
     lines.append("")
 
-    # ── 2. Per-collection metadata ───────────────────────────────────────
-    for coll_name, meta in collection_metadata.items():
-        lines.append(f"## Collection: `{coll_name}`")
-
-        # Schema (includes per-field sample values from INFER)
-        schema = meta.get("schema")
-        if schema:
-            lines.append("### Schema (from INFER — includes field types, prevalence, and sample values)")
-            lines.append("```json")
-            lines.append(json.dumps(schema, indent=2))
-            lines.append("```")
-        else:
-            lines.append("_No schema available._")
+    # ── 2. Catalog context ────────────────────────────────────────────────
+    lines.append("## Catalog Context")
+    lines.append(
+        "Use the following catalog-generated context (including verified relationships) "
+        "to produce the SQL++ query:"
+    )
+    lines.append("")
+    lines.append(catalog_prompt.strip())
+    lines.append("")
 
     # ── 3. User question ─────────────────────────────────────────────────
     lines.append("## User Question")
     lines.append(user_question)
 
     return "\n".join(lines)
+
+
+def _get_catalog_prompt_state(ctx: Context) -> dict[str, Any]:
+    """Return the latest catalog prompt plus enrichment readiness metadata."""
+    _ = ctx
+    store = get_catalog_store()
+    prompt = store.get_prompt().strip()
+    needs_enrichment = store.get_needs_enrichment()
+    schema_hash = store.get_schema_hash()
+
+    if prompt:
+        return {
+            "has_prompt": True,
+            "prompt": prompt,
+            "needs_enrichment": needs_enrichment,
+            "schema_hash": schema_hash,
+            "message": "Catalog prompt is available.",
+        }
+
+    return {
+        "has_prompt": False,
+        "prompt": "",
+        "needs_enrichment": needs_enrichment,
+        "schema_hash": schema_hash,
+        "message": (
+            "Catalog prompt is not available yet. Please retry after catalog enrichment completes."
+        ),
+    }
 
 
 def generate_or_modify_sql_plus_plus_query(
@@ -427,8 +456,8 @@ def generate_or_modify_sql_plus_plus_query(
         Field(
             description=(
                 "Natural-language request for the desired SQL++ query. "
-                "Include field names, filters, sort order, limits, and "
-                "relevant prior conversation context."
+                "This tool uses catalog-enriched schema + relationship context "
+                "to generate the SQL++."
             ),
         ),
     ],
@@ -447,13 +476,13 @@ def generate_or_modify_sql_plus_plus_query(
 ) -> str:
     """Create or modify a SQL++ query from a natural-language description.
 
-    Introspects collection schemas and generates a ready-to-run SQL++ statement.
-
-    Resolve unknown bucket, scope, or collection names via
-    get_scopes_and_collections_in_bucket, get_schema_for_collection before calling this tool.
+    Uses the generated catalog prompt (schema + relationships + verification status)
+    as context and returns a ready-to-run SQL++ statement.
+    If catalog enrichment is not ready, returns a warning message instead of
+    generating a best-effort query.
 
     Returns:
-        A SQL++ query string ready to execute.
+        A SQL++ query string, or a warning string if catalog context is unavailable.
     """
     logger.debug(
         "generate_or_modify_sql_plus_plus_query — message=%s, collections=%s, bucket=%s, scope=%s",
@@ -472,38 +501,21 @@ def generate_or_modify_sql_plus_plus_query(
     if not message or not message.strip():
         return "Error: A natural-language message describing the desired query is required."
 
-    # ── Gather metadata for each collection ──────────────────────────────
-    cluster = get_cluster_connection(ctx=ctx)
-    bucket = connect_to_bucket(cluster, bucket_name)
-    scope = bucket.scope(scope_name)
-
-    collection_metadata: dict[str, dict[str, Any]] = {}
-    for coll in collection_names:
-        escaped = coll.replace("`", "``")
-
-        # Schema via INFER (includes per-field samples automatically)
-        try:
-            infer_result = scope.query(f"INFER `{escaped}`")
-            schema = list(infer_result)
-            #schema = _compact_infer_schema(raw_schema)
-        except Exception as e:
-            logger.warning("INFER failed for %s: %s", coll, e)
-            schema = []
-
-        # Indexes
-        #indexes = _fetch_collection_indexes(scope, bucket_name, scope_name, coll)
-
-        collection_metadata[coll] = {
-            "schema": schema,
-            #"indexes": indexes,
-        }
+    catalog_state = _get_catalog_prompt_state(ctx)
+    catalog_prompt = str(catalog_state.get("prompt", "")).strip()
+    if not catalog_state.get("has_prompt"):
+        return (
+            "Warning: The catalog for the Couchbase database has not been generated yet; "
+            "it may take some more time. Please retry once enrichment completes."
+        )
 
     # ── Build structured prompt ──────────────────────────────────────────
     prompt = _build_query_generation_prompt(
         user_question=message,
         bucket_name=bucket_name,
         scope_name=scope_name,
-        collection_metadata=collection_metadata,
+        collection_names=collection_names,
+        catalog_prompt=catalog_prompt,
     )
 
     # ── Call the agent backend ─────────────────────────────────────
@@ -528,10 +540,12 @@ def update_query_function_annotation(enable_query_generation: bool) -> None:
     """
     if enable_query_generation:
         # Add detailed annotation when query generation is enabled
-        run_sql_plus_plus_query.__annotations__['query'] = Annotated[
+        run_sql_plus_plus_query.__annotations__["query"] = Annotated[
             str,
-            Field(description="Requires sql++ query to be generated using generate_or_modify_sql_plus_plus_query tool from natural language for the query parameter.")
+            Field(
+                description="Requires sql++ query to be generated using generate_or_modify_sql_plus_plus_query tool from natural language for the query parameter."
+            ),
         ]
     else:
         # Reset to simple str type when query generation is disabled
-        run_sql_plus_plus_query.__annotations__['query'] = str
+        run_sql_plus_plus_query.__annotations__["query"] = str
