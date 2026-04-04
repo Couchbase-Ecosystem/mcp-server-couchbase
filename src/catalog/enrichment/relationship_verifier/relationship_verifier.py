@@ -30,6 +30,7 @@ from catalog.enrichment.relationship_verifier.tasks import (
     ColumnNotObjectTask,
     ColumnTypeCompatibilityTask,
     ColumnUniquenessTask,
+    MetaIdReferenceExistsTask,
     ValueSetInclusionTask,
 )
 
@@ -50,6 +51,8 @@ class RelationshipVerifier:
     """Plan, dedupe, execute, and evaluate data-backed relationship checks."""
 
     MAX_UNINDEXED_SCAN_ROWS = 10_000
+    META_ID_TIMEOUT_SAMPLE_SIZE = 500
+    META_ID_TIMEOUT_SAMPLE_SEED = 20260404
     VALUE_SET_TIMEOUT_SAMPLE_SIZE = 500
     VALUE_SET_TIMEOUT_SAMPLE_SEED = 20260402
     SMALL_COLLECTION_DOC_THRESHOLD = 30_000
@@ -227,7 +230,7 @@ class RelationshipVerifier:
             if isinstance(
                 operation, ValueSetInclusionTask
             ) and unavailable_reason.startswith(
-                "inclusion_check_requires_covering_index"
+                "inclusion_check_requires_covering_index_on_either_side"
             ):
                 started_ms = time.perf_counter() * 1000
                 try:
@@ -277,7 +280,9 @@ class RelationshipVerifier:
 
             if isinstance(
                 operation, ColumnTypeCompatibilityTask
-            ) and unavailable_reason.startswith("type_check_requires_covering_index"):
+            ) and unavailable_reason.startswith(
+                "type_check_requires_covering_index_on_either_side"
+            ):
                 started_ms = time.perf_counter() * 1000
                 try:
                     fallback_output = self._sdk_fallback_type_compatibility(operation)
@@ -307,6 +312,57 @@ class RelationshipVerifier:
                     )
                     return {"error": str(error)}, "sdk_fallback", str(error), None
 
+            if isinstance(
+                operation, MetaIdReferenceExistsTask
+            ) and unavailable_reason.startswith("meta_id_check_requires_primary_index"):
+                started_ms = time.perf_counter() * 1000
+                try:
+                    fallback_output = self._sdk_fallback_meta_id_reference_exists(
+                        operation
+                    )
+                    elapsed_ms = time.perf_counter() * 1000 - started_ms
+                    self._sdk_operation_logs.append(
+                        {
+                            "task_id": task_id,
+                            "operation_type": "meta_id_reference_exists",
+                            "elapsed_ms": elapsed_ms,
+                            "success": True,
+                            "fallback_reason": unavailable_reason,
+                            "error": None,
+                        }
+                    )
+                    return fallback_output, "sdk_fallback", None, None
+                except Exception as error:
+                    elapsed_ms = time.perf_counter() * 1000 - started_ms
+                    self._sdk_operation_logs.append(
+                        {
+                            "task_id": task_id,
+                            "operation_type": "meta_id_reference_exists",
+                            "elapsed_ms": elapsed_ms,
+                            "success": False,
+                            "fallback_reason": unavailable_reason,
+                            "error": str(error),
+                        }
+                    )
+                    error_text = str(error)
+                    if self._is_timeout_error(error_text):
+                        (
+                            fallback_output,
+                            fallback_error,
+                            fallback_metadata,
+                        ) = self._sampled_meta_id_reference_fallback(
+                            operation,
+                            fallback_stage="sdk_timeout",
+                            first_error=error_text,
+                        )
+                        return (
+                            fallback_output,
+                            "sample_fallback",
+                            fallback_error,
+                            fallback_metadata,
+                        )
+                    return {"error": error_text}, "sdk_fallback", error_text, None
+
             return {"unavailable": unavailable_reason}, "unavailable", None, None
 
         try:
@@ -320,6 +376,22 @@ class RelationshipVerifier:
             ):
                 fallback_output, fallback_error, fallback_metadata = (
                     self._sampled_value_set_fallback(
+                        operation,
+                        fallback_stage="query_timeout",
+                        first_error=error_text,
+                    )
+                )
+                return (
+                    fallback_output,
+                    "sample_fallback",
+                    fallback_error,
+                    fallback_metadata,
+                )
+            if isinstance(
+                operation, MetaIdReferenceExistsTask
+            ) and self._is_timeout_error(error_text):
+                fallback_output, fallback_error, fallback_metadata = (
+                    self._sampled_meta_id_reference_fallback(
                         operation,
                         fallback_stage="query_timeout",
                         first_error=error_text,
@@ -357,16 +429,60 @@ class RelationshipVerifier:
         fallback_stage: str,
         first_error: str,
     ) -> tuple[Any, str | None, dict[str, Any]]:
-        sampled_query = self._value_set_inclusion_sample_fallback_query(task)
+        sample_seed = self._stable_sample_seed(
+            self.VALUE_SET_TIMEOUT_SAMPLE_SEED,
+            task.task_id,
+        )
+        sampled_child_rows = self._sample_collection_rows_for_columns(
+            task.child_collection,
+            task.child_columns,
+            sample_size=self.VALUE_SET_TIMEOUT_SAMPLE_SIZE,
+            seed=sample_seed,
+        )
         metadata: dict[str, Any] = {
             "fallback_stage": fallback_stage,
             "first_error": first_error,
             "sample_size": self.VALUE_SET_TIMEOUT_SAMPLE_SIZE,
-            "sampled_query": sampled_query,
+            "sampled_query": "sdk_sampling(value_set_inclusion)",
         }
         try:
-            rows = self.cb.run_query(sampled_query)
-            return (rows[0] if rows else None), None, metadata
+            output = self._sdk_fallback_value_set_inclusion(
+                task,
+                sampled_child_rows=sampled_child_rows,
+            )
+            return output, None, metadata
+        except Exception as sampled_error:
+            return {"error": str(sampled_error)}, str(sampled_error), metadata
+
+    def _sampled_meta_id_reference_fallback(
+        self,
+        task: MetaIdReferenceExistsTask,
+        *,
+        fallback_stage: str,
+        first_error: str,
+    ) -> tuple[Any, str | None, dict[str, Any]]:
+        sample_seed = self._stable_sample_seed(
+            self.META_ID_TIMEOUT_SAMPLE_SEED,
+            task.task_id,
+        )
+        sampled_child_rows = self._sample_collection_rows_for_columns(
+            task.child_collection,
+            (task.child_column,),
+            sample_size=self.META_ID_TIMEOUT_SAMPLE_SIZE,
+            seed=sample_seed,
+        )
+        metadata: dict[str, Any] = {
+            "fallback_stage": fallback_stage,
+            "first_error": first_error,
+            "sample_size": self.META_ID_TIMEOUT_SAMPLE_SIZE,
+            "sampled_query": "sdk_sampling(meta_id_reference_exists)",
+        }
+        try:
+            output = self._sdk_fallback_meta_id_reference_exists(
+                task,
+                sampled_child_rows=sampled_child_rows,
+            )
+            return output, None, metadata
         except Exception as sampled_error:
             return {"error": str(sampled_error)}, str(sampled_error), metadata
 
@@ -501,6 +617,18 @@ class RelationshipVerifier:
             strict=True,
         ):
             if parent_column == META_ID_SENTINEL:
+                operations.append(
+                    MetaIdReferenceExistsTask(
+                        task_id=self._build_meta_id_reference_task_id(
+                            child_collection=relationship.child_table,
+                            child_column=child_column,
+                            parent_collection=relationship.parent_table,
+                        ),
+                        child_collection=relationship.child_table,
+                        child_column=child_column,
+                        parent_collection=relationship.parent_table,
+                    )
+                )
                 continue
             operations.append(
                 ColumnTypeCompatibilityTask(
@@ -538,7 +666,7 @@ class RelationshipVerifier:
             self._foreign_key_relationship_from_inferred(relationship)
         )
 
-    def _operation_to_query(self, operation: AnyTask) -> str:
+    def _operation_to_query(self, operation: AnyTask) -> str:  # noqa: PLR0911
         """Translate one task model into a single SQL++ statement."""
         if isinstance(operation, ColumnExistsTask):
             return self._column_exists_query(operation)
@@ -554,6 +682,9 @@ class RelationshipVerifier:
 
         if isinstance(operation, ValueSetInclusionTask):
             return self._value_set_inclusion_query(operation)
+
+        if isinstance(operation, MetaIdReferenceExistsTask):
+            return self._meta_id_reference_exists_query(operation)
 
         if isinstance(operation, ColumnTypeCompatibilityTask):
             return self._type_compatibility_query(operation)
@@ -668,26 +799,10 @@ class RelationshipVerifier:
             parent_limit=parent_limit,
         )
 
-    def _value_set_inclusion_sample_fallback_query(
-        self, task: ValueSetInclusionTask
-    ) -> str:
-        sample_size = self.VALUE_SET_TIMEOUT_SAMPLE_SIZE
-        child_count = self._collection_doc_count(task.child_collection)
-        child_offset = 0
-        if child_count is not None and child_count > sample_size:
-            max_offset = child_count - sample_size
-            hash_source = (
-                f"{self.VALUE_SET_TIMEOUT_SAMPLE_SEED}:{task.task_id}".encode()
-            )
-            random_value = int(hashlib.md5(hash_source).hexdigest()[:8], 16)
-            child_offset = random_value % (max_offset + 1)
-
-        return self._build_value_set_inclusion_query(
-            task,
-            child_limit=sample_size,
-            parent_limit=None,
-            child_offset=child_offset,
-        )
+    @staticmethod
+    def _stable_sample_seed(base_seed: int, task_id: str) -> int:
+        hash_source = f"{base_seed}:{task_id}".encode()
+        return int(hashlib.md5(hash_source).hexdigest()[:8], 16)
 
     def _build_value_set_inclusion_query(
         self,
@@ -757,6 +872,37 @@ class RelationshipVerifier:
             f"WHERE {join_conditions}"
             ")"
             ") THEN 1 ELSE 0 END AS missing_count;"
+        )
+
+    def _meta_id_reference_exists_query(self, task: MetaIdReferenceExistsTask) -> str:
+        """Return 1 when any child META-ID reference has no matching parent document."""
+        child_keyspace = self._keyspace_expression(task.child_collection)
+        parent_keyspace = self._keyspace_expression(task.parent_collection)
+
+        child_path = self._parse_path("child_row", task.child_column)
+        child_limit = self._query_limit_for_collection(
+            task.child_collection,
+            (task.child_column,),
+        )
+        child_from_clause = self._build_from_clause(
+            child_keyspace,
+            "child_row",
+            child_path,
+            limit_rows=child_limit,
+        )
+        child_expression = child_path.column_ref
+
+        return (
+            "SELECT CASE WHEN EXISTS ("
+            "SELECT 1 "
+            f"{child_from_clause} "
+            f"WHERE {child_expression} IS NOT NULL AND {child_expression} IS NOT MISSING "
+            "AND NOT EXISTS ("
+            "SELECT 1 "
+            f"FROM {parent_keyspace} AS parent_row "
+            f"WHERE META(parent_row).id = {child_expression}"
+            ")"
+            ") THEN 1 ELSE 0 END AS has_missing_reference;"
         )
 
     def _type_compatibility_query(self, task: ColumnTypeCompatibilityTask) -> str:
@@ -1007,6 +1153,29 @@ class RelationshipVerifier:
             strict=True,
         ):
             if parent_column == META_ID_SENTINEL:
+                meta_id_task_id = self._build_meta_id_reference_task_id(
+                    child_collection=relationship.child_table,
+                    child_column=child_column,
+                    parent_collection=relationship.parent_table,
+                )
+                missing_reference, error_reason = self._get_task_count(
+                    task_outputs,
+                    meta_id_task_id,
+                    "has_missing_reference",
+                )
+                if missing_reference is None:
+                    return False, (
+                        "fk_check_unavailable: "
+                        f"could not read META-ID reference check for "
+                        f"{relationship.child_table}.{child_column} -> "
+                        f"{relationship.parent_table}.$meta_id ({error_reason})"
+                    )
+                if missing_reference > 0:
+                    return False, (
+                        "fk_meta_id_reference_missing: "
+                        f"{relationship.child_table}.{child_column} references "
+                        f"document id(s) not present in {relationship.parent_table}"
+                    )
                 continue
 
             type_check_task_id = self._build_type_compatibility_task_id(
@@ -1167,12 +1336,26 @@ class RelationshipVerifier:
             f"__{self._normalize_name(parent_column)}"
         )
 
-    def _sdk_fallback_value_set_inclusion(
-        self, task: ValueSetInclusionTask
-    ) -> dict[str, int]:
-        child_limit = self._query_limit_for_collection(
-            task.child_collection, task.child_columns
+    def _build_meta_id_reference_task_id(
+        self,
+        *,
+        child_collection: str,
+        child_column: str,
+        parent_collection: str,
+    ) -> str:
+        return (
+            "meta_id_reference_exists"
+            f"__{self._normalize_name(child_collection)}"
+            f"__{self._normalize_name(child_column)}"
+            f"__{self._normalize_name(parent_collection)}"
         )
+
+    def _sdk_fallback_value_set_inclusion(
+        self,
+        task: ValueSetInclusionTask,
+        *,
+        sampled_child_rows: list[tuple[Any, ...] | None] | None = None,
+    ) -> dict[str, int]:
         parent_limit = self._query_limit_for_collection(
             task.parent_collection, task.parent_columns
         )
@@ -1188,11 +1371,16 @@ class RelationshipVerifier:
             if row_values is not None and len(row_values) == len(task.parent_columns)
         }
 
-        child_rows = self._scan_collection_rows_for_columns(
-            task.child_collection,
-            task.child_columns,
-            limit_rows=child_limit,
-        )
+        child_rows = sampled_child_rows
+        if child_rows is None:
+            child_limit = self._query_limit_for_collection(
+                task.child_collection, task.child_columns
+            )
+            child_rows = self._scan_collection_rows_for_columns(
+                task.child_collection,
+                task.child_columns,
+                limit_rows=child_limit,
+            )
         for row_values in child_rows:
             if row_values is None or len(row_values) != len(task.child_columns):
                 continue
@@ -1202,6 +1390,45 @@ class RelationshipVerifier:
                 return {"missing_count": 1}
 
         return {"missing_count": 0}
+
+    def _sdk_fallback_meta_id_reference_exists(
+        self,
+        task: MetaIdReferenceExistsTask,
+        *,
+        sampled_child_rows: list[tuple[Any, ...] | None] | None = None,
+    ) -> dict[str, int]:
+        scope_name, parent_collection = self._resolve_collection_keyspace(
+            task.parent_collection
+        )
+        child_rows = sampled_child_rows
+        if child_rows is None:
+            child_limit = self._query_limit_for_collection(
+                task.child_collection,
+                (task.child_column,),
+            )
+            child_rows = self._scan_collection_rows_for_columns(
+                task.child_collection,
+                (task.child_column,),
+                limit_rows=child_limit,
+            )
+
+        for row_value in child_rows:
+            if row_value is None or not row_value:
+                continue
+            referenced_id = row_value[0]
+            if referenced_id is None:
+                continue
+            if not isinstance(referenced_id, str):
+                referenced_id = str(referenced_id)
+            if not self.cb.document_exists(
+                bucket_name=self.bucket_name,
+                scope_name=scope_name,
+                collection_name=parent_collection,
+                document_id=referenced_id,
+            ):
+                return {"has_missing_reference": 1}
+
+        return {"has_missing_reference": 0}
 
     def _sdk_fallback_type_compatibility(
         self, task: ColumnTypeCompatibilityTask
@@ -1285,6 +1512,48 @@ class RelationshipVerifier:
 
         return resolved_rows
 
+    def _sample_collection_rows_for_columns(
+        self,
+        collection: str,
+        columns: tuple[str, ...],
+        *,
+        sample_size: int,
+        seed: int,
+    ) -> list[tuple[Any, ...] | None]:
+        if any("[]" in column for column in columns):
+            raise ValueError("SDK sampling does not support array path columns")
+
+        scope_name, collection_name = self._resolve_collection_keyspace(collection)
+        sampled_rows = self.cb.sample_collection_documents(
+            bucket_name=self.bucket_name,
+            scope_name=scope_name,
+            collection_name=collection_name,
+            limit=sample_size,
+            seed=seed,
+        )
+
+        resolved_rows: list[tuple[Any, ...] | None] = []
+        for document_id, document_body in sampled_rows:
+            row_values: list[Any] = []
+            missing_column = False
+            for column in columns:
+                value, is_present = self._extract_column_value(
+                    document_body,
+                    column,
+                    document_id=document_id,
+                )
+                if not is_present:
+                    missing_column = True
+                    break
+                row_values.append(value)
+
+            if missing_column:
+                resolved_rows.append(None)
+            else:
+                resolved_rows.append(tuple(row_values))
+
+        return resolved_rows
+
     def _extract_column_value(
         self, document_body: Any, column: str, *, document_id: str
     ) -> tuple[Any, bool]:
@@ -1319,7 +1588,7 @@ class RelationshipVerifier:
             return "array"
         return "object" if isinstance(value, dict) else "unknown"
 
-    def _task_unavailable_reason(self, operation: AnyTask) -> str | None:
+    def _task_unavailable_reason(self, operation: AnyTask) -> str | None:  # noqa: PLR0911
         """Return a reason when task should not run due to index/doc-count policy."""
         if isinstance(operation, ValueSetInclusionTask):
             child_ok = self._has_covering_index(
@@ -1328,10 +1597,10 @@ class RelationshipVerifier:
             parent_ok = self._has_covering_index(
                 operation.parent_collection, operation.parent_columns
             )
-            if child_ok and parent_ok:
+            if child_ok or parent_ok:
                 return None
             return (
-                "inclusion_check_requires_covering_index"
+                "inclusion_check_requires_covering_index_on_either_side"
                 f": {operation.child_collection}{operation.child_columns}"
                 f" -> {operation.parent_collection}{operation.parent_columns}"
             )
@@ -1343,12 +1612,21 @@ class RelationshipVerifier:
             parent_ok = self._has_covering_index(
                 operation.parent_collection, (operation.parent_column,)
             )
-            if child_ok and parent_ok:
+            if child_ok or parent_ok:
                 return None
             return (
-                "type_check_requires_covering_index"
+                "type_check_requires_covering_index_on_either_side"
                 f": {operation.child_collection}.{operation.child_column}"
                 f" -> {operation.parent_collection}.{operation.parent_column}"
+            )
+
+        if isinstance(operation, MetaIdReferenceExistsTask):
+            if self._has_primary_index(operation.parent_collection):
+                return None
+            return (
+                "meta_id_check_requires_primary_index"
+                f": {operation.child_collection}.{operation.child_column}"
+                f" -> {operation.parent_collection}.$meta_id"
             )
 
         return None
@@ -1508,6 +1786,11 @@ class RelationshipVerifier:
                 return True
 
         return False
+
+    def _has_primary_index(self, collection: str) -> bool:
+        normalized_collection = self._normalize_name(collection)
+        index_keys = self.index_map.get(normalized_collection, [])
+        return any(not index_key for index_key in index_keys)
 
     @staticmethod
     def _normalize_index_token(token: str) -> str:

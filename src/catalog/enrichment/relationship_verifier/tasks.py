@@ -9,6 +9,7 @@ __all__ = [
     "ColumnExistsTask",
     "ColumnNotNullTask",
     "ColumnNotObjectTask",
+    "MetaIdReferenceExistsTask",
     "ColumnTypeCompatibilityTask",
     "ColumnUniquenessTask",
     "ValueSetInclusionTask",
@@ -63,6 +64,16 @@ class ValueSetInclusionTask:
 
 
 @dataclass(frozen=True, slots=True)
+class MetaIdReferenceExistsTask:
+    """Check child FK values referencing META().id exist in parent collection."""
+
+    task_id: str
+    child_collection: str
+    child_column: str
+    parent_collection: str
+
+
+@dataclass(frozen=True, slots=True)
 class ColumnTypeCompatibilityTask:
     """Check child column types are compatible with parent column types.
 
@@ -83,5 +94,6 @@ AnyTask = (
     | ColumnNotNullTask
     | ColumnUniquenessTask
     | ValueSetInclusionTask
+    | MetaIdReferenceExistsTask
     | ColumnTypeCompatibilityTask
 )

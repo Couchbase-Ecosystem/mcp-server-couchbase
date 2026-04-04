@@ -11,10 +11,11 @@ from typing import Any
 
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
-from couchbase.kv_range_scan import RangeScan
+from couchbase.kv_range_scan import RangeScan, SamplingScan
 from couchbase.management.buckets import BucketType, CreateBucketSettings
 from couchbase.options import (
     ClusterOptions,
+    ExistsOptions,
     QueryOptions,
     RemoveOptions,
     ScanOptions,
@@ -371,6 +372,61 @@ class CB:
                 break
 
         return rows
+
+    def sample_collection_documents(
+        self,
+        bucket_name: str,
+        scope_name: str,
+        collection_name: str,
+        *,
+        limit: int,
+        seed: int | None = None,
+        timeout_seconds: int = 60,
+    ) -> list[tuple[str, Any]]:
+        """Sample documents in a collection using KV sampling scan."""
+        if limit <= 0:
+            return []
+
+        collection = self.__get_collection(bucket_name, scope_name, collection_name)
+        scan_options = ScanOptions(
+            timeout=timedelta(seconds=timeout_seconds),
+            ids_only=False,
+            batch_item_limit=min(limit, 200),
+            concurrency=4,
+        )
+        scan_results = collection.scan(
+            SamplingScan(limit=limit, seed=seed), scan_options
+        )
+
+        rows: list[tuple[str, Any]] = []
+        for scan_result in scan_results:
+            document_id = getattr(scan_result, "id", None)
+            if document_id is None:
+                document_id = getattr(scan_result, "key", None)
+            value = getattr(scan_result, "value", None)
+            if document_id is None:
+                continue
+            rows.append((str(document_id), value))
+            if len(rows) >= limit:
+                break
+
+        return rows
+
+    def document_exists(
+        self,
+        bucket_name: str,
+        scope_name: str,
+        collection_name: str,
+        document_id: str,
+        timeout_seconds: int = 30,
+    ) -> bool:
+        """Return whether a document exists by id in a collection."""
+        collection = self.__get_collection(bucket_name, scope_name, collection_name)
+        exists_result = collection.exists(
+            document_id,
+            ExistsOptions(timeout=timedelta(seconds=timeout_seconds)),
+        )
+        return bool(getattr(exists_result, "exists", False))
 
     def __run_query(self, statement: str, timeout_seconds: int) -> list[Any]:
         if self.__cluster is None:
