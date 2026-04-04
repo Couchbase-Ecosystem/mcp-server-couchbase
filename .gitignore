@@ -13,3 +13,6 @@ wheels/
 
 .vscode
 .DS_Store
+
+/tests/relationship_verifier
+/src/catalog/enrichment/relationship_verifier/logger/logs/*
