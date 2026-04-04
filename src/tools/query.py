@@ -374,9 +374,6 @@ def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, A
 def _build_query_generation_prompt(
     *,
     user_question: str,
-    bucket_name: str,
-    scope_name: str,
-    collection_names: list[str],
     catalog_prompt: str,
 ) -> str:
     """Build a structured, multi-section prompt for the query-generation agent.
@@ -391,13 +388,6 @@ def _build_query_generation_prompt(
     lines: list[str] = []
 
     # ── 1. Keyspace context ──────────────────────────────────────────────
-    lines.append("## Target Keyspace")
-    lines.append(f"- **Bucket:** `{bucket_name}`")
-    lines.append(f"- **Scope:** `{scope_name}`")
-    lines.append(
-        "- **Collections:** "
-        + ", ".join(f"`{collection_name}`" for collection_name in collection_names)
-    )
     lines.append(
         "- The query will be executed with the scope context already set. "
         "Use collection names directly — do NOT prefix with bucket or scope."
@@ -461,18 +451,6 @@ def generate_or_modify_sql_plus_plus_query(
             ),
         ),
     ],
-    bucket_name: Annotated[
-        str,
-        Field(description="Couchbase bucket containing the target collections."),
-    ],
-    scope_name: Annotated[
-        str,
-        Field(description="Scope where target collections reside."),
-    ],
-    collection_names: Annotated[
-        list[str],
-        Field(description="Target collection(s), including any JOIN collections."),
-    ],
 ) -> str:
     """Create or modify a SQL++ query from a natural-language description.
 
@@ -485,18 +463,9 @@ def generate_or_modify_sql_plus_plus_query(
         A SQL++ query string, or a warning string if catalog context is unavailable.
     """
     logger.debug(
-        "generate_or_modify_sql_plus_plus_query — message=%s, collections=%s, bucket=%s, scope=%s",
+        "generate_or_modify_sql_plus_plus_query — message=%s",
         message,
-        collection_names,
-        bucket_name,
-        scope_name,
     )
-
-    if not collection_names:
-        return (
-            "Error: At least one collection name is required. "
-            "Use get_scopes_and_collections_in_bucket to discover available collections."
-        )
 
     if not message or not message.strip():
         return "Error: A natural-language message describing the desired query is required."
@@ -512,18 +481,12 @@ def generate_or_modify_sql_plus_plus_query(
     # ── Build structured prompt ──────────────────────────────────────────
     prompt = _build_query_generation_prompt(
         user_question=message,
-        bucket_name=bucket_name,
-        scope_name=scope_name,
-        collection_names=collection_names,
         catalog_prompt=catalog_prompt,
     )
 
     # ── Call the agent backend ─────────────────────────────────────
     try:
-        resp_body = call_agent(
-            content=prompt,
-            extra_payload={"collection_names": ",".join(collection_names)},
-        )
+        resp_body = call_agent(content=prompt)
         return extract_answer(resp_body)
     except (ConnectionError, RuntimeError) as exc:
         return f"Error: {exc}"
