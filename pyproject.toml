@@ -3,7 +3,7 @@ name = "couchbase-mcp-server"
 version = "0.7.1"
 description = "Couchbase MCP Server - The Developer Data Platform for Critical Applications in Our AI World"
 readme = "README.md"
-requires-python = ">=3.10,<3.15"
+requires-python = ">=3.10,<3.14"
 license = "Apache-2.0"
 authors = [
     { name="Nithish Raghunandanan", email="devadvocates@couchbase.com" },
@@ -34,8 +34,8 @@ couchbase-mcp-server = "mcp_server:main"
 dev = [
     "ruff==0.12.5",
     "pre-commit==4.2.0",
-    "pytest==8.3.3",
-    "pytest-asyncio==0.26.0",
+    "pytest==9.0.3",
+    "pytest-asyncio==1.3.0",
     "pytest-cov>=7.0.0",
 ]
 
