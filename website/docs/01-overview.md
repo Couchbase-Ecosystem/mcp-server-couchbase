@@ -63,8 +63,8 @@ Our support portal is unable to assist with requests related to this project, so
 
 Your collaboration helps us all move forward together - thank you! Pull requests and contributions from the community are welcome and encouraged. See the contribution guidelines for more details:
 
-- [Contributing to the MCP Server](./09-contributing/01-server.md).
-- [Contributing to the Docs](./09-contributing/02-docs.md).
+- [Contributing to the MCP Server](./09-contributing/01-server.md)
+- [Contributing to the Docs](./09-contributing/02-docs.md)
 
 ## Learn More
 
