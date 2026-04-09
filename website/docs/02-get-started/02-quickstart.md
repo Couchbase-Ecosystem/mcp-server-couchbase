@@ -17,6 +17,7 @@ Select your MCP client and add the Couchbase MCP Server configuration.
 <Tabs>
 
 <TabItem value="claude-desktop" label="Claude Desktop" default>
+You can integrate the Couchbase MCP Server into [Claude Desktop](https://claude.ai/download/) by following these steps:
 
 1. Open the Claude Desktop configuration file:
 
@@ -74,7 +75,7 @@ Select your MCP client and add the Couchbase MCP Server configuration.
 </TabItem>
 
 <TabItem value="cursor" label="Cursor">
-You can integrate the Couchbase MCP Server into Cursor using either of the following methods.
+You can integrate the Couchbase MCP Server into [Cursor](https://cursor.com/download) using either of the following methods.
 
 **Option 1: Add via the Cursor MCP Links**
 
@@ -148,6 +149,7 @@ You may need to add the server configuration under a parent key of `mcpServers`.
 </TabItem>
 
 <TabItem value="windsurf" label="Windsurf">
+You can integrate the Couchbase MCP Server into [Windsurf](https://windsurf.com/download) by following these steps:
 
 1. Navigate to **Command Palette > Windsurf MCP Configuration Panel** or **Windsurf - Settings > Advanced > Cascade > Model Context Protocol (MCP) Servers**. See the [official documentation](https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin) for details.
 
@@ -202,7 +204,7 @@ You may need to add the server configuration under a parent key of `mcpServers`.
 </TabItem>
 
 <TabItem value="vscode" label="VS Code">
-You can integrate the Couchbase MCP Server into VS Code using either of the following methods.
+You can integrate the Couchbase MCP Server into [VS Code](https://code.visualstudio.com/download) using either of the following methods.
 
 **Option 1: MCP Server bundled with Couchbase VS Code Extension** <span className="badge badge--primary">Preferred</span>
 
@@ -281,6 +283,7 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 </TabItem>
 
 <TabItem value="jetbrains" label="JetBrains">
+You can integrate the Couchbase MCP Server into [JetBrains IDEs](https://www.jetbrains.com/) using either of the following methods.
 
 1. Install the [AI Assistant](https://www.jetbrains.com/help/ai-assistant/mcp.html) or [Junie](https://junie.jetbrains.com/docs/junie-cli-mcp-configuration.html) plugin.
 
@@ -336,7 +339,7 @@ VS Code uses `servers` as the top-level JSON property, not `mcpServers`.
 
 <TabItem value="factory" label="Factory">
 
-You can integrate the Couchbase MCP Server into Factory using any of the following methods.
+You can integrate the Couchbase MCP Server into [Factory](https://factory.ai/) using any of the following methods.
 
 See the [Factory AI MCP documentation](https://docs.factory.ai/cli/configuration/mcp) for details.
 
@@ -400,7 +403,6 @@ To configure the Couchbase MCP server using the Factory MCP registry, type `/mcp
 
 **Logs:** `~/.factory/logs/`
 </TabItem>
-
 
 </Tabs>
 

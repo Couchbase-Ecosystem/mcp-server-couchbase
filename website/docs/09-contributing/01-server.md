@@ -1,13 +1,15 @@
-# Contributing
+# MCP Server
 
-Guide for contributing to the Couchbase MCP Server.
+Guide for contributing tools or other resources to the Couchbase MCP Server.
+
+If you want to contribute to the documentation site, see [Contributing to the Documentation](./02-docs.md).
 
 ## Development Setup
 
 ### Prerequisites
 
 - **Python 3.10+**
-- **[uv](https://docs.astral.sh/uv/)** — Fast Python package installer and dependency manager
+- **[uv](https://docs.astral.sh/uv/)** - Fast Python package installer and dependency manager
 - **Git**
 - **VS Code** (recommended) - With the Python extension for the best development experience
 

@@ -61,7 +61,10 @@ Our support portal is unable to assist with requests related to this project, so
 - **Feature requests**: [Open a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues) with the "enhancement" label
 - **Questions**: [Open a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues)
 
-Your collaboration helps us all move forward together - thank you! Pull requests and contributions from the community are welcome - see [Contributing](./08-product-notes/02-contributing.md).
+Your collaboration helps us all move forward together - thank you! Pull requests and contributions from the community are welcome and encouraged. See the contribution guidelines for more details:
+
+- [Contributing to the MCP Server](./09-contributing/01-server.md)
+- [Contributing to the Docs](./09-contributing/02-docs.md)
 
 ## Learn More
 
