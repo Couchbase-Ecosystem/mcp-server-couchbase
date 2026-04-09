@@ -64,13 +64,20 @@ def test_cluster_connection(
     """
     try:
         cluster = get_cluster_connection(ctx)
+        # Verify the cluster is actually responsive. The Python SDK's
+        # `Cluster` class does not expose a `.connected` attribute, so the
+        # previous `cluster.connected` read raised AttributeError on every
+        # call and was caught below as a bogus connection failure (#127).
+        # `cluster.ping()` is the documented health check and raises if
+        # the cluster is unreachable.
+        cluster.ping()
         bucket = None
         if bucket_name:
             bucket = connect_to_bucket(cluster, bucket_name)
 
         return {
             "status": "success",
-            "cluster_connected": cluster.connected,
+            "cluster_connected": True,
             "bucket_connected": bucket is not None,
             "bucket_name": bucket_name,
             "message": "Successfully connected to Couchbase cluster",
