@@ -70,7 +70,7 @@ def test_cluster_connection(
 
         return {
             "status": "success",
-            "cluster_connected": cluster.connected,
+            "cluster_connected": cluster is not None,
             "bucket_connected": bucket is not None,
             "bucket_name": bucket_name,
             "message": "Successfully connected to Couchbase cluster",
