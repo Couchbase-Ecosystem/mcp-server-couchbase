@@ -8,7 +8,7 @@ The documentation is built with [Docusaurus](https://docusaurus.io/) and lives i
 
 ## Prerequisites
 
-- **Node.js 22+** - Check with `node --version`.
+- **Node.js 20+** - Check with `node --version`.
 - **npm** - Comes with Node.js.
 
 ## Local Development
@@ -88,6 +88,6 @@ npm run serve
 
 ## Deployment
 
-The site is automatically deployed to [GitHub Pages](https://couchbase-ecosystem.github.io/mcp-server-couchbase/) via GitHub Actions when changes to `website/` are pushed to `main`. See [`.github/workflows/deploy-docs.yml`](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/website/.github/workflows/deploy-docs.yml).
+The site is automatically deployed to [GitHub Pages](https://couchbase-ecosystem.github.io/mcp-server-couchbase/) via GitHub Actions when changes to `website/` are pushed to `main`. See [`.github/workflows/deploy-docs.yml`](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/.github/workflows/deploy-docs.yml).
 
 PR previews are also deployed automatically - a preview URL is posted as a comment on each PR that touches `website/`.
