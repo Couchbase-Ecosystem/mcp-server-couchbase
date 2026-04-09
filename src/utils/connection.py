@@ -49,7 +49,7 @@ def connect_to_couchbase_cluster(
         options = ClusterOptions(auth)
         options.apply_profile("wan_development")
 
-        cluster = Cluster(connection_string, options)  # type: ignore
+        cluster = Cluster.connect(connection_string, options)  # type: ignore
         cluster.wait_until_ready(timedelta(seconds=5))
 
         logger.info("Successfully connected to Couchbase cluster")
