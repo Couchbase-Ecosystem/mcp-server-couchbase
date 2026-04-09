@@ -136,7 +136,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright ${new Date().getFullYear()} Couchbase, Inc. · Licensed under Apache 2.0 </a> · Built with Docusaurus.`,
+        copyright: `Copyright ${new Date().getFullYear()} Couchbase, Inc. · Licensed under Apache 2.0 · Built with Docusaurus.`,
       },
       prism: {
         theme: prismThemes.github,
