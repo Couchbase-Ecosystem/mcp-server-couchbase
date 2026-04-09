@@ -1,8 +1,8 @@
-# Contributing to the MCP Server
+# MCP Server
 
-Guide for contributing to the Couchbase MCP Server.
+Guide for contributing tools or other resources to the Couchbase MCP Server.
 
-If you want to contribute to the documentation site, see [Contributing to the Documentation](./03-contributing-to-docs.md).
+If you want to contribute to the documentation site, see [Contributing to the Documentation](./02-docs.md).
 
 ## Development Setup
 

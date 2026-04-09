@@ -404,7 +404,6 @@ To configure the Couchbase MCP server using the Factory MCP registry, type `/mcp
 **Logs:** `~/.factory/logs/`
 </TabItem>
 
-
 </Tabs>
 
 :::tip

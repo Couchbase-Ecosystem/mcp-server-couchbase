@@ -1,8 +1,8 @@
-# Contributing to the Documentation
+# Documentation
 
 Guide for contributing to the Couchbase MCP Server documentation site.
 
-If you want to contribute to the server itself, see [Contributing to the MCP Server](./02-contributing-to-server.md).
+If you want to contribute to the server itself, see [Contributing to the MCP Server](./01-server.md).
 
 The documentation is built with [Docusaurus](https://docusaurus.io/) and lives in the `website/` directory of the repository.
 
@@ -32,7 +32,9 @@ website/
 │   ├── 05-configuration/       # Environment variables, read-only mode, etc.
 │   ├── 06-security.md          # Security considerations and best practices
 │   ├── 07-build-from-source.md # Guide to building from source and running locally
-│   └── 08-product-notes/       # Release notes and contributing guides
+│   ├── 08-product-notes/       # Release notes and contributing guides
+│   └── 09-contributing/        # Contributing guides
+
 ├── src/
 │   └── css/
 │       └── custom.css          # Custom styles and theme overrides

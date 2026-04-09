@@ -4,8 +4,8 @@ This page provides a step-by-step guide to building the Couchbase MCP Server fro
 
 If you would like to contribute towards the official Couchbase MCP server, follow the contribution guidelines.
 
-- [MCP Server](./08-product-notes/02-contributing-to-server.md)
-- [Documentation](./08-product-notes/03-contributing-to-docs.md)
+- [MCP Server](./09-contributing/01-server.md)
+- [Documentation](./09-contributing/02-docs.md)
 
 ## Prerequisites
 
