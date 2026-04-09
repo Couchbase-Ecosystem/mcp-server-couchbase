@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 import click
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # Import tools
 from tools import TOOL_ANNOTATIONS, get_tools
