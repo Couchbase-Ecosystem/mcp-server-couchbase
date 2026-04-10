@@ -12,8 +12,8 @@ const config = {
     v4: true,
   },
 
-  url: "https://couchbase-ecosystem.github.io",
-  baseUrl: process.env.BASE_URL || "/mcp-server-couchbase/",
+  url: "https://mcp-server.couchbase.com",
+  baseUrl: process.env.BASE_URL || "/",
 
   organizationName: "Couchbase-Ecosystem",
   projectName: "mcp-server-couchbase",
