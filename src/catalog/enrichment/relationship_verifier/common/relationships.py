@@ -21,6 +21,8 @@ __all__ = [
     "PrimaryKeyAlternativeRelationship",
     "RelationshipKind",
     "relationship_from_dict",
+    "foreign_key_relationship_from_inferred",
+    "inferred_parent_table",
     "uses_meta_id",
 ]
 
@@ -113,6 +115,39 @@ AnyRelationship = (
 def uses_meta_id(columns: tuple[str, ...]) -> bool:
     """Return True when columns use the META().id sentinel representation."""
     return len(columns) == 1 and columns[0] == META_ID_SENTINEL
+
+
+def inferred_parent_table(relationship: InferredRelationship) -> str:
+    if (
+        relationship.table1 == relationship.foreign_key_table
+        and relationship.table2 != relationship.foreign_key_table
+    ):
+        return relationship.table2
+
+    if (
+        relationship.table2 == relationship.foreign_key_table
+        and relationship.table1 != relationship.foreign_key_table
+    ):
+        return relationship.table1
+
+    if relationship.table1 == relationship.table2:
+        return relationship.table1
+
+    raise ValueError(
+        "Could not determine inferred parent table for relationship: "
+        f"{relationship!r}"
+    )
+
+
+def foreign_key_relationship_from_inferred(
+    relationship: InferredRelationship,
+) -> ForeignKeyRelationship:
+    return ForeignKeyRelationship(
+        child_table=relationship.foreign_key_table,
+        child_columns=relationship.from_columns,
+        parent_table=inferred_parent_table(relationship),
+        parent_columns=relationship.to_columns,
+    )
 
 
 def relationship_from_dict(data: Mapping[str, Any]) -> AnyRelationship:
