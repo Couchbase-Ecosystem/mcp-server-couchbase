@@ -6,11 +6,15 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from .common.query_builders import build_meta_id_reference_exists_query
+from .common.query_builders import (
+    build_meta_id_reference_exists_use_keys_query,
+    build_use_keys_parent_lookup_query,
+)
 from .common.runtime import (
+    has_covering_index,
     has_primary_index,
     is_timeout_error,
-    query_limit_for_collection,
+    normalize_name,
     resolve_collection_keyspace,
     sample_collection_rows_for_columns,
     scan_collection_rows_for_columns,
@@ -51,14 +55,64 @@ class MetaIdReferenceExistsTask:
         keyspace_map: dict[str, str],
         index_map: dict[str, list[list[str]]],
         max_unindexed_scan_rows: int,
+        sample_size: int | None = None,
     ) -> str:
-        return build_meta_id_reference_exists_query(
+        return build_meta_id_reference_exists_use_keys_query(
             self,
             bucket_name=bucket_name,
             keyspace_map=keyspace_map,
             index_map=index_map,
-            max_unindexed_scan_rows=max_unindexed_scan_rows,
+            max_unindexed_scan_rows=sample_size or max_unindexed_scan_rows,
         )
+
+    def _query_use_keys_comparison(
+        self,
+        *,
+        cb: Any,
+        bucket_name: str,
+        keyspace_map: dict[str, str],
+        index_map: dict[str, list[list[str]]],
+        max_unindexed_scan_rows: int,
+        sample_size: int | None = None,
+    ) -> dict[str, int]:
+        child_ids = cb.run_query(
+            self._build_query(
+                bucket_name=bucket_name,
+                keyspace_map=keyspace_map,
+                index_map=index_map,
+                max_unindexed_scan_rows=max_unindexed_scan_rows,
+                sample_size=sample_size,
+            )
+        )
+        normalized_child_ids = [str(value) for value in child_ids if value is not None]
+        if not normalized_child_ids:
+            return {"has_missing_reference": 0}
+
+        existing_parent_ids = {
+            str(value)
+            for value in cb.run_query(
+                build_use_keys_parent_lookup_query(
+                    bucket_name=bucket_name,
+                    parent_collection=self.parent_collection,
+                    keyspace_map=keyspace_map,
+                    keys=normalized_child_ids,
+                )
+            )
+            if value is not None
+        }
+        for child_id in normalized_child_ids:
+            if child_id not in existing_parent_ids:
+                return {"has_missing_reference": 1}
+        return {"has_missing_reference": 0}
+
+    def _sqlpp_sampling_allowed(
+        self,
+        *,
+        index_map: dict[str, list[list[str]]],
+    ) -> bool:
+        if normalize_name(self.child_column) == "$meta_id":
+            return False
+        return has_covering_index(index_map, self.child_collection, (self.child_column,))
 
     def _sdk_fallback(
         self,
@@ -76,19 +130,13 @@ class MetaIdReferenceExistsTask:
         )
         child_rows = sampled_child_rows
         if child_rows is None:
-            child_limit = query_limit_for_collection(
-                index_map=index_map,
-                collection=self.child_collection,
-                columns=(self.child_column,),
-                max_unindexed_scan_rows=max_unindexed_scan_rows,
-            )
             child_rows = scan_collection_rows_for_columns(
                 cb=cb,
                 bucket_name=bucket_name,
                 keyspace_map=keyspace_map,
                 collection=self.child_collection,
                 columns=(self.child_column,),
-                limit_rows=child_limit,
+                limit_rows=None,
             )
 
         for row_value in child_rows:
@@ -121,6 +169,26 @@ class MetaIdReferenceExistsTask:
         fallback_stage: str,
         first_error: str,
     ) -> tuple[Any, str | None, dict[str, Any]]:
+        if self._sqlpp_sampling_allowed(index_map=index_map):
+            metadata: dict[str, Any] = {
+                "fallback_stage": fallback_stage,
+                "first_error": first_error,
+                "sample_size": meta_id_timeout_sample_size,
+                "sampled_query": "sqlpp_sampling(meta_id_reference_exists)",
+            }
+            try:
+                output = self._query_use_keys_comparison(
+                    cb=cb,
+                    bucket_name=bucket_name,
+                    keyspace_map=keyspace_map,
+                    index_map=index_map,
+                    max_unindexed_scan_rows=max_unindexed_scan_rows,
+                    sample_size=meta_id_timeout_sample_size,
+                )
+                return output, None, metadata
+            except Exception as sampled_error:
+                return {"error": str(sampled_error)}, str(sampled_error), metadata
+
         sample_seed = stable_sample_seed(meta_id_timeout_sample_seed, self.task_id)
         sampled_child_rows = sample_collection_rows_for_columns(
             cb=cb,
@@ -131,7 +199,7 @@ class MetaIdReferenceExistsTask:
             sample_size=meta_id_timeout_sample_size,
             seed=sample_seed,
         )
-        metadata: dict[str, Any] = {
+        metadata = {
             "fallback_stage": fallback_stage,
             "first_error": first_error,
             "sample_size": meta_id_timeout_sample_size,
@@ -163,17 +231,21 @@ class MetaIdReferenceExistsTask:
         sdk_operation_logs: list[dict[str, Any]],
         **_: Any,
     ) -> tuple[Any, str, str | None, dict[str, Any] | None]:
-        if has_primary_index(index_map, self.parent_collection):
+        use_query = has_primary_index(index_map, self.parent_collection) or has_covering_index(
+            index_map,
+            self.child_collection,
+            (self.child_column,),
+        )
+        if use_query:
             try:
-                rows = cb.run_query(
-                    self._build_query(
-                        bucket_name=bucket_name,
-                        keyspace_map=keyspace_map,
-                        index_map=index_map,
-                        max_unindexed_scan_rows=max_unindexed_scan_rows,
-                    )
+                output = self._query_use_keys_comparison(
+                    cb=cb,
+                    bucket_name=bucket_name,
+                    keyspace_map=keyspace_map,
+                    index_map=index_map,
+                    max_unindexed_scan_rows=max_unindexed_scan_rows,
                 )
-                return (rows[0] if rows else None), "query", None, None
+                return output, "query", None, None
             except Exception as error:
                 error_text = str(error)
                 if is_timeout_error(error_text):

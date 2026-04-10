@@ -6,12 +6,15 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from catalog.enrichment.relationship_verifier.common.relationships import (
+    META_ID_SENTINEL,
+)
+
 from .common.query_builders import build_type_compatibility_query
 from .common.runtime import (
     has_covering_index,
     is_timeout_error,
     python_value_type_name,
-    query_limit_for_collection,
     sample_collection_rows_for_columns,
     scan_collection_rows_for_columns,
     stable_sample_seed,
@@ -53,6 +56,7 @@ class ColumnTypeCompatibilityTask:
         keyspace_map: dict[str, str],
         index_map: dict[str, list[list[str]]],
         max_unindexed_scan_rows: int,
+        sample_size: int | None = None,
     ) -> str:
         return build_type_compatibility_query(
             child_collection=self.child_collection,
@@ -63,6 +67,7 @@ class ColumnTypeCompatibilityTask:
             keyspace_map=keyspace_map,
             index_map=index_map,
             max_unindexed_scan_rows=max_unindexed_scan_rows,
+            sample_size=sample_size,
         )
 
     def _sdk_fallback(
@@ -74,25 +79,13 @@ class ColumnTypeCompatibilityTask:
         index_map: dict[str, list[list[str]]],
         max_unindexed_scan_rows: int,
     ) -> dict[str, int]:
-        child_limit = query_limit_for_collection(
-            index_map=index_map,
-            collection=self.child_collection,
-            columns=(self.child_column,),
-            max_unindexed_scan_rows=max_unindexed_scan_rows,
-        )
-        parent_limit = query_limit_for_collection(
-            index_map=index_map,
-            collection=self.parent_collection,
-            columns=(self.parent_column,),
-            max_unindexed_scan_rows=max_unindexed_scan_rows,
-        )
         parent_values = scan_collection_rows_for_columns(
             cb=cb,
             bucket_name=bucket_name,
             keyspace_map=keyspace_map,
             collection=self.parent_collection,
             columns=(self.parent_column,),
-            limit_rows=parent_limit,
+            limit_rows=None,
         )
         parent_types = {
             python_value_type_name(parent_value[0])
@@ -106,7 +99,7 @@ class ColumnTypeCompatibilityTask:
             keyspace_map=keyspace_map,
             collection=self.child_collection,
             columns=(self.child_column,),
-            limit_rows=child_limit,
+            limit_rows=None,
         )
         for child_value in child_values:
             if child_value is None:
@@ -125,11 +118,44 @@ class ColumnTypeCompatibilityTask:
         cb: Any,
         bucket_name: str,
         keyspace_map: dict[str, str],
+        index_map: dict[str, list[list[str]]],
         value_set_timeout_sample_size: int,
         value_set_timeout_sample_seed: int,
         fallback_stage: str,
         first_error: str,
     ):
+        if (
+            self.child_column not in {META_ID_SENTINEL}
+            and self.parent_column not in {META_ID_SENTINEL}
+            and (
+                has_covering_index(index_map, self.child_collection, (self.child_column,))
+                or has_covering_index(index_map, self.parent_collection, (self.parent_column,))
+            )
+        ):
+            try:
+                rows = cb.run_query(
+                    self._build_query(
+                        bucket_name=bucket_name,
+                        keyspace_map=keyspace_map,
+                        index_map=index_map,
+                        max_unindexed_scan_rows=value_set_timeout_sample_size,
+                        sample_size=value_set_timeout_sample_size,
+                    )
+                )
+                output = rows[0] if rows else {"type_mismatch_count": 0}
+                return (
+                    output,
+                    None,
+                    {
+                        "fallback_stage": fallback_stage,
+                        "first_error": first_error,
+                        "sample_size": value_set_timeout_sample_size,
+                        "sampled_query": "sqlpp_sampling(column_type_compatibility)",
+                    },
+                )
+            except Exception as sampled_error:
+                return {"error": str(sampled_error)}, str(sampled_error), None
+
         try:
             sample_seed = stable_sample_seed(value_set_timeout_sample_seed, self.task_id)
             sampled_child_rows = sample_collection_rows_for_columns(
@@ -180,7 +206,7 @@ class ColumnTypeCompatibilityTask:
                 {
                     "fallback_stage": fallback_stage,
                     "first_error": first_error,
-                        "sample_size": value_set_timeout_sample_size,
+                    "sample_size": value_set_timeout_sample_size,
                     "sampled_query": "sdk_sampling(column_type_compatibility)",
                 },
             )
@@ -222,6 +248,7 @@ class ColumnTypeCompatibilityTask:
                         cb=cb,
                         bucket_name=bucket_name,
                         keyspace_map=keyspace_map,
+                        index_map=index_map,
                         value_set_timeout_sample_size=value_set_timeout_sample_size,
                         value_set_timeout_sample_seed=value_set_timeout_sample_seed,
                         fallback_stage="query_timeout",
@@ -269,6 +296,7 @@ class ColumnTypeCompatibilityTask:
                     cb=cb,
                     bucket_name=bucket_name,
                     keyspace_map=keyspace_map,
+                    index_map=index_map,
                     value_set_timeout_sample_size=value_set_timeout_sample_size,
                     value_set_timeout_sample_seed=value_set_timeout_sample_seed,
                     fallback_stage="sdk_timeout",

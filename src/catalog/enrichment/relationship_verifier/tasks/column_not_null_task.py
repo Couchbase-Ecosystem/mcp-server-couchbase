@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from catalog.enrichment.relationship_verifier.common.relationships import (
+    META_ID_SENTINEL,
+)
+
 from .common.runtime import (
     build_from_clause,
     has_covering_index,
@@ -45,10 +49,11 @@ class ColumnNotNullTask:
         keyspace_map: dict[str, str],
         index_map: dict[str, list[list[str]]],
         max_unindexed_scan_rows: int,
+        sample_size: int | None = None,
     ) -> str:
         keyspace = keyspace_expression(bucket_name, self.collection, keyspace_map)
         column_path = parse_path("document", self.column)
-        scan_limit = query_limit_for_collection(
+        scan_limit = sample_size or query_limit_for_collection(
             index_map=index_map,
             collection=self.collection,
             columns=(self.column,),
@@ -81,7 +86,24 @@ class ColumnNotNullTask:
         value_set_timeout_sample_seed: int,
         sampled: bool = False,
     ) -> dict[str, int]:
+        rows = []
+
         if sampled:
+            if (
+                self.column != META_ID_SENTINEL
+                and has_covering_index(index_map, self.collection, (self.column,))
+            ):
+                rows = cb.run_query(
+                    self._build_query(
+                        bucket_name=bucket_name,
+                        keyspace_map=keyspace_map,
+                        index_map=index_map,
+                        max_unindexed_scan_rows=max_unindexed_scan_rows,
+                        sample_size=value_set_timeout_sample_size,
+                    )
+                )
+                if rows and isinstance(rows[0], dict):
+                    return {"null_count": int(rows[0].get("null_count", 0))}
             rows = sample_collection_rows_for_columns(
                 cb=cb,
                 bucket_name=bucket_name,
@@ -98,12 +120,7 @@ class ColumnNotNullTask:
                 keyspace_map=keyspace_map,
                 collection=self.collection,
                 columns=(self.column,),
-                limit_rows=query_limit_for_collection(
-                    index_map=index_map,
-                    collection=self.collection,
-                    columns=(self.column,),
-                    max_unindexed_scan_rows=max_unindexed_scan_rows,
-                ),
+                limit_rows=None,
             )
 
         has_null_or_missing = any(row is None or not row or row[0] is None for row in rows)

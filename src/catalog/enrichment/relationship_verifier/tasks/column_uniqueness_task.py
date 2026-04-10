@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
+
+from catalog.enrichment.relationship_verifier.common.relationships import (
+    META_ID_SENTINEL,
+)
 
 from .common.runtime import (
     build_from_clause,
@@ -47,10 +50,11 @@ class ColumnUniquenessTask:
         keyspace_map: dict[str, str],
         index_map: dict[str, list[list[str]]],
         max_unindexed_scan_rows: int,
+        sample_size: int | None = None,
     ) -> str:
         keyspace = keyspace_expression(bucket_name, self.collection, keyspace_map)
         column_paths = [parse_path("document", column_name) for column_name in self.columns]
-        scan_limit = query_limit_for_collection(
+        scan_limit = sample_size or query_limit_for_collection(
             index_map=index_map,
             collection=self.collection,
             columns=self.columns,
@@ -61,21 +65,27 @@ class ColumnUniquenessTask:
             (column_path.column_ref, f"group_col_{index}")
             for index, column_path in enumerate(column_paths)
         ]
-        projected_columns = ", ".join(
-            f"{column_expression} AS {column_alias}"
-            for column_expression, column_alias in aliased_columns
-        )
         group_by_expressions = ", ".join(
             column_expression for column_expression, _ in aliased_columns
         )
         return (
-            "SELECT COUNT(*) AS duplicate_groups "
-            "FROM ("
-            f"SELECT {projected_columns}, COUNT(*) AS grouped_count "
+            "SELECT CASE WHEN EXISTS ("
+            "SELECT 1 "
             f"{from_clause} "
             f"GROUP BY {group_by_expressions} "
             "HAVING COUNT(*) > 1"
-            ") AS duplicate_rows;"
+            ") THEN 1 ELSE 0 END AS duplicate_groups;"
+        )
+
+    def _can_use_sqlpp_sampling(
+        self,
+        *,
+        index_map: dict[str, list[list[str]]],
+    ) -> bool:
+        return all(column != META_ID_SENTINEL for column in self.columns) and has_covering_index(
+            index_map,
+            self.collection,
+            self.columns,
         )
 
     def _sdk_fallback(
@@ -90,8 +100,21 @@ class ColumnUniquenessTask:
         value_set_timeout_sample_seed: int,
         sampled: bool = False,
     ) -> dict[str, int]:
+        rows: list[tuple[Any, ...] | None]
         if sampled:
-            rows = sample_collection_rows_for_columns(
+            if self._can_use_sqlpp_sampling(index_map=index_map):
+                rows = cb.run_query(
+                    self._build_query(
+                        bucket_name=bucket_name,
+                        keyspace_map=keyspace_map,
+                        index_map=index_map,
+                        max_unindexed_scan_rows=max_unindexed_scan_rows,
+                        sample_size=value_set_timeout_sample_size,
+                    )
+                )
+                if rows and isinstance(rows[0], dict):
+                    return {"duplicate_groups": int(rows[0].get("duplicate_groups", 0))}
+            sampled_rows = sample_collection_rows_for_columns(
                 cb=cb,
                 bucket_name=bucket_name,
                 keyspace_map=keyspace_map,
@@ -100,6 +123,7 @@ class ColumnUniquenessTask:
                 sample_size=value_set_timeout_sample_size,
                 seed=stable_sample_seed(value_set_timeout_sample_seed, self.task_id),
             )
+            rows = sampled_rows
         else:
             rows = scan_collection_rows_for_columns(
                 cb=cb,
@@ -107,17 +131,17 @@ class ColumnUniquenessTask:
                 keyspace_map=keyspace_map,
                 collection=self.collection,
                 columns=self.columns,
-                limit_rows=query_limit_for_collection(
-                    index_map=index_map,
-                    collection=self.collection,
-                    columns=self.columns,
-                    max_unindexed_scan_rows=max_unindexed_scan_rows,
-                ),
+                limit_rows=None,
             )
-        valid_rows = [row for row in rows if row is not None]
-        counts = Counter(valid_rows)
-        duplicate_groups = sum(1 for count in counts.values() if count > 1)
-        return {"duplicate_groups": duplicate_groups}
+
+        seen_rows: set[tuple[Any, ...]] = set()
+        for row in rows:
+            if row is None:
+                continue
+            if row in seen_rows:
+                return {"duplicate_groups": 1}
+            seen_rows.add(row)
+        return {"duplicate_groups": 0}
 
     def run(  # noqa: PLR0911
         self,
