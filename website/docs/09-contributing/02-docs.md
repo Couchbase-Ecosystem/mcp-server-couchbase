@@ -88,6 +88,6 @@ npm run serve
 
 ## Deployment
 
-The site is automatically deployed to [GitHub Pages](https://couchbase-ecosystem.github.io/mcp-server-couchbase/) via GitHub Actions when changes to `website/` are pushed to `main`. See [`.github/workflows/deploy-docs.yml`](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/.github/workflows/deploy-docs.yml).
+The site is automatically deployed to [GitHub Pages](https://mcp-server.couchbase.com/) via GitHub Actions when changes to `website/` are pushed to `main`. See [`.github/workflows/deploy-docs.yml`](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/.github/workflows/deploy-docs.yml).
 
 PR previews are also deployed automatically - a preview URL is posted as a comment on each PR that touches `website/`.

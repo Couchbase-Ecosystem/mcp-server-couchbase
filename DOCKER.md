@@ -8,6 +8,8 @@ GitHub Repo: <https://github.com/Couchbase-Ecosystem/mcp-server-couchbase>
 
 Dockerfile: <https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/Dockerfile>
 
+Documentation: <https://mcp-server.couchbase.com>
+
 ## Features/Tools
 
 ### Cluster setup & health tools

@@ -40,7 +40,7 @@ jobs:
         run: npm run build
         working-directory: website
         env:
-          BASE_URL: ${{ github.event_name == 'pull_request' && format('/mcp-server-couchbase/pr-preview/pr-{0}/', github.event.pull_request.number) || '/mcp-server-couchbase/' }}
+          BASE_URL: ${{ github.event_name == 'pull_request' && format('/pr-preview/pr-{0}/', github.event.pull_request.number) || '/' }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
