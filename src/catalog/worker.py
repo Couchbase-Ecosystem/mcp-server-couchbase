@@ -282,12 +282,8 @@ async def _catalog_worker_async(stop_event: threading.Event) -> None:
 
                 # Only update store if schema changed
                 if old_hash != new_hash:
-                    logger.info(
-                        "Schema change detected, updating store and setting enrichment flag"
-                    )
+                    logger.info("Schema change detected, updating database_info in store")
                     store.add_database_info(database_info)
-                    store.set_schema_hash(new_hash)
-                    store.set_needs_enrichment(True)
                 else:
                     logger.debug("No schema changes detected, skipping store update")
 

@@ -10,6 +10,7 @@ This is part of the MCP server infrastructure that enriches catalog data.
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 from typing import Any
@@ -27,6 +28,12 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
 
 # Enrichment check interval (2 minutes)
 ENRICHMENT_CHECK_INTERVAL = 120  # seconds
+
+
+def _compute_schema_hash(schema_data: dict[str, Any]) -> str:
+    """Compute stable hash for database_info payload."""
+    schema_json = json.dumps(schema_data, sort_keys=True)
+    return hashlib.sha256(schema_json.encode()).hexdigest()
 
 
 def _build_enrichment_prompt(database_info: dict[str, Any]) -> str:
@@ -152,8 +159,14 @@ async def _check_and_enrich_catalog(session: ServerSession | None) -> None:
     try:
         store = get_catalog_store()
 
-        # Check if enrichment is needed
-        if not store.get_needs_enrichment():
+        # Get database info
+        database_info = store.get_database_info()
+        if not database_info or not database_info.get("buckets"):
+            logger.debug("No database info available for enrichment")
+            return
+
+        current_schema_hash = _compute_schema_hash(database_info)
+        if current_schema_hash == store.get_schema_hash():
             logger.debug("No enrichment needed")
             return
 
@@ -163,14 +176,6 @@ async def _check_and_enrich_catalog(session: ServerSession | None) -> None:
             return
 
         logger.info("Catalog needs enrichment, starting process")
-
-        # Get database info
-        database_info = store.get_database_info()
-
-        if not database_info or not database_info.get("buckets"):
-            logger.warning("No database info available for enrichment")
-            store.set_needs_enrichment(False)
-            return
 
         # Request LLM enrichment
         enriched_prompt = await _request_llm_enrichment(session, database_info)
@@ -182,9 +187,8 @@ async def _check_and_enrich_catalog(session: ServerSession | None) -> None:
             )
             # Store the enriched prompt
             store.add_prompt(prompt_to_store)
+            store.set_schema_hash(current_schema_hash)
             logger.info("Enriched prompt stored successfully")
-            # Clear the enrichment flag
-            store.set_needs_enrichment(False)
         else:
             logger.warning("Failed to get enriched prompt from LLM")
 
