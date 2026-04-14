@@ -20,7 +20,7 @@ Merging strategy:
 - Example: run1={s1,s2,s3}, run2={s2,s4,s5} → final={s1,s2,s3,s4,s5}
 """
 
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple  # noqa: UP035
 from collections import defaultdict
 import copy
 
@@ -114,7 +114,9 @@ class SchemaVariant:
             for field_type, samples in type_map.items():
                 self.add_field(path, field_type, samples)
         
-        self.doc_count += other.doc_count
+        # Treat doc_count as latest observed count for this variant shape.
+        # Avoid cumulative growth across periodic refresh merges.
+        self.doc_count = other.doc_count
     
     def to_dict(self) -> Dict[str, Dict[str, List[Any]]]:
         """Export the index as a dictionary."""

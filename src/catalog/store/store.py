@@ -30,6 +30,130 @@ _DEFAULT_CLUSTER_KEY = "default"
 _DEFAULT_BUCKET_KEY = "default_bucket"
 
 
+def _normalize_text(value: Any) -> str:
+    """Normalize arbitrary values into deterministic text for hashing."""
+    return str(value).strip()
+
+
+def _normalize_index_key(index_key: Any) -> tuple[str, ...]:
+    """Normalize index_key into a deterministic tuple of strings."""
+    if isinstance(index_key, list):
+        return tuple(_normalize_text(component) for component in index_key)
+    if index_key is None:
+        return ()
+    return (_normalize_text(index_key),)
+
+
+def compute_catalog_schema_hash(database_info: dict[str, Any]) -> str:  # noqa: PLR0912
+    """
+    Compute stable schema hash from structural catalog fields only.
+
+    The hash intentionally ignores volatile fields like sample values, doc_count,
+    variant identifiers, and index IDs so enrichment doesn't retrigger on
+    runtime/statistical drift.
+    """
+    canonical: dict[str, Any] = {"buckets": []}
+    buckets = database_info.get("buckets", {})
+    if not isinstance(buckets, dict):
+        return hashlib.sha256(json.dumps(canonical, sort_keys=True).encode()).hexdigest()
+
+    for bucket_name in sorted(buckets.keys()):
+        bucket_data = buckets.get(bucket_name, {})
+        if not isinstance(bucket_data, dict):
+            continue
+        bucket_entry: dict[str, Any] = {"name": _normalize_text(bucket_name), "scopes": []}
+
+        scopes = bucket_data.get("scopes", {})
+        if isinstance(scopes, dict):
+            for scope_name in sorted(scopes.keys()):
+                scope_data = scopes.get(scope_name, {})
+                if not isinstance(scope_data, dict):
+                    continue
+                scope_entry: dict[str, Any] = {
+                    "name": _normalize_text(scope_name),
+                    "collections": [],
+                }
+
+                collections = scope_data.get("collections", {})
+                if isinstance(collections, dict):
+                    for collection_name in sorted(collections.keys()):
+                        collection_data = collections.get(collection_name, {})
+                        if not isinstance(collection_data, dict):
+                            continue
+
+                        # Canonicalize schema to path->sorted(types), ignoring samples/doc_count/variant_id.
+                        path_to_types: dict[str, set[str]] = {}
+                        schema_variants = collection_data.get("schema", [])
+                        if isinstance(schema_variants, list):
+                            for variant in schema_variants:
+                                if not isinstance(variant, dict):
+                                    continue
+                                fields = variant.get("fields", {})
+                                if not isinstance(fields, dict):
+                                    continue
+                                for path, type_map in fields.items():
+                                    if not isinstance(type_map, dict):
+                                        continue
+                                    normalized_path = _normalize_text(path)
+                                    path_to_types.setdefault(normalized_path, set()).update(
+                                        _normalize_text(field_type)
+                                        for field_type in type_map
+                                    )
+
+                        schema_entry = [
+                            {
+                                "path": path,
+                                "types": sorted(field_types),
+                            }
+                            for path, field_types in sorted(path_to_types.items())
+                        ]
+
+                        # Canonicalize index metadata and ignore volatile index ID.
+                        indexes_entry: list[dict[str, Any]] = []
+                        indexes = collection_data.get("indexes", [])
+                        if isinstance(indexes, list):
+                            for index in indexes:
+                                if not isinstance(index, dict):
+                                    continue
+                                indexes_entry.append(
+                                    {
+                                        "name": _normalize_text(index.get("name", "")),
+                                        "index_key": list(
+                                            _normalize_index_key(index.get("index_key"))
+                                        ),
+                                        "definition": _normalize_text(
+                                            index.get("definition", "")
+                                        ),
+                                    }
+                                )
+
+                        indexes_entry.sort(
+                            key=lambda item: (
+                                item.get("name", ""),
+                                tuple(item.get("index_key", [])),
+                                item.get("definition", ""),
+                            )
+                        )
+
+                        scope_entry["collections"].append(
+                            {
+                                "name": _normalize_text(collection_name),
+                                "schema": schema_entry,
+                                "indexes": indexes_entry,
+                            }
+                        )
+
+                scope_entry["collections"].sort(key=lambda item: item["name"])
+                bucket_entry["scopes"].append(scope_entry)
+
+        bucket_entry["scopes"].sort(key=lambda item: item["name"])
+        canonical["buckets"].append(bucket_entry)
+
+    canonical["buckets"].sort(key=lambda item: item["name"])
+    canonical_json = json.dumps(canonical, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(canonical_json.encode()).hexdigest()
+
+
 class Store:
     """Thread-safe bucket-scoped store for catalog data and enrichment prompts."""
 
@@ -211,9 +335,7 @@ class Store:
         with self._lock:
             if not self.database_info:
                 return False
-            current_hash = hashlib.sha256(
-                json.dumps(self.database_info, sort_keys=True).encode()
-            ).hexdigest()
+            current_hash = compute_catalog_schema_hash(self.database_info)
             return current_hash != self.schema_hash
 
     def to_dict(self) -> dict[str, Any]:

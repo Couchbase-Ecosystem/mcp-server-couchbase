@@ -10,7 +10,6 @@ This is part of the MCP server infrastructure that enriches catalog data.
 """
 
 import asyncio
-import hashlib
 import json
 import logging
 from typing import Any
@@ -21,7 +20,7 @@ from mcp.types import SamplingMessage, TextContent
 from catalog.enrichment.relationship_verifier.integration_utils import (
     append_verified_relationships_to_prompt,
 )
-from catalog.store.store import get_all_catalog_stores
+from catalog.store.store import compute_catalog_schema_hash, get_all_catalog_stores
 from utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
@@ -30,12 +29,6 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
 ENRICHMENT_CHECK_INTERVAL = 120  # seconds
 # Sampling timeout so a stalled client does not block the enrichment cron loop forever.
 LLM_SAMPLING_TIMEOUT_SECONDS = 160
-
-
-def _compute_schema_hash(schema_data: dict[str, Any]) -> str:
-    """Compute stable hash for database_info payload."""
-    schema_json = json.dumps(schema_data, sort_keys=True)
-    return hashlib.sha256(schema_json.encode()).hexdigest()
 
 
 def _build_enrichment_prompt(database_info: dict[str, Any]) -> str:
@@ -186,7 +179,7 @@ async def _check_and_enrich_catalog(session: ServerSession | None) -> None:
                 )
                 continue
 
-            current_schema_hash = _compute_schema_hash(database_info)
+            current_schema_hash = compute_catalog_schema_hash(database_info)
             if current_schema_hash == store.get_schema_hash():
                 logger.debug("No enrichment needed for bucket=%s", bucket_name)
                 continue

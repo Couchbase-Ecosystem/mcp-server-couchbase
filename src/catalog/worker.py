@@ -11,8 +11,6 @@ This is a background thread component, separate from the MCP server's event loop
 """
 
 import asyncio
-import hashlib
-import json
 import logging
 import threading
 from typing import Any
@@ -21,7 +19,11 @@ from acouchbase.bucket import AsyncBucket
 from acouchbase.cluster import AsyncCluster
 
 from catalog.schema import SchemaCollection, parse_infer_output
-from catalog.store.store import get_all_bucket_database_info, get_catalog_store
+from catalog.store.store import (
+    compute_catalog_schema_hash,
+    get_all_bucket_database_info,
+    get_catalog_store,
+)
 from utils.config import get_settings
 from utils.connection import connect_to_bucket_async, connect_to_couchbase_cluster_async
 from utils.constants import MCP_SERVER_NAME
@@ -36,12 +38,6 @@ CATALOG_REFRESH_INTERVAL = 300  # seconds
 def _should_exclude_scope(scope_name: str) -> bool:
     """Return True when scope is internal and should not affect catalog hashing."""
     return scope_name == "_system"
-
-
-def _compute_schema_hash(schema_data: dict[str, Any]) -> str:
-    """Compute a hash of the schema data to detect changes."""
-    schema_json = json.dumps(schema_data, sort_keys=True)
-    return hashlib.sha256(schema_json.encode()).hexdigest()
 
 
 async def _get_index_definitions(
@@ -275,8 +271,10 @@ def _persist_bucket_database_info(database_info: dict[str, Any]) -> int:
             f" ({', '.join(collection_names[:5]) if collection_names else 'none'})"
         )
 
-        old_hash = _compute_schema_hash(old_bucket_info) if old_bucket_info else None
-        new_hash = _compute_schema_hash(new_bucket_info)
+        old_hash = (
+            compute_catalog_schema_hash(old_bucket_info) if old_bucket_info else None
+        )
+        new_hash = compute_catalog_schema_hash(new_bucket_info)
         if old_hash != new_hash:
             # Save the latest bucket schema when there is any structural change.
             bucket_store.add_database_info(new_bucket_info)
