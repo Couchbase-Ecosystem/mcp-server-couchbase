@@ -23,7 +23,18 @@ from catalog.enrichment.relationship_verifier.tasks import (
 class ForeignKeyRelationshipRule:
     relationship: ForeignKeyRelationship
 
+    def _has_valid_column_mapping(self) -> bool:
+        """Ensure FK mapping has aligned, non-empty child/parent columns."""
+        child_columns = self.relationship.child_columns
+        parent_columns = self.relationship.parent_columns
+        if not child_columns or not parent_columns:
+            return False
+        return len(child_columns) == len(parent_columns)
+
     def build_tasks(self) -> list[AnyTask]:
+        if not self._has_valid_column_mapping():
+            return []
+
         operations: list[AnyTask] = []
         for child_column in self.relationship.child_columns:
             operations.append(
@@ -83,6 +94,12 @@ class ForeignKeyRelationshipRule:
         operations: list[AnyTask],
         task_outputs: dict[str, Any],
     ) -> tuple[bool, str | None]:
+        if not self._has_valid_column_mapping():
+            return False, (
+                "fk_check_unavailable: invalid_column_mapping "
+                "(empty or mismatched child/parent columns)"
+            )
+
         for child_column in self.relationship.child_columns:
             child_exists_task_id = ColumnExistsTask(
                 collection=self.relationship.child_table,

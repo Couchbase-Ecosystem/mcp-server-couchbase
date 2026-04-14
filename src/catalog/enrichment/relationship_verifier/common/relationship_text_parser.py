@@ -98,6 +98,10 @@ def parse_relationship_text_to_dicts(relationship_text: str) -> list[dict[str, A
             (_normalize_name(table1), _normalize_name(table2)),
             [],
         )
+        # Guardrail: inferred OO/OM relationships without FK column pairs cannot
+        # be verified with SQL tasks and can generate invalid queries.
+        if not fk_pairs:
+            continue
 
         inferred_entry = {
             "kind": str(relationship["kind"]),
@@ -238,6 +242,17 @@ def _normalize_llm_text(text: str) -> str:
     )
     if fence_match:
         normalized = fence_match.group(1).strip()
+    # Accept common LLM variants and normalize to verifier sentinel.
+    # Examples:
+    # - $meta().id
+    # - META().id
+    # - `meta().id`
+    normalized = re.sub(
+        r"`?\$?\s*meta\s*\(\s*\)\s*\.\s*id`?",
+        "$meta_id",
+        normalized,
+        flags=re.IGNORECASE,
+    )
     return normalized
 
 
