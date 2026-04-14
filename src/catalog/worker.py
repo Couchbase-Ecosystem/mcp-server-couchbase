@@ -33,6 +33,11 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.catalog")
 CATALOG_REFRESH_INTERVAL = 300  # seconds
 
 
+def _should_exclude_scope(scope_name: str) -> bool:
+    """Return True when scope is internal and should not affect catalog hashing."""
+    return scope_name == "_system"
+
+
 def _compute_schema_hash(schema_data: dict[str, Any]) -> str:
     """Compute a hash of the schema data to detect changes."""
     schema_json = json.dumps(schema_data, sort_keys=True)
@@ -108,6 +113,13 @@ async def _collect_buckets_scopes_collections(
 
             for scope in scopes_sorted:
                 scope_name = scope.name
+                if _should_exclude_scope(scope_name):
+                    logger.debug(
+                        "Skipping internal scope from catalog state: %s.%s",
+                        bucket_name,
+                        scope_name,
+                    )
+                    continue
                 collections_data = {}
 
                 # Get all collections in the scope
