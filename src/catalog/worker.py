@@ -44,8 +44,13 @@ async def _get_index_definitions(
 ) -> list[dict[str, Any]]:
     """Get index definitions for a collection."""
     try:
-        query = "SELECT meta().id, i.name, i.index_key, i.metadata.definition FROM system:indexes as i"
-        f"WHERE i.bucket_id = '{bucket_name}' AND i.scope_id = '{scope_name}' AND i.keyspace_id = '{collection_name}'"
+        query = (
+            "SELECT meta().id, i.name, i.index_key, i.metadata.definition "
+            "FROM system:indexes as i "
+            f"WHERE i.bucket_id = '{bucket_name}' "
+            f"AND i.scope_id = '{scope_name}' "
+            f"AND i.keyspace_id = '{collection_name}'"
+        )
         result = cluster.query(query)
         indexes = []
         async for row in result:
@@ -193,28 +198,44 @@ async def _infer_collection_schema(
     try:
         scope = bucket.scope(name=scope_name)
 
-        # First check if the collection has any documents
-        count_query = f"SELECT RAW COUNT(*) FROM `{collection_name}` LIMIT 1"
-        count_result = scope.query(count_query)
-        doc_count = 0
-        async for row in count_result:
-            doc_count = row
+        # First check if the collection has any documents using an existence probe.
+        has_docs = False
+        exists_query = f"SELECT RAW 1 FROM `{collection_name}` LIMIT 1"
+        exists_result = scope.query(exists_query)
+        async for _ in exists_result:
+            has_docs = True
+            break
 
-        # Only run INFER if there are documents
-        if doc_count == 0:
+        # Only run INFER if there are documents.
+        if not has_docs:
             logger.debug(
                 f"Skipping schema inference for {scope_name}.{collection_name} (no documents)"
             )
             return []
 
-        query = f"INFER `{collection_name}`"
-        result = scope.query(query)
-        schema_list = []
-        async for row in result:
-            schema_list.append(row)
+        max_attempts = 2
+        for attempt in range(1, max_attempts + 1):
+            try:
+                query = f"INFER `{collection_name}`"
+                result = scope.query(query)
+                schema_list = []
+                async for row in result:
+                    schema_list.append(row)
 
-        # INFER returns a list, we flatten it
-        return schema_list[0] if schema_list else []
+                # INFER returns a list, we flatten it
+                return schema_list[0] if schema_list else []
+            except Exception as infer_err:
+                err_str = str(infer_err)
+                is_transient_infer_failure = (
+                    "Scan continuation failed" in err_str or "16054" in err_str
+                )
+                if attempt < max_attempts and is_transient_infer_failure:
+                    logger.warning(
+                        f"Transient INFER failure for {scope_name}.{collection_name}; retrying once: {infer_err}"
+                    )
+                    await asyncio.sleep(1)
+                    continue
+                raise
     except Exception as e:
         logger.error(f"Error inferring schema for {scope_name}.{collection_name}: {e}")
         return []
