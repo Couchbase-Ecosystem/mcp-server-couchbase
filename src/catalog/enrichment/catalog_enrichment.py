@@ -28,6 +28,8 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
 
 # Enrichment check interval (2 minutes)
 ENRICHMENT_CHECK_INTERVAL = 120  # seconds
+# Sampling timeout so a stalled client does not block the enrichment cron loop forever.
+LLM_SAMPLING_TIMEOUT_SECONDS = 120
 
 
 def _compute_schema_hash(schema_data: dict[str, Any]) -> str:
@@ -116,15 +118,18 @@ async def _request_llm_enrichment(
 
         logger.info("Requesting LLM enrichment via sampling")
 
-        # Create sampling request
-        result = await session.create_message(
-            messages=[
-                SamplingMessage(
-                    role="user", content=TextContent(type="text", text=prompt)
-                )
-            ],
-            max_tokens=4096,
-            temperature=0.2,  # Lower temperature for more consistent descriptions
+        # Create sampling request with timeout so cron can recover on stalled clients.
+        result = await asyncio.wait_for(
+            session.create_message(
+                messages=[
+                    SamplingMessage(
+                        role="user", content=TextContent(type="text", text=prompt)
+                    )
+                ],
+                max_tokens=4096,
+                temperature=0.2,  # Lower temperature for more consistent descriptions
+            ),
+            timeout=LLM_SAMPLING_TIMEOUT_SECONDS,
         )
         logger.debug(f"Sampling response received: {type(result).__name__}")
 
@@ -144,6 +149,12 @@ async def _request_llm_enrichment(
         logger.warning("No text content in sampling response")
         return None
 
+    except asyncio.TimeoutError:
+        logger.error(
+            "LLM enrichment sampling timed out after %ss",
+            LLM_SAMPLING_TIMEOUT_SECONDS,
+        )
+        return None
     except Exception as e:
         logger.error(f"Error requesting LLM enrichment: {e}", exc_info=True)
         return None
