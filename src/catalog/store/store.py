@@ -1,10 +1,10 @@
 """
 Store module for catalog data with thread-safe operations.
 
-This module provides a global store for:
-- Database schema information (buckets, scopes, collections)
-- Enriched prompts from LLM sampling
-- Change detection flags
+This module provides per-bucket stores for:
+- Bucket-scoped schema information
+- Bucket-scoped enriched prompts from LLM sampling
+- Bucket-scoped schema hash tracking
 """
 
 import hashlib
@@ -16,29 +16,32 @@ from threading import Lock
 from typing import Any
 
 from catalog.store.cluster_state import (
-    LEGACY_CATALOG_STATE_FILE,
+    CATALOG_STATE_DIR,
+    build_cluster_state_dir,
     build_state_file_path,
+    derive_bucket_key,
     derive_cluster_key,
+    extract_bucket_key_from_state_file,
 )
 from utils.config import get_settings
 
 logger = logging.getLogger(__name__)
-_LEGACY_STORE_KEY = "__legacy__"
+_DEFAULT_CLUSTER_KEY = "default"
+_DEFAULT_BUCKET_KEY = "default_bucket"
 
 
 class Store:
-    """Thread-safe store for catalog data and enrichment prompts."""
+    """Thread-safe bucket-scoped store for catalog data and enrichment prompts."""
 
-    # Default state file location
-    STATE_FILE = LEGACY_CATALOG_STATE_FILE
-
-    def __init__(self, state_file: Path | None = None):
+    def __init__(self, state_file: Path, bucket_name: str | None = None):
         """Initialize the store with empty data structures."""
         self.database_info: dict[str, Any] = {}
         self.prompt: str = ""
         self.schema_hash: str = ""
+        self.bucket_name: str = bucket_name or ""
+        self.bucket_summary_line: str = ""
         self._lock: Lock = Lock()
-        self._state_file: Path = state_file or self.STATE_FILE
+        self._state_file: Path = state_file
 
         # Create state directory if it doesn't exist
         self._state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -135,6 +138,28 @@ class Store:
         with self._lock:
             self.prompt = prompt
 
+    def set_bucket_name(self, bucket_name: str) -> None:
+        """Set and persist the bucket name represented by this store."""
+        with self._lock:
+            self.bucket_name = bucket_name
+            self._save_state()
+
+    def get_bucket_name(self) -> str:
+        """Get the bucket name represented by this store."""
+        with self._lock:
+            return self.bucket_name
+
+    def set_bucket_summary_line(self, summary_line: str) -> None:
+        """Set and persist deterministic one-line summary for this bucket."""
+        with self._lock:
+            self.bucket_summary_line = summary_line
+            self._save_state()
+
+    def get_bucket_summary_line(self) -> str:
+        """Get deterministic one-line summary for this bucket."""
+        with self._lock:
+            return self.bucket_summary_line
+
     def get_prompt(self) -> str:
         """
         Get the enriched prompt from the store.
@@ -205,6 +230,8 @@ class Store:
             "database_info": self.database_info,
             "prompt": self.prompt,
             "schema_hash": self.schema_hash,
+            "bucket_name": self.bucket_name,
+            "bucket_summary_line": self.bucket_summary_line,
         }
 
     def from_dict(self, state_dict: dict[str, Any]) -> None:
@@ -234,42 +261,46 @@ class Store:
             self.database_info = state_dict["database_info"]
             self.prompt = state_dict["prompt"]
             self.schema_hash = state_dict["schema_hash"]
+            self.bucket_name = str(state_dict.get("bucket_name", self.bucket_name))
+            self.bucket_summary_line = str(
+                state_dict.get("bucket_summary_line", self.bucket_summary_line)
+            )
         except Exception as e:
             logger.error(f"Failed to import state from dictionary: {e}")
             raise
 
-def _resolve_catalog_state_file(cluster_key: str | None = None) -> Path:
-    """Resolve the state file path for the active cluster."""
-    resolved_cluster_key = cluster_key
-    if resolved_cluster_key is None:
-        settings = get_settings()
-        connection_string = settings.get("connection_string")
-        resolved_cluster_key = (
-            derive_cluster_key(connection_string)
-            if connection_string
-            else _LEGACY_STORE_KEY
-        )
+def _resolve_cluster_key(cluster_key: str | None = None) -> str:
+    """Resolve the active cluster key from explicit input or runtime settings."""
+    if cluster_key:
+        return cluster_key
+    settings = get_settings()
+    connection_string = settings.get("connection_string")
+    if not connection_string:
+        return _DEFAULT_CLUSTER_KEY
+    return derive_cluster_key(connection_string)
 
-    if resolved_cluster_key == _LEGACY_STORE_KEY:
-        return LEGACY_CATALOG_STATE_FILE
 
-    state_file = build_state_file_path(resolved_cluster_key)
+def _resolve_catalog_state_file(cluster_key: str, bucket_key: str) -> Path:
+    """Resolve the state file path for the active cluster + bucket key."""
+    state_file = build_state_file_path(cluster_key, bucket_key)
+    legacy_flat_file = CATALOG_STATE_DIR / f"catalog_state_{cluster_key}_{bucket_key}.json"
+
     state_file.parent.mkdir(parents=True, exist_ok=True)
 
-    if (
-        resolved_cluster_key != "default"
-        and not state_file.exists()
-        and LEGACY_CATALOG_STATE_FILE.exists()
-    ):
+    # Migrate from old flat-file layout (~/.couchbase_mcp/catalog_state_<cluster>_<bucket>.json)
+    # to new folder layout (~/.couchbase_mcp/<cluster>/catalog_state_<bucket>.json).
+    if not state_file.exists() and legacy_flat_file.exists():
         try:
-            shutil.copy2(LEGACY_CATALOG_STATE_FILE, state_file)
+            shutil.move(str(legacy_flat_file), str(state_file))
             logger.info(
-                "Copied legacy catalog state to cluster-scoped file: %s",
+                "Migrated catalog state file from %s to %s",
+                legacy_flat_file,
                 state_file,
             )
         except OSError as exc:
             logger.warning(
-                "Failed to copy legacy catalog state file to %s: %s",
+                "Failed to migrate legacy catalog state file %s to %s: %s",
+                legacy_flat_file,
                 state_file,
                 exc,
             )
@@ -277,26 +308,94 @@ def _resolve_catalog_state_file(cluster_key: str | None = None) -> Path:
     return state_file
 
 
-# Global store instances (singleton per cluster key)
-_catalog_stores: dict[str, Store] = {}
+def _resolve_bucket_key(bucket_name: str | None = None) -> str:
+    """Resolve bucket key from bucket name."""
+    if not bucket_name:
+        return _DEFAULT_BUCKET_KEY
+    return derive_bucket_key(bucket_name)
+
+
+def _extract_bucket_name_from_database_info(database_info: dict[str, Any]) -> str:
+    """Best-effort extraction of bucket name from bucket-scoped database_info."""
+    buckets = database_info.get("buckets", {})
+    if not isinstance(buckets, dict) or len(buckets) != 1:
+        return ""
+    return next(iter(buckets))
+
+
+# Global store instances (singleton per cluster + bucket key)
+_catalog_stores: dict[tuple[str, str], Store] = {}
 _store_init_lock = Lock()
 
 
-def get_catalog_store(cluster_key: str | None = None) -> Store:
-    """Get the cluster-scoped catalog store instance (thread-safe singleton)."""
-    resolved_cluster_key = cluster_key
-    if resolved_cluster_key is None:
-        settings = get_settings()
-        connection_string = settings.get("connection_string")
-        resolved_cluster_key = (
-            derive_cluster_key(connection_string)
-            if connection_string
-            else _LEGACY_STORE_KEY
-        )
+def get_catalog_store(
+    bucket_name: str | None = None, cluster_key: str | None = None
+) -> Store:
+    """Get a bucket-scoped catalog store instance (thread-safe singleton)."""
+    resolved_cluster_key = _resolve_cluster_key(cluster_key)
+    resolved_bucket_key = _resolve_bucket_key(bucket_name)
+    cache_key = (resolved_cluster_key, resolved_bucket_key)
 
-    if resolved_cluster_key not in _catalog_stores:
+    if cache_key not in _catalog_stores:
         with _store_init_lock:
-            if resolved_cluster_key not in _catalog_stores:
-                state_file = _resolve_catalog_state_file(resolved_cluster_key)
-                _catalog_stores[resolved_cluster_key] = Store(state_file=state_file)
-    return _catalog_stores[resolved_cluster_key]
+            if cache_key not in _catalog_stores:
+                state_file = _resolve_catalog_state_file(
+                    resolved_cluster_key, resolved_bucket_key
+                )
+                _catalog_stores[cache_key] = Store(
+                    state_file=state_file, bucket_name=bucket_name
+                )
+
+    store = _catalog_stores[cache_key]
+    if bucket_name and store.get_bucket_name() != bucket_name:
+        store.set_bucket_name(bucket_name)
+    return store
+
+
+def get_all_catalog_stores(cluster_key: str | None = None) -> dict[str, Store]:
+    """Return all bucket stores discovered for the active cluster."""
+    resolved_cluster_key = _resolve_cluster_key(cluster_key)
+    cluster_dir = build_cluster_state_dir(resolved_cluster_key)
+    cluster_dir.mkdir(parents=True, exist_ok=True)
+    pattern = "catalog_state_*.json"
+
+    discovered_files = sorted(cluster_dir.glob(pattern))
+    for state_file in discovered_files:
+        bucket_key = extract_bucket_key_from_state_file(state_file, resolved_cluster_key)
+        if not bucket_key:
+            continue
+        cache_key = (resolved_cluster_key, bucket_key)
+        if cache_key not in _catalog_stores:
+            with _store_init_lock:
+                if cache_key not in _catalog_stores:
+                    _catalog_stores[cache_key] = Store(state_file=state_file)
+
+    stores_by_bucket: dict[str, Store] = {}
+    for (cluster, bucket_key), store in _catalog_stores.items():
+        if cluster != resolved_cluster_key:
+            continue
+
+        bucket_name = store.get_bucket_name()
+        if not bucket_name:
+            bucket_name = _extract_bucket_name_from_database_info(store.get_database_info())
+        if not bucket_name:
+            bucket_name = bucket_key
+
+        stores_by_bucket[bucket_name] = store
+
+    return stores_by_bucket
+
+
+def get_all_bucket_database_info(cluster_key: str | None = None) -> dict[str, Any]:
+    """Return combined database_info payload reconstructed from bucket stores."""
+    merged: dict[str, Any] = {"buckets": {}}
+    for bucket_name, store in get_all_catalog_stores(cluster_key).items():
+        info = store.get_database_info()
+        buckets = info.get("buckets", {})
+        if isinstance(buckets, dict) and bucket_name in buckets:
+            merged["buckets"][bucket_name] = buckets[bucket_name]
+            continue
+        if isinstance(buckets, dict) and len(buckets) == 1:
+            source_bucket_name = next(iter(buckets))
+            merged["buckets"][source_bucket_name] = buckets[source_bucket_name]
+    return merged

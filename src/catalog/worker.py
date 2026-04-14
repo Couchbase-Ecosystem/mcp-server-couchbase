@@ -21,7 +21,7 @@ from acouchbase.bucket import AsyncBucket
 from acouchbase.cluster import AsyncCluster
 
 from catalog.schema import SchemaCollection, parse_infer_output
-from catalog.store.store import get_catalog_store
+from catalog.store.store import get_all_bucket_database_info, get_catalog_store
 from utils.config import get_settings
 from utils.connection import connect_to_bucket_async, connect_to_couchbase_cluster_async
 from utils.constants import MCP_SERVER_NAME
@@ -253,6 +253,40 @@ async def _infer_collection_schema(
         return []
 
 
+def _persist_bucket_database_info(database_info: dict[str, Any]) -> int:
+    """Persist each bucket payload into its corresponding bucket store."""
+    updated_buckets = 0
+    buckets = database_info.get("buckets", {})
+    for bucket_name, bucket_data in buckets.items():
+        bucket_store = get_catalog_store(bucket_name=bucket_name)
+        old_bucket_info = bucket_store.get_database_info()
+        new_bucket_info = {"buckets": {bucket_name: bucket_data}}
+        scopes = bucket_data.get("scopes", {})
+        scope_names = sorted(scopes.keys())
+        collection_names: list[str] = []
+        for scope_data in scopes.values():
+            collections = scope_data.get("collections", {})
+            collection_names.extend(collections.keys())
+        collection_names = sorted(set(collection_names))
+        summary_line = (
+            f"{bucket_name}: scopes={len(scope_names)}"
+            f" ({', '.join(scope_names[:3]) if scope_names else 'none'}), "
+            f"collections={len(collection_names)}"
+            f" ({', '.join(collection_names[:5]) if collection_names else 'none'})"
+        )
+
+        old_hash = _compute_schema_hash(old_bucket_info) if old_bucket_info else None
+        new_hash = _compute_schema_hash(new_bucket_info)
+        if old_hash != new_hash:
+            # Save the latest bucket schema when there is any structural change.
+            bucket_store.add_database_info(new_bucket_info)
+            updated_buckets += 1
+        if bucket_store.get_bucket_summary_line() != summary_line:
+            # Persist a deterministic one-line summary used by bucket routing prompts.
+            bucket_store.set_bucket_summary_line(summary_line)
+    return updated_buckets
+
+
 async def _catalog_worker_async(stop_event: threading.Event) -> None:
     """Async worker loop that performs catalog refresh cycles."""
     logger.info("Catalog background worker async loop started")
@@ -296,29 +330,24 @@ async def _catalog_worker_async(stop_event: threading.Event) -> None:
             if cluster:
                 logger.info("Starting catalog refresh cycle")
 
-                # Get existing database info from store
-                store = get_catalog_store()
-                old_database_info = store.get_database_info()
-                old_hash = (
-                    _compute_schema_hash(old_database_info)
-                    if old_database_info
-                    else None
-                )
+                # Get existing aggregated database info across bucket stores
+                old_database_info = get_all_bucket_database_info()
 
                 # Collect schema information (with merging)
                 database_info = await _collect_buckets_scopes_collections(
                     cluster, old_database_info
                 )
 
-                # Compute hash of the new schema
-                new_hash = _compute_schema_hash(database_info)
+                # Persist each bucket schema to its own store
+                updated_buckets = _persist_bucket_database_info(database_info)
 
-                # Only update store if schema changed
-                if old_hash != new_hash:
-                    logger.info("Schema change detected, updating database_info in store")
-                    store.add_database_info(database_info)
+                if updated_buckets:
+                    logger.info(
+                        "Schema change detected, updated %s bucket store(s)",
+                        updated_buckets,
+                    )
                 else:
-                    logger.debug("No schema changes detected, skipping store update")
+                    logger.debug("No bucket schema changes detected, skipping updates")
 
                 logger.info("Catalog refresh cycle completed")
             else:

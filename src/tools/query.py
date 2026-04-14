@@ -12,13 +12,14 @@ from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 from mcp.server.fastmcp import Context
 from pydantic import Field
 
-from catalog.store.store import get_catalog_store
+from catalog.store.store import get_all_catalog_stores
 from utils.agent import call_agent, extract_answer
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
+_ROUTING_CONFIDENCE_THRESHOLD = 0.7
 
 
 def get_schema_for_collection(
@@ -422,31 +423,135 @@ def _build_query_generation_prompt(
     return "\n".join(lines)
 
 
-def _get_catalog_prompt_state(ctx: Context) -> dict[str, Any]:
-    """Return the latest catalog prompt plus enrichment readiness metadata."""
+def _get_bucket_catalog_prompt_states(ctx: Context) -> dict[str, dict[str, Any]]:
+    """Return per-bucket prompt and routing metadata from bucket-scoped stores."""
     _ = ctx
-    store = get_catalog_store()
-    prompt = store.get_prompt().strip()
-    needs_enrichment = store.get_needs_enrichment()
-    schema_hash = store.get_schema_hash()
+    states: dict[str, dict[str, Any]] = {}
 
-    if prompt:
+    for bucket_name, store in get_all_catalog_stores().items():
+        database_info = store.get_database_info()
+        bucket_data = database_info.get("buckets", {}).get(bucket_name, {})
+        scopes = bucket_data.get("scopes", {})
+        scope_names = sorted(scopes.keys())
+        collection_names: list[str] = []
+        for scope_data in scopes.values():
+            collections = scope_data.get("collections", {})
+            collection_names.extend(collections.keys())
+
+        states[bucket_name] = {
+            "prompt": store.get_prompt().strip(),
+            "summary_line": store.get_bucket_summary_line().strip(),
+            "scope_names": scope_names[:20],
+            "collection_names": sorted(set(collection_names))[:40],
+        }
+
+    return states
+
+
+def _route_question_to_bucket_with_llm(
+    user_question: str,
+    bucket_states: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Route a natural-language question to one bucket using the LLM router."""
+    bucket_names = sorted(bucket_states.keys())
+    fallback_candidates = bucket_names[:2]
+    if not bucket_names:
         return {
-            "has_prompt": True,
-            "prompt": prompt,
-            "needs_enrichment": needs_enrichment,
-            "schema_hash": schema_hash,
-            "message": "Catalog prompt is available.",
+            "resolved": False,
+            "bucket_name": "",
+            "confidence": 0.0,
+            "reason": "No bucket catalog state is available.",
+            "top_candidates": [],
+        }
+
+    # Build a compact routing context for the router model:
+    # a deterministic one-line summary plus known scopes/collections.
+    bucket_context: list[dict[str, Any]] = []
+    for bucket_name in bucket_names:
+        state = bucket_states[bucket_name]
+        bucket_context.append(
+            {
+                "bucket_name": bucket_name,
+                "summary_line": state.get("summary_line", ""),
+                "scope_names": state.get("scope_names", []),
+                "collection_names": state.get("collection_names", []),
+            }
+        )
+    prompt = "\n".join(
+        [
+            "You are a Couchbase bucket router.",
+            "Pick the single best bucket for the user question.",
+            "Return ONLY valid JSON with keys:",
+            '{"bucket_name":"", "confidence":0.0, "reason":"", "top_candidates":[]}',
+            "top_candidates should contain up to 3 entries with bucket_name.",
+            "",
+            "## Available Buckets",
+            json.dumps(bucket_context, indent=2),
+            "",
+            "## User Question",
+            user_question,
+        ]
+    )
+
+    try:
+        resp_body = call_agent(content=prompt)
+        raw_answer = extract_answer(resp_body)
+        parsed = json.loads(raw_answer)
+        if not isinstance(parsed, dict):
+            raise ValueError("Router response is not a JSON object")
+    except (ConnectionError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        logger.warning("Bucket routing LLM call failed: %s", exc)
+        return {
+            "resolved": False,
+            "bucket_name": "",
+            "confidence": 0.0,
+            "reason": "Bucket routing failed for this question.",
+            "top_candidates": fallback_candidates,
+        }
+
+    routed_bucket_name = str(parsed.get("bucket_name", "")).strip()
+    try:
+        confidence = float(parsed.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+
+    reason = str(parsed.get("reason", "")).strip()
+    raw_candidates = parsed.get("top_candidates", [])
+    top_candidates: list[str] = []
+    if isinstance(raw_candidates, list):
+        # Normalize candidate names from either {"bucket_name": "..."} or "..." formats.
+        candidate_names = [
+            str(item.get("bucket_name", "")).strip() if isinstance(item, dict) else str(item).strip()
+            for item in raw_candidates
+        ]
+        top_candidates = [name for name in candidate_names if name in bucket_states]
+    if not top_candidates:
+        top_candidates = fallback_candidates
+
+    if routed_bucket_name not in bucket_states:
+        return {
+            "resolved": False,
+            "bucket_name": "",
+            "confidence": confidence,
+            "reason": reason or "Router did not return a valid bucket.",
+            "top_candidates": top_candidates,
+        }
+
+    if confidence < _ROUTING_CONFIDENCE_THRESHOLD:
+        return {
+            "resolved": False,
+            "bucket_name": "",
+            "confidence": confidence,
+            "reason": reason or "Low confidence bucket match.",
+            "top_candidates": top_candidates,
         }
 
     return {
-        "has_prompt": False,
-        "prompt": "",
-        "needs_enrichment": needs_enrichment,
-        "schema_hash": schema_hash,
-        "message": (
-            "Catalog prompt is not available yet. Please retry after catalog enrichment completes."
-        ),
+        "resolved": True,
+        "bucket_name": routed_bucket_name,
+        "confidence": confidence,
+        "reason": reason,
+        "top_candidates": top_candidates,
     }
 
 
@@ -462,7 +567,7 @@ def generate_or_modify_sql_plus_plus_query(
             ),
         ),
     ],
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Create or modify a SQL++ query from a natural-language description.
 
     For efficient and effective SQL++ generation, prefer this tool over calling
@@ -491,9 +596,9 @@ def generate_or_modify_sql_plus_plus_query(
             ),
         }
 
-    catalog_state = _get_catalog_prompt_state(ctx)
-    catalog_prompt = str(catalog_state.get("prompt", "")).strip()
-    if not catalog_state.get("has_prompt"):
+    bucket_states = _get_bucket_catalog_prompt_states(ctx)
+    # Requested behavior: if we cannot even list buckets, do not attempt generation.
+    if not bucket_states:
         return {
             "query": "",
             "bucket_name": "",
@@ -504,32 +609,75 @@ def generate_or_modify_sql_plus_plus_query(
             ),
         }
 
-    # ── Build structured prompt ──────────────────────────────────────────
-    prompt = _build_query_generation_prompt(
-        user_question=message,
-        catalog_prompt=catalog_prompt,
-    )
+    routing_state = _route_question_to_bucket_with_llm(message, bucket_states)
+    if not routing_state.get("resolved"):
+        candidates = routing_state.get("top_candidates", [])
+        candidate_text = ", ".join(candidates) if candidates else "No candidates"
+        return {
+            "query": "",
+            "bucket_name": "",
+            "scope_name": "",
+            "candidate_buckets": candidates,
+            "message": (
+                "Unable to choose a bucket with high confidence. "
+                f"Please choose one bucket and retry. Candidates: {candidate_text}"
+            ),
+            "routing_reason": routing_state.get("reason", ""),
+        }
 
-    # ── Call the agent backend ─────────────────────────────────────
+    # We have a routed bucket. Prefer enriched prompt when available.
+    # If prompt is missing, still attempt generation with lightweight context and warning.
+    routed_bucket_name = str(routing_state["bucket_name"])
+    bucket_state = bucket_states[routed_bucket_name]
+    catalog_prompt = str(bucket_state.get("prompt", "")).strip()
+    warning_message = ""
+    if not catalog_prompt:
+        summary_line = str(bucket_state.get("summary_line", "")).strip()
+        scope_names = bucket_state.get("scope_names", [])
+        collection_names = bucket_state.get("collection_names", [])
+        fallback_lines = [
+            "Catalog enrichment is not ready for this bucket.",
+            "Generate the best possible SQL++ query using limited metadata.",
+            f"Chosen bucket: {routed_bucket_name}",
+            f"Bucket summary: {summary_line or 'Not available'}",
+            "Known scopes: " + (", ".join(scope_names) if scope_names else "Not available"),
+            "Known collections: "
+            + (", ".join(collection_names) if collection_names else "Not available"),
+        ]
+        catalog_prompt = "\n".join(fallback_lines)
+        warning_message = (
+            f"Warning: Catalog prompt for bucket '{routed_bucket_name}' is not ready yet. "
+            "The generated query may be less accurate until enrichment completes."
+        )
+
+    prompt = _build_query_generation_prompt(user_question=message, catalog_prompt=catalog_prompt)
+
     try:
         resp_body = call_agent(content=prompt)
         raw_answer = extract_answer(resp_body)
         try:
             parsed = json.loads(raw_answer)
             if isinstance(parsed, dict):
-                return {
+                response: dict[str, Any] = {
                     "query": str(parsed.get("query", "")).strip(),
-                    "bucket_name": str(parsed.get("bucket_name", "")).strip(),
+                    "bucket_name": routed_bucket_name,
                     "scope_name": str(parsed.get("scope_name", "")).strip(),
                 }
+            else:
+                response = {
+                    "query": raw_answer.strip(),
+                    "bucket_name": routed_bucket_name,
+                    "scope_name": "",
+                }
         except Exception:
-            pass
-
-        return {
-            "query": raw_answer.strip(),
-            "bucket_name": "",
-            "scope_name": "",
-        }
+            response = {
+                "query": raw_answer.strip(),
+                "bucket_name": routed_bucket_name,
+                "scope_name": "",
+            }
+        if warning_message:
+            response["message"] = warning_message
+        return response
     except (ConnectionError, RuntimeError) as exc:
         return {
             "query": "",

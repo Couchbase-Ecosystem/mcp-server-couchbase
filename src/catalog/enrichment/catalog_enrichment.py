@@ -21,7 +21,7 @@ from mcp.types import SamplingMessage, TextContent
 from catalog.enrichment.relationship_verifier.integration_utils import (
     append_verified_relationships_to_prompt,
 )
-from catalog.store.store import get_catalog_store
+from catalog.store.store import get_all_catalog_stores
 from utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
@@ -29,7 +29,7 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
 # Enrichment check interval (2 minutes)
 ENRICHMENT_CHECK_INTERVAL = 120  # seconds
 # Sampling timeout so a stalled client does not block the enrichment cron loop forever.
-LLM_SAMPLING_TIMEOUT_SECONDS = 120
+LLM_SAMPLING_TIMEOUT_SECONDS = 160
 
 
 def _compute_schema_hash(schema_data: dict[str, Any]) -> str:
@@ -168,17 +168,9 @@ async def _check_and_enrich_catalog(session: ServerSession | None) -> None:
         session: Optional MCP ServerSession for sampling
     """
     try:
-        store = get_catalog_store()
-
-        # Get database info
-        database_info = store.get_database_info()
-        if not database_info or not database_info.get("buckets"):
-            logger.debug("No database info available for enrichment")
-            return
-
-        current_schema_hash = _compute_schema_hash(database_info)
-        if current_schema_hash == store.get_schema_hash():
-            logger.debug("No enrichment needed")
+        stores_by_bucket = get_all_catalog_stores()
+        if not stores_by_bucket:
+            logger.debug("No bucket store available for enrichment")
             return
 
         # Check if we have a session for sampling
@@ -186,12 +178,32 @@ async def _check_and_enrich_catalog(session: ServerSession | None) -> None:
             logger.warning("No session available for sampling, skipping enrichment")
             return
 
-        logger.info("Catalog needs enrichment, starting process")
+        for bucket_name, store in stores_by_bucket.items():
+            database_info = store.get_database_info()
+            if not database_info or not database_info.get("buckets"):
+                logger.debug(
+                    "No database info available for enrichment (bucket=%s)", bucket_name
+                )
+                continue
 
-        # Request LLM enrichment
-        enriched_prompt = await _request_llm_enrichment(session, database_info)
+            current_schema_hash = _compute_schema_hash(database_info)
+            if current_schema_hash == store.get_schema_hash():
+                logger.debug("No enrichment needed for bucket=%s", bucket_name)
+                continue
 
-        if enriched_prompt:
+            logger.info(
+                "Catalog needs enrichment for bucket=%s, starting process", bucket_name
+            )
+
+            # Request LLM enrichment
+            enriched_prompt = await _request_llm_enrichment(session, database_info)
+
+            if not enriched_prompt:
+                logger.warning(
+                    "Failed to get enriched prompt from LLM for bucket=%s", bucket_name
+                )
+                continue
+
             prompt_to_store = await append_verified_relationships_to_prompt(
                 enriched_prompt=enriched_prompt,
                 database_info=database_info,
@@ -199,9 +211,7 @@ async def _check_and_enrich_catalog(session: ServerSession | None) -> None:
             # Store the enriched prompt
             store.add_prompt(prompt_to_store)
             store.set_schema_hash(current_schema_hash)
-            logger.info("Enriched prompt stored successfully")
-        else:
-            logger.warning("Failed to get enriched prompt from LLM")
+            logger.info("Enriched prompt stored successfully for bucket=%s", bucket_name)
 
     except Exception as e:
         logger.error(f"Error in catalog enrichment: {e}", exc_info=True)
