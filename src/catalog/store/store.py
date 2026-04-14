@@ -10,26 +10,35 @@ This module provides a global store for:
 import hashlib
 import json
 import logging
+import shutil
 from pathlib import Path
 from threading import Lock
 from typing import Any
 
+from catalog.store.cluster_state import (
+    LEGACY_CATALOG_STATE_FILE,
+    build_state_file_path,
+    derive_cluster_key,
+)
+from utils.config import get_settings
+
 logger = logging.getLogger(__name__)
+_LEGACY_STORE_KEY = "__legacy__"
 
 
 class Store:
     """Thread-safe store for catalog data and enrichment prompts."""
 
     # Default state file location
-    STATE_FILE = Path.home() / ".couchbase_mcp" / "catalog_state.json"
+    STATE_FILE = LEGACY_CATALOG_STATE_FILE
 
-    def __init__(self):
+    def __init__(self, state_file: Path | None = None):
         """Initialize the store with empty data structures."""
         self.database_info: dict[str, Any] = {}
         self.prompt: str = ""
         self.schema_hash: str = ""
         self._lock: Lock = Lock()
-        self._state_file: Path = self.STATE_FILE
+        self._state_file: Path = state_file or self.STATE_FILE
 
         # Create state directory if it doesn't exist
         self._state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -229,16 +238,65 @@ class Store:
             logger.error(f"Failed to import state from dictionary: {e}")
             raise
 
-# Global store instance (singleton pattern)
-_catalog_store: Store | None = None
+def _resolve_catalog_state_file(cluster_key: str | None = None) -> Path:
+    """Resolve the state file path for the active cluster."""
+    resolved_cluster_key = cluster_key
+    if resolved_cluster_key is None:
+        settings = get_settings()
+        connection_string = settings.get("connection_string")
+        resolved_cluster_key = (
+            derive_cluster_key(connection_string)
+            if connection_string
+            else _LEGACY_STORE_KEY
+        )
+
+    if resolved_cluster_key == _LEGACY_STORE_KEY:
+        return LEGACY_CATALOG_STATE_FILE
+
+    state_file = build_state_file_path(resolved_cluster_key)
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+
+    if (
+        resolved_cluster_key != "default"
+        and not state_file.exists()
+        and LEGACY_CATALOG_STATE_FILE.exists()
+    ):
+        try:
+            shutil.copy2(LEGACY_CATALOG_STATE_FILE, state_file)
+            logger.info(
+                "Copied legacy catalog state to cluster-scoped file: %s",
+                state_file,
+            )
+        except OSError as exc:
+            logger.warning(
+                "Failed to copy legacy catalog state file to %s: %s",
+                state_file,
+                exc,
+            )
+
+    return state_file
+
+
+# Global store instances (singleton per cluster key)
+_catalog_stores: dict[str, Store] = {}
 _store_init_lock = Lock()
 
 
-def get_catalog_store() -> Store:
-    """Get the global catalog store instance (thread-safe singleton)."""
-    global _catalog_store  # noqa: PLW0603
-    if _catalog_store is None:
+def get_catalog_store(cluster_key: str | None = None) -> Store:
+    """Get the cluster-scoped catalog store instance (thread-safe singleton)."""
+    resolved_cluster_key = cluster_key
+    if resolved_cluster_key is None:
+        settings = get_settings()
+        connection_string = settings.get("connection_string")
+        resolved_cluster_key = (
+            derive_cluster_key(connection_string)
+            if connection_string
+            else _LEGACY_STORE_KEY
+        )
+
+    if resolved_cluster_key not in _catalog_stores:
         with _store_init_lock:
-            if _catalog_store is None:
-                _catalog_store = Store()
-    return _catalog_store
+            if resolved_cluster_key not in _catalog_stores:
+                state_file = _resolve_catalog_state_file(resolved_cluster_key)
+                _catalog_stores[resolved_cluster_key] = Store(state_file=state_file)
+    return _catalog_stores[resolved_cluster_key]
