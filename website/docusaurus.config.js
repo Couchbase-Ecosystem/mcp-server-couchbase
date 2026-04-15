@@ -47,6 +47,13 @@ const config = {
         theme: {
           customCss: "./src/css/custom.css",
         },
+        googleTagManager: {
+          containerId: "GTM-MVPNN2",
+        },
+        gtag: {
+          trackingID: "G-CVKKEY0D6B",
+          anonymizeIP: true,
+        },
       }),
     ],
   ],
