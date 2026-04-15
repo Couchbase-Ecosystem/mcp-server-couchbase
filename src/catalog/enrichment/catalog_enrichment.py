@@ -12,6 +12,7 @@ This is part of the MCP server infrastructure that enriches catalog data.
 import asyncio
 import json
 import logging
+import time
 from typing import Any
 
 from mcp.server.session import ServerSession
@@ -21,7 +22,8 @@ from catalog.enrichment.relationship_verifier.integration_utils import (
     append_verified_relationships_to_prompt,
 )
 from catalog.store.store import compute_catalog_schema_hash, get_all_catalog_stores
-from utils.constants import MCP_SERVER_NAME
+from utils.config import get_settings
+from utils.constants import DEFAULT_ENRICHMENT_BUCKET_CONCURRENCY, MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
 
@@ -29,6 +31,16 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
 ENRICHMENT_CHECK_INTERVAL = 120  # seconds
 # Sampling timeout so a stalled client does not block the enrichment cron loop forever.
 LLM_SAMPLING_TIMEOUT_SECONDS = 160
+def _get_enrichment_bucket_concurrency() -> int:
+    """Read enrichment bucket concurrency from settings with safe fallback."""
+    raw_value = get_settings().get(
+        "enrichment_bucket_concurrency", DEFAULT_ENRICHMENT_BUCKET_CONCURRENCY
+    )
+    try:
+        parsed_value = int(raw_value)
+    except (TypeError, ValueError):
+        return DEFAULT_ENRICHMENT_BUCKET_CONCURRENCY
+    return max(1, parsed_value)
 
 
 def _build_enrichment_prompt(database_info: dict[str, Any]) -> str:
@@ -169,45 +181,71 @@ async def _check_and_enrich_catalog(session: ServerSession | None) -> None:
             logger.debug("No bucket store available for enrichment")
             return
 
-        # Check if we have a session for sampling
         if session is None:
             logger.warning("No session available for sampling, skipping enrichment")
             return
 
-        for bucket_name, store in stores_by_bucket.items():
-            database_info = store.get_database_info()
-            if not database_info or not database_info.get("buckets"):
-                logger.debug(
-                    "No database info available for enrichment (bucket=%s)", bucket_name
-                )
-                continue
+        cycle_start = time.perf_counter()
+        semaphore = asyncio.Semaphore(_get_enrichment_bucket_concurrency())
 
-            current_schema_hash = compute_catalog_schema_hash(database_info)
-            if current_schema_hash == store.get_schema_hash():
-                logger.debug("No enrichment needed for bucket=%s", bucket_name)
-                continue
+        async def _process_bucket(bucket_name: str, store: Any) -> None:
+            async with semaphore:
+                bucket_start = time.perf_counter()
+                try:
+                    database_info = store.get_database_info()
+                    if not database_info or not database_info.get("buckets"):
+                        logger.debug(
+                            "No database info available for enrichment (bucket=%s)",
+                            bucket_name,
+                        )
+                        return
 
-            logger.info(
-                "Catalog needs enrichment for bucket=%s, starting process", bucket_name
+                    current_schema_hash = compute_catalog_schema_hash(database_info)
+                    if current_schema_hash == store.get_schema_hash():
+                        logger.debug("No enrichment needed for bucket=%s", bucket_name)
+                        return
+
+                    logger.info(
+                        "Catalog needs enrichment for bucket=%s, starting process",
+                        bucket_name,
+                    )
+                    enriched_prompt = await _request_llm_enrichment(session, database_info)
+                    if not enriched_prompt:
+                        logger.warning(
+                            "Failed to get enriched prompt from LLM for bucket=%s",
+                            bucket_name,
+                        )
+                        return
+
+                    prompt_to_store = await append_verified_relationships_to_prompt(
+                        enriched_prompt=enriched_prompt,
+                        database_info=database_info,
+                    )
+                    store.add_prompt(prompt_to_store)
+                    store.set_schema_hash(current_schema_hash)
+                    logger.info(
+                        "Enriched prompt stored successfully for bucket=%s", bucket_name
+                    )
+                except Exception as bucket_error:
+                    logger.error(
+                        "Error enriching bucket=%s: %s", bucket_name, bucket_error
+                    )
+                finally:
+                    bucket_duration = time.perf_counter() - bucket_start
+                    logger.debug(
+                        "Enrichment check finished for bucket=%s in %.2fs",
+                        bucket_name,
+                        bucket_duration,
+                    )
+
+        await asyncio.gather(
+            *(
+                _process_bucket(bucket_name, store)
+                for bucket_name, store in stores_by_bucket.items()
             )
-
-            # Request LLM enrichment
-            enriched_prompt = await _request_llm_enrichment(session, database_info)
-
-            if not enriched_prompt:
-                logger.warning(
-                    "Failed to get enriched prompt from LLM for bucket=%s", bucket_name
-                )
-                continue
-
-            prompt_to_store = await append_verified_relationships_to_prompt(
-                enriched_prompt=enriched_prompt,
-                database_info=database_info,
-            )
-            # Store the enriched prompt
-            store.add_prompt(prompt_to_store)
-            store.set_schema_hash(current_schema_hash)
-            logger.info("Enriched prompt stored successfully for bucket=%s", bucket_name)
+        )
+        cycle_duration = time.perf_counter() - cycle_start
+        logger.debug("Enrichment cycle finished in %.2fs", cycle_duration)
 
     except Exception as e:
         logger.error(f"Error in catalog enrichment: {e}", exc_info=True)

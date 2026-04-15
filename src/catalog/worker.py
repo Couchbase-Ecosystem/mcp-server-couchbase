@@ -13,6 +13,7 @@ This is a background thread component, separate from the MCP server's event loop
 import asyncio
 import logging
 import threading
+import time
 from typing import Any
 
 from acouchbase.bucket import AsyncBucket
@@ -26,18 +27,28 @@ from catalog.store.store import (
 )
 from utils.config import get_settings
 from utils.connection import connect_to_bucket_async, connect_to_couchbase_cluster_async
-from utils.constants import MCP_SERVER_NAME
+from utils.constants import DEFAULT_WORKER_BUCKET_CONCURRENCY, MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.catalog")
 
 
 # Catalog refresh interval (5 minutes)
 CATALOG_REFRESH_INTERVAL = 300  # seconds
-
-
 def _should_exclude_scope(scope_name: str) -> bool:
     """Return True when scope is internal and should not affect catalog hashing."""
     return scope_name == "_system"
+
+
+def _get_worker_bucket_concurrency() -> int:
+    """Read worker bucket concurrency from settings with a safe fallback."""
+    raw_value = get_settings().get(
+        "worker_bucket_concurrency", DEFAULT_WORKER_BUCKET_CONCURRENCY
+    )
+    try:
+        parsed_value = int(raw_value)
+    except (TypeError, ValueError):
+        return DEFAULT_WORKER_BUCKET_CONCURRENCY
+    return max(1, parsed_value)
 
 
 async def _get_index_definitions(
@@ -69,6 +80,117 @@ async def _get_index_definitions(
         return []
 
 
+async def _collect_single_bucket_schema(
+    cluster: AsyncCluster,
+    bucket_name: str,
+    existing_database_info: dict[str, Any],
+) -> dict[str, Any]:
+    """Collect schema and index metadata for one bucket."""
+    bucket_start = time.perf_counter()
+    bucket = connect_to_bucket_async(cluster, bucket_name)
+    scopes_data = {}
+
+    collection_manager = bucket.collections()
+    scopes = await collection_manager.get_all_scopes()
+    scopes_sorted = sorted(scopes, key=lambda s: s.name)
+
+    for scope in scopes_sorted:
+        scope_name = scope.name
+        if _should_exclude_scope(scope_name):
+            logger.debug(
+                "Skipping internal scope from catalog state: %s.%s",
+                bucket_name,
+                scope_name,
+            )
+            continue
+
+        collections_data = {}
+        collections_sorted = sorted(scope.collections, key=lambda c: c.name)
+        for collection in collections_sorted:
+            collection_name = collection.name
+            logger.debug(
+                "Processing collection: %s.%s.%s",
+                bucket_name,
+                scope_name,
+                collection_name,
+            )
+
+            raw_schema = await _infer_collection_schema(bucket, scope_name, collection_name)
+            new_schema_collection = parse_infer_output(raw_schema)
+            schema = new_schema_collection.to_dict()
+
+            try:
+                existing_buckets = existing_database_info.get("buckets", {})
+                existing_bucket = existing_buckets.get(bucket_name, {})
+                existing_scopes = existing_bucket.get("scopes", {})
+                existing_scope = existing_scopes.get(scope_name, {})
+                existing_collections = existing_scope.get("collections", {})
+                existing_collection = existing_collections.get(collection_name, {})
+                existing_schema_list = existing_collection.get("schema", [])
+                if existing_schema_list and isinstance(existing_schema_list, list):
+                    existing_schema_collection = SchemaCollection.from_dict(
+                        existing_schema_list
+                    )
+                    existing_schema_collection.merge(new_schema_collection)
+                    schema = existing_schema_collection.to_dict()
+                    logger.debug(
+                        "Merged schema for %s.%s.%s (%s variants)",
+                        bucket_name,
+                        scope_name,
+                        collection_name,
+                        len(existing_schema_collection),
+                    )
+            except Exception as merge_error:
+                logger.warning(
+                    "Error merging schema for %s.%s.%s: %s",
+                    bucket_name,
+                    scope_name,
+                    collection_name,
+                    merge_error,
+                )
+
+            indexes = await _get_index_definitions(
+                cluster, bucket_name, scope_name, collection_name
+            )
+            collections_data[collection_name] = {
+                "name": collection_name,
+                "schema": schema,
+                "indexes": indexes,
+            }
+
+        scopes_data[scope_name] = {
+            "name": scope_name,
+            "collections": collections_data,
+        }
+
+    elapsed = time.perf_counter() - bucket_start
+    logger.debug("Collected schema for bucket=%s in %.2fs", bucket_name, elapsed)
+    return {"name": bucket_name, "scopes": scopes_data}
+
+
+async def _run_bucket_collection_task(
+    cluster: AsyncCluster,
+    bucket_name: str,
+    existing_database_info: dict[str, Any],
+    semaphore: asyncio.Semaphore,
+) -> tuple[str, dict[str, Any] | None]:
+    """Run one bucket collection task under semaphore and isolate failures."""
+    async with semaphore:
+        try:
+            logger.debug("Processing bucket: %s", bucket_name)
+            bucket_payload = await _collect_single_bucket_schema(
+                cluster, bucket_name, existing_database_info
+            )
+            return bucket_name, bucket_payload
+        except Exception as bucket_error:
+            logger.warning(
+                "Failed collecting schema for bucket=%s: %s",
+                bucket_name,
+                bucket_error,
+            )
+            return bucket_name, None
+
+
 async def _collect_buckets_scopes_collections(
     cluster: AsyncCluster, existing_database_info: dict[str, Any]
 ) -> dict[str, Any]:
@@ -86,117 +208,29 @@ async def _collect_buckets_scopes_collections(
     database_info = {"buckets": {}}
 
     try:
-        # Get all buckets
         bucket_manager = cluster.buckets()
         all_buckets = await bucket_manager.get_all_buckets()
-
-        # Sort buckets by name to maintain consistent order
         all_buckets_sorted = sorted(all_buckets, key=lambda b: b.name)
-
-        for bucket_info in all_buckets_sorted:
-            bucket_name = bucket_info.name
-            logger.debug(f"Processing bucket: {bucket_name}")
-
-            bucket = connect_to_bucket_async(cluster, bucket_name)
-            scopes_data = {}
-
-            # Get all scopes in the bucket
-            collection_manager = bucket.collections()
-            scopes = await collection_manager.get_all_scopes()
-
-            # Sort scopes by name to maintain consistent order
-            scopes_sorted = sorted(scopes, key=lambda s: s.name)
-
-            for scope in scopes_sorted:
-                scope_name = scope.name
-                if _should_exclude_scope(scope_name):
-                    logger.debug(
-                        "Skipping internal scope from catalog state: %s.%s",
-                        bucket_name,
-                        scope_name,
-                    )
-                    continue
-                collections_data = {}
-
-                # Get all collections in the scope
-                # Sort collections by name to maintain consistent order
-                collections_sorted = sorted(scope.collections, key=lambda c: c.name)
-
-                for collection in collections_sorted:
-                    collection_name = collection.name
-                    logger.debug(
-                        f"Processing collection: {bucket_name}.{scope_name}.{collection_name}"
-                    )
-
-                    # Run INFER query to get schema
-                    raw_schema = await _infer_collection_schema(
-                        bucket, scope_name, collection_name
-                    )
-
-                    # Parse schema into SchemaCollection (multiple variants)
-                    new_schema_collection = parse_infer_output(raw_schema)
-
-                    # Merge with existing schema if present
-                    try:
-                        existing_buckets = existing_database_info.get("buckets", {})
-                        existing_bucket = existing_buckets.get(bucket_name, {})
-                        existing_scopes = existing_bucket.get("scopes", {})
-                        existing_scope = existing_scopes.get(scope_name, {})
-                        existing_collections = existing_scope.get("collections", {})
-                        existing_collection = existing_collections.get(
-                            collection_name, {}
-                        )
-                        existing_schema_list = existing_collection.get("schema", [])
-
-                        if existing_schema_list and isinstance(
-                            existing_schema_list, list
-                        ):
-                            # Load existing schema collection and merge with new
-                            # Uses 70% similarity 1:1 matching
-                            existing_schema_collection = SchemaCollection.from_dict(
-                                existing_schema_list
-                            )
-                            existing_schema_collection.merge(new_schema_collection)
-                            schema = existing_schema_collection.to_dict()
-                            logger.debug(
-                                f"Merged schema for {bucket_name}.{scope_name}.{collection_name} ({len(existing_schema_collection)} variants)"
-                            )
-                        else:
-                            # No existing schema, use new schema collection
-                            schema = new_schema_collection.to_dict()
-                    except Exception as e:
-                        logger.warning(
-                            f"Error merging schema for {bucket_name}.{scope_name}.{collection_name}: {e}"
-                        )
-                        schema = new_schema_collection.to_dict()
-
-                    # Get indexes
-                    indexes = await _get_index_definitions(
-                        cluster, bucket_name, scope_name, collection_name
-                    )
-
-                    collections_data[collection_name] = {
-                        "name": collection_name,
-                        "schema": schema,
-                        "indexes": indexes,
-                    }
-
-                scopes_data[scope_name] = {
-                    "name": scope_name,
-                    "collections": collections_data,
-                }
-
-            database_info["buckets"][bucket_name] = {
-                "name": bucket_name,
-                "scopes": scopes_data,
-            }
-
-        logger.info(f"Collected schema for {len(database_info['buckets'])} buckets")
-        return database_info
-
+        semaphore = asyncio.Semaphore(_get_worker_bucket_concurrency())
+        bucket_tasks = [
+            asyncio.create_task(
+                _run_bucket_collection_task(
+                    cluster, bucket_info.name, existing_database_info, semaphore
+                )
+            )
+            for bucket_info in all_buckets_sorted
+        ]
+        for bucket_name, bucket_payload in await asyncio.gather(*bucket_tasks):
+            if not bucket_payload:
+                logger.warning("Skipping failed bucket in this cycle: %s", bucket_name)
+                continue
+            database_info["buckets"][bucket_name] = bucket_payload
     except Exception as e:
         logger.error(f"Error collecting database schema: {e}", exc_info=True)
         return database_info
+
+    logger.info("Collected schema for %s buckets", len(database_info["buckets"]))
+    return database_info
 
 
 async def _infer_collection_schema(
@@ -327,6 +361,7 @@ async def _catalog_worker_async(stop_event: threading.Event) -> None:
         try:
             if cluster:
                 logger.info("Starting catalog refresh cycle")
+                cycle_start = time.perf_counter()
 
                 # Get existing aggregated database info across bucket stores
                 old_database_info = get_all_bucket_database_info()
@@ -347,7 +382,8 @@ async def _catalog_worker_async(stop_event: threading.Event) -> None:
                 else:
                     logger.debug("No bucket schema changes detected, skipping updates")
 
-                logger.info("Catalog refresh cycle completed")
+                cycle_duration = time.perf_counter() - cycle_start
+                logger.info("Catalog refresh cycle completed in %.2fs", cycle_duration)
             else:
                 logger.debug("No cluster connection, skipping refresh cycle")
 

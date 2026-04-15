@@ -6,9 +6,9 @@ This module contains utility functions for configuration, connection, and contex
 
 # Configuration utilities
 from .config import (
-    set_settings,
     get_settings,
     parse_disabled_tools,
+    set_settings,
 )
 
 # Connection utilities
@@ -21,11 +21,13 @@ from .connection import (
 from .constants import (
     ALLOWED_TRANSPORTS,
     DEFAULT_ENABLE_QUERY_GENERATION,
+    DEFAULT_ENRICHMENT_BUCKET_CONCURRENCY,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
     DEFAULT_READ_ONLY_MODE,
     DEFAULT_TRANSPORT,
+    DEFAULT_WORKER_BUCKET_CONCURRENCY,
     MCP_SERVER_NAME,
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
@@ -66,6 +68,8 @@ __all__ = [
     "DEFAULT_LOG_LEVEL",
     "DEFAULT_HOST",
     "DEFAULT_PORT",
+    "DEFAULT_WORKER_BUCKET_CONCURRENCY",
+    "DEFAULT_ENRICHMENT_BUCKET_CONCURRENCY",
     "ALLOWED_TRANSPORTS",
     "NETWORK_TRANSPORTS",
     "NETWORK_TRANSPORTS_SDK_MAPPING",

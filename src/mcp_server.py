@@ -27,11 +27,13 @@ from tools import get_tools
 from utils import (
     ALLOWED_TRANSPORTS,
     DEFAULT_ENABLE_QUERY_GENERATION,
+    DEFAULT_ENRICHMENT_BUCKET_CONCURRENCY,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
     DEFAULT_PORT,
     DEFAULT_READ_ONLY_MODE,
     DEFAULT_TRANSPORT,
+    DEFAULT_WORKER_BUCKET_CONCURRENCY,
     MCP_SERVER_NAME,
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
@@ -214,6 +216,20 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     help="Enable the SQL++ query generation tool (generate_or_modify_sql_plus_plus_query). "
     "Disabled by default. Set to True to enable AI-powered query generation.",
 )
+@click.option(
+    "--worker-bucket-concurrency",
+    envvar="CB_MCP_WORKER_BUCKET_CONCURRENCY",
+    type=int,
+    default=DEFAULT_WORKER_BUCKET_CONCURRENCY,
+    help="Maximum number of buckets to process concurrently during catalog refresh.",
+)
+@click.option(
+    "--enrichment-bucket-concurrency",
+    envvar="CB_MCP_ENRICHMENT_BUCKET_CONCURRENCY",
+    type=int,
+    default=DEFAULT_ENRICHMENT_BUCKET_CONCURRENCY,
+    help="Maximum number of buckets to enrich concurrently.",
+)
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
 def main(
@@ -231,6 +247,8 @@ def main(
     port,
     disabled_tools,
     enable_query_generation,
+    worker_bucket_concurrency,
+    enrichment_bucket_concurrency,
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -247,6 +265,8 @@ def main(
             "transport": transport,
             "host": host,
             "port": port,
+            "worker_bucket_concurrency": worker_bucket_concurrency,
+            "enrichment_bucket_concurrency": enrichment_bucket_concurrency,
         }
     )
 
