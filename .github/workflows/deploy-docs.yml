@@ -55,6 +55,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -66,6 +71,7 @@ jobs:
           path: website/build
 
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: website/build
