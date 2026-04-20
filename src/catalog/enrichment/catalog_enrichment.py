@@ -22,6 +22,7 @@ from catalog.enrichment.relationship_verifier.integration_utils import (
     append_verified_relationships_to_prompt,
 )
 from catalog.store.store import compute_catalog_schema_hash, get_all_catalog_stores
+from catalog.worker import has_catalog_first_refresh_completed
 from utils.config import get_settings
 from utils.constants import DEFAULT_ENRICHMENT_BUCKET_CONCURRENCY, MCP_SERVER_NAME
 
@@ -220,6 +221,12 @@ async def _check_and_enrich_catalog(session: ServerSession | None) -> None:
         session: Optional MCP ServerSession for sampling
     """
     try:
+        if not has_catalog_first_refresh_completed():
+            logger.info(
+                "Skipping enrichment: waiting for first successful catalog refresh cycle"
+            )
+            return
+
         stores_by_bucket = get_all_catalog_stores()
         if not stores_by_bucket:
             logger.debug("No bucket store available for enrichment")

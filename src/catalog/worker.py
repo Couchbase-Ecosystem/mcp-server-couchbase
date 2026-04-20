@@ -34,6 +34,22 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.catalog")
 
 # Catalog refresh interval (5 minutes)
 CATALOG_REFRESH_INTERVAL = 300  # seconds
+_CATALOG_FIRST_REFRESH_COMPLETED = threading.Event()
+
+
+def reset_catalog_first_refresh_completed() -> None:
+    """Reset first-refresh completion signal (used when worker starts/stops)."""
+    _CATALOG_FIRST_REFRESH_COMPLETED.clear()
+
+
+def set_catalog_first_refresh_completed() -> None:
+    """Mark that at least one catalog refresh cycle completed successfully."""
+    _CATALOG_FIRST_REFRESH_COMPLETED.set()
+
+
+def has_catalog_first_refresh_completed() -> bool:
+    """Return True when first successful catalog refresh cycle has completed."""
+    return _CATALOG_FIRST_REFRESH_COMPLETED.is_set()
 
 
 def _is_retryable_infer_error(error: Exception) -> bool:
@@ -404,6 +420,7 @@ async def _catalog_worker_async(stop_event: threading.Event) -> None:
 
                 cycle_duration = time.perf_counter() - cycle_start
                 logger.info("Catalog refresh cycle completed in %.2fs", cycle_duration)
+                set_catalog_first_refresh_completed()
             else:
                 logger.debug("No cluster connection, skipping refresh cycle")
 
@@ -432,6 +449,7 @@ def catalog_worker_loop(stop_event: threading.Event) -> None:
     and runs the async worker loop.
     """
     logger.info("Catalog background worker thread started")
+    reset_catalog_first_refresh_completed()
 
     # Create a new event loop for this thread
     loop = asyncio.new_event_loop()
@@ -461,4 +479,5 @@ def catalog_worker_loop(stop_event: threading.Event) -> None:
         except Exception as e:
             logger.error(f"Error closing event loop: {e}", exc_info=True)
 
+    reset_catalog_first_refresh_completed()
     logger.info("Catalog background worker thread stopped")

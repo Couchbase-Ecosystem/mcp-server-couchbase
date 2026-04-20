@@ -105,6 +105,18 @@ class _AsyncRows:
         return row
 
 
+def test_catalog_first_refresh_signal_lifecycle() -> None:
+    """Catalog first-refresh signal should reflect reset/set state transitions."""
+    worker.reset_catalog_first_refresh_completed()
+    assert worker.has_catalog_first_refresh_completed() is False
+
+    worker.set_catalog_first_refresh_completed()
+    assert worker.has_catalog_first_refresh_completed() is True
+
+    worker.reset_catalog_first_refresh_completed()
+    assert worker.has_catalog_first_refresh_completed() is False
+
+
 @pytest.mark.asyncio
 async def test_collect_buckets_respects_worker_concurrency_limit(
     monkeypatch: pytest.MonkeyPatch,

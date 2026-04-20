@@ -44,6 +44,7 @@ async def test_enrichment_respects_bucket_concurrency_limit(
     counters = {"current": 0, "max": 0}
 
     monkeypatch.setattr(catalog_enrichment, "get_all_catalog_stores", lambda: stores)
+    monkeypatch.setattr(catalog_enrichment, "has_catalog_first_refresh_completed", lambda: True)
     monkeypatch.setattr(catalog_enrichment, "compute_catalog_schema_hash", lambda _: "new")
     monkeypatch.setattr(
         catalog_enrichment,
@@ -85,6 +86,7 @@ async def test_enrichment_isolates_bucket_failure(
     }
 
     monkeypatch.setattr(catalog_enrichment, "get_all_catalog_stores", lambda: stores)
+    monkeypatch.setattr(catalog_enrichment, "has_catalog_first_refresh_completed", lambda: True)
     monkeypatch.setattr(catalog_enrichment, "compute_catalog_schema_hash", lambda _: "new")
     monkeypatch.setattr(
         catalog_enrichment,
@@ -113,6 +115,31 @@ async def test_enrichment_isolates_bucket_failure(
     assert stores["good"].get_schema_hash() == "new"
     assert stores["bad"].prompt == ""
     assert stores["bad"].get_schema_hash() == "old"
+
+
+@pytest.mark.asyncio
+async def test_enrichment_waits_for_first_catalog_refresh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Enrichment should not call sampling before first catalog refresh completes."""
+    stores = {"b1": _FakeStore({"buckets": {"b1": {}}})}
+
+    monkeypatch.setattr(catalog_enrichment, "has_catalog_first_refresh_completed", lambda: False)
+    monkeypatch.setattr(catalog_enrichment, "get_all_catalog_stores", lambda: stores)
+    monkeypatch.setattr(catalog_enrichment, "compute_catalog_schema_hash", lambda _: "new")
+
+    called = {"sampling": 0}
+
+    async def _fake_request(_: object, __: dict[str, Any]) -> str:
+        called["sampling"] += 1
+        return "enriched"
+
+    monkeypatch.setattr(catalog_enrichment, "_request_llm_enrichment", _fake_request)
+
+    await catalog_enrichment._check_and_enrich_catalog(session=object())  # type: ignore[arg-type]
+
+    assert called["sampling"] == 0
+    assert stores["b1"].prompt == ""
 
 
 @pytest.mark.asyncio
