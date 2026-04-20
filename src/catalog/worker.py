@@ -34,6 +34,22 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.catalog")
 
 # Catalog refresh interval (5 minutes)
 CATALOG_REFRESH_INTERVAL = 300  # seconds
+
+
+def _is_retryable_infer_error(error: Exception) -> bool:
+    """Return True when schema probe/INFER error is transient and worth retrying."""
+    error_text = str(error)
+    retryable_tokens = (
+        "Scan continuation failed",
+        "16054",
+        "Scope not found in CB datastore",
+        "12021",
+        "Index not ready for serving queries",
+        "5000",
+    )
+    return any(token in error_text for token in retryable_tokens)
+
+
 def _should_exclude_scope(scope_name: str) -> bool:
     """Return True when scope is internal and should not affect catalog hashing."""
     return scope_name == "_system"
@@ -237,50 +253,54 @@ async def _infer_collection_schema(
     bucket: AsyncBucket, scope_name: str, collection_name: str
 ) -> list[dict[str, Any]]:
     """Run INFER query on a collection to get its schema, only if it has documents."""
-    try:
-        scope = bucket.scope(name=scope_name)
+    scope = bucket.scope(name=scope_name)
+    max_attempts = 3
 
-        # First check if the collection has any documents using an existence probe.
-        has_docs = False
-        exists_query = f"SELECT RAW 1 FROM `{collection_name}` LIMIT 1"
-        exists_result = scope.query(exists_query)
-        async for _ in exists_result:
-            has_docs = True
-            break
+    for attempt in range(1, max_attempts + 1):
+        try:
+            # First check if the collection has any documents using an existence probe.
+            has_docs = False
+            exists_query = f"SELECT RAW 1 FROM `{collection_name}` LIMIT 1"
+            exists_result = scope.query(exists_query)
+            async for _ in exists_result:
+                has_docs = True
+                break
 
-        # Only run INFER if there are documents.
-        if not has_docs:
-            logger.debug(
-                f"Skipping schema inference for {scope_name}.{collection_name} (no documents)"
-            )
+            # Only run INFER if there are documents.
+            if not has_docs:
+                logger.debug(
+                    f"Skipping schema inference for {scope_name}.{collection_name} (no documents)"
+                )
+                return []
+
+            query = f"INFER `{collection_name}`"
+            result = scope.query(query)
+            schema_list = []
+            async for row in result:
+                schema_list.append(row)
+
+            # INFER returns a list, we flatten it
+            return schema_list[0] if schema_list else []
+        except Exception as e:
+            if attempt < max_attempts and _is_retryable_infer_error(e):
+                backoff_seconds = float(2 ** (attempt - 1))
+                logger.warning(
+                    "Transient schema inference failure for %s.%s (attempt %s/%s); "
+                    "retrying in %.1fs: %s",
+                    scope_name,
+                    collection_name,
+                    attempt,
+                    max_attempts,
+                    backoff_seconds,
+                    e,
+                )
+                await asyncio.sleep(backoff_seconds)
+                continue
+
+            logger.error(f"Error inferring schema for {scope_name}.{collection_name}: {e}")
             return []
 
-        max_attempts = 2
-        for attempt in range(1, max_attempts + 1):
-            try:
-                query = f"INFER `{collection_name}`"
-                result = scope.query(query)
-                schema_list = []
-                async for row in result:
-                    schema_list.append(row)
-
-                # INFER returns a list, we flatten it
-                return schema_list[0] if schema_list else []
-            except Exception as infer_err:
-                err_str = str(infer_err)
-                is_transient_infer_failure = (
-                    "Scan continuation failed" in err_str or "16054" in err_str
-                )
-                if attempt < max_attempts and is_transient_infer_failure:
-                    logger.warning(
-                        f"Transient INFER failure for {scope_name}.{collection_name}; retrying once: {infer_err}"
-                    )
-                    await asyncio.sleep(1)
-                    continue
-                raise
-    except Exception as e:
-        logger.error(f"Error inferring schema for {scope_name}.{collection_name}: {e}")
-        return []
+    return []
 
 
 def _persist_bucket_database_info(database_info: dict[str, Any]) -> int:

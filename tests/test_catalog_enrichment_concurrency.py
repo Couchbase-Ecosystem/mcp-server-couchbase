@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -112,3 +113,59 @@ async def test_enrichment_isolates_bucket_failure(
     assert stores["good"].get_schema_hash() == "new"
     assert stores["bad"].prompt == ""
     assert stores["bad"].get_schema_hash() == "old"
+
+
+@pytest.mark.asyncio
+async def test_request_llm_enrichment_retries_empty_then_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sampling should retry on empty text and eventually succeed."""
+    monkeypatch.setattr(catalog_enrichment, "LLM_SAMPLING_MAX_ATTEMPTS", 3)
+
+    async def _fake_sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr(catalog_enrichment.asyncio, "sleep", _fake_sleep)
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def create_message(self, **_: Any) -> Any:
+            self.calls += 1
+            if self.calls == 1:
+                return SimpleNamespace(content=SimpleNamespace(text=""))
+            return SimpleNamespace(content=SimpleNamespace(text="final prompt"))
+
+    session = _FakeSession()
+    result = await catalog_enrichment._request_llm_enrichment(
+        session=session,  # type: ignore[arg-type]
+        database_info={"buckets": {"b1": {}}},
+    )
+
+    assert result == "final prompt"
+    assert session.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_request_llm_enrichment_returns_none_after_retry_exhaustion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sampling should return None after exhausting retries."""
+    monkeypatch.setattr(catalog_enrichment, "LLM_SAMPLING_MAX_ATTEMPTS", 3)
+
+    async def _fake_sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr(catalog_enrichment.asyncio, "sleep", _fake_sleep)
+
+    class _AlwaysEmptySession:
+        async def create_message(self, **_: Any) -> Any:
+            return SimpleNamespace(content=SimpleNamespace(text=""))
+
+    result = await catalog_enrichment._request_llm_enrichment(
+        session=_AlwaysEmptySession(),  # type: ignore[arg-type]
+        database_info={"buckets": {"b1": {}}},
+    )
+
+    assert result is None

@@ -31,6 +31,15 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.enrichment")
 ENRICHMENT_CHECK_INTERVAL = 120  # seconds
 # Sampling timeout so a stalled client does not block the enrichment cron loop forever.
 LLM_SAMPLING_TIMEOUT_SECONDS = 160
+LLM_SAMPLING_MAX_ATTEMPTS = 3
+LLM_SAMPLING_INITIAL_BACKOFF_SECONDS = 1.0
+
+
+def _compute_sampling_backoff_seconds(attempt: int) -> float:
+    """Return exponential backoff delay for the given attempt number."""
+    return LLM_SAMPLING_INITIAL_BACKOFF_SECONDS * (2 ** max(0, attempt - 1))
+
+
 def _get_enrichment_bucket_concurrency() -> int:
     """Read enrichment bucket concurrency from settings with safe fallback."""
     raw_value = get_settings().get(
@@ -120,52 +129,87 @@ async def _request_llm_enrichment(
     Returns:
         Enriched prompt string or None if sampling fails
     """
-    try:
-        # Build the prompt
-        prompt = _build_enrichment_prompt(database_info)
+    # Build the prompt once and retry sampling failures with exponential backoff.
+    prompt = _build_enrichment_prompt(database_info)
 
-        logger.info("Requesting LLM enrichment via sampling")
-
-        # Create sampling request with timeout so cron can recover on stalled clients.
-        result = await asyncio.wait_for(
-            session.create_message(
-                messages=[
-                    SamplingMessage(
-                        role="user", content=TextContent(type="text", text=prompt)
-                    )
-                ],
-                max_tokens=4096,
-                temperature=0.2,  # Lower temperature for more consistent descriptions
-            ),
-            timeout=LLM_SAMPLING_TIMEOUT_SECONDS,
-        )
-        logger.debug(f"Sampling response received: {type(result).__name__}")
-
-        # Extract the response text
-        if (
-            result
-            and hasattr(result, "content")
-            and (
-                isinstance(result.content, TextContent)
-                or hasattr(result.content, "text")
+    for attempt in range(1, LLM_SAMPLING_MAX_ATTEMPTS + 1):
+        try:
+            logger.info(
+                "Requesting LLM enrichment via sampling (attempt %s/%s)",
+                attempt,
+                LLM_SAMPLING_MAX_ATTEMPTS,
             )
-        ):
-            enriched_prompt = result.content.text
-            logger.info(f"Received enriched prompt ({len(enriched_prompt)} chars)")
-            return enriched_prompt
 
-        logger.warning("No text content in sampling response")
-        return None
+            # Create sampling request with timeout so cron can recover on stalled clients.
+            result = await asyncio.wait_for(
+                session.create_message(
+                    messages=[
+                        SamplingMessage(
+                            role="user", content=TextContent(type="text", text=prompt)
+                        )
+                    ],
+                    max_tokens=4096,
+                    temperature=0.2,  # Lower temperature for more consistent descriptions
+                ),
+                timeout=LLM_SAMPLING_TIMEOUT_SECONDS,
+            )
+            logger.debug(f"Sampling response received: {type(result).__name__}")
 
-    except asyncio.TimeoutError:
-        logger.error(
-            "LLM enrichment sampling timed out after %ss",
-            LLM_SAMPLING_TIMEOUT_SECONDS,
-        )
-        return None
-    except Exception as e:
-        logger.error(f"Error requesting LLM enrichment: {e}", exc_info=True)
-        return None
+            # Extract the response text
+            if (
+                result
+                and hasattr(result, "content")
+                and (
+                    isinstance(result.content, TextContent)
+                    or hasattr(result.content, "text")
+                )
+            ):
+                enriched_prompt = result.content.text or ""
+                logger.info("Received enriched prompt (%s chars)", len(enriched_prompt))
+                if enriched_prompt.strip():
+                    return enriched_prompt
+                logger.warning(
+                    "Sampling response was empty on attempt %s/%s",
+                    attempt,
+                    LLM_SAMPLING_MAX_ATTEMPTS,
+                )
+            else:
+                logger.warning(
+                    "No text content in sampling response on attempt %s/%s",
+                    attempt,
+                    LLM_SAMPLING_MAX_ATTEMPTS,
+                )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "LLM enrichment sampling timed out after %ss on attempt %s/%s",
+                LLM_SAMPLING_TIMEOUT_SECONDS,
+                attempt,
+                LLM_SAMPLING_MAX_ATTEMPTS,
+            )
+        except Exception as e:
+            logger.warning(
+                "Error requesting LLM enrichment on attempt %s/%s: %s",
+                attempt,
+                LLM_SAMPLING_MAX_ATTEMPTS,
+                e,
+                exc_info=True,
+            )
+
+        if attempt < LLM_SAMPLING_MAX_ATTEMPTS:
+            backoff_seconds = _compute_sampling_backoff_seconds(attempt)
+            logger.info(
+                "Retrying LLM enrichment sampling in %.1fs (next attempt %s/%s)",
+                backoff_seconds,
+                attempt + 1,
+                LLM_SAMPLING_MAX_ATTEMPTS,
+            )
+            await asyncio.sleep(backoff_seconds)
+
+    logger.error(
+        "LLM enrichment sampling failed after %s attempts",
+        LLM_SAMPLING_MAX_ATTEMPTS,
+    )
+    return None
 
 
 async def _check_and_enrich_catalog(session: ServerSession | None) -> None:

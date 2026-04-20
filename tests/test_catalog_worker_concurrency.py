@@ -89,6 +89,22 @@ class _FakeSchemaCollection:
         return 0
 
 
+class _AsyncRows:
+    def __init__(self, rows: list[dict] | list[int]) -> None:
+        self._rows = rows
+        self._index = 0
+
+    def __aiter__(self) -> _AsyncRows:
+        return self
+
+    async def __anext__(self) -> dict | int:
+        if self._index >= len(self._rows):
+            raise StopAsyncIteration
+        row = self._rows[self._index]
+        self._index += 1
+        return row
+
+
 @pytest.mark.asyncio
 async def test_collect_buckets_respects_worker_concurrency_limit(
     monkeypatch: pytest.MonkeyPatch,
@@ -159,3 +175,73 @@ async def test_collect_buckets_isolates_bucket_failures(
 
     assert "good" in database_info["buckets"]
     assert "bad" not in database_info["buckets"]
+
+
+@pytest.mark.asyncio
+async def test_infer_collection_schema_retries_scope_not_found_then_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Schema inference should retry transient 12021 errors."""
+    query_calls = {"count": 0}
+
+    async def _fake_sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr(worker.asyncio, "sleep", _fake_sleep)
+
+    class _FakeScopeForRetry:
+        def query(self, query_text: str) -> _AsyncRows:
+            query_calls["count"] += 1
+            if query_calls["count"] < 3:
+                raise Exception(
+                    "ScopeNotFoundException code=12021 Scope not found in CB datastore"
+                )
+            if query_text.startswith("SELECT RAW 1"):
+                return _AsyncRows([1])
+            return _AsyncRows([[{"field": {"type": "string"}}]])
+
+    class _FakeBucketForRetry:
+        def scope(self, name: str) -> _FakeScopeForRetry:
+            _ = name
+            return _FakeScopeForRetry()
+
+    result = await worker._infer_collection_schema(
+        _FakeBucketForRetry(),  # type: ignore[arg-type]
+        scope_name="s1",
+        collection_name="c1",
+    )
+
+    assert result == [{"field": {"type": "string"}}]
+    assert query_calls["count"] == 4
+
+
+@pytest.mark.asyncio
+async def test_infer_collection_schema_returns_empty_after_retry_exhaustion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Schema inference should stop retrying and return empty on repeated 5000 errors."""
+    query_calls = {"count": 0}
+
+    async def _fake_sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr(worker.asyncio, "sleep", _fake_sleep)
+
+    class _AlwaysFailScope:
+        def query(self, _: str) -> _AsyncRows:
+            query_calls["count"] += 1
+            raise Exception("InternalServerFailureException code=5000 Index not ready")
+
+    class _AlwaysFailBucket:
+        def scope(self, name: str) -> _AlwaysFailScope:
+            _ = name
+            return _AlwaysFailScope()
+
+    result = await worker._infer_collection_schema(
+        _AlwaysFailBucket(),  # type: ignore[arg-type]
+        scope_name="s1",
+        collection_name="c1",
+    )
+
+    assert result == []
+    assert query_calls["count"] == 3
