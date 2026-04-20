@@ -33,6 +33,7 @@ from utils import (
     DEFAULT_PORT,
     DEFAULT_READ_ONLY_MODE,
     DEFAULT_TRANSPORT,
+    DEFAULT_VERIFIER_SAMPLE_SIZE,
     DEFAULT_WORKER_BUCKET_CONCURRENCY,
     MCP_SERVER_NAME,
     NETWORK_TRANSPORTS,
@@ -230,6 +231,13 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     default=DEFAULT_ENRICHMENT_BUCKET_CONCURRENCY,
     help="Maximum number of buckets to enrich concurrently.",
 )
+@click.option(
+    "--verifier-sample-size",
+    envvar="CB_MCP_VERIFIER_SAMPLE_SIZE",
+    type=int,
+    default=DEFAULT_VERIFIER_SAMPLE_SIZE,
+    help="Sample size used by relationship verifier tasks (sampling-only mode).",
+)
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
 def main(
@@ -249,6 +257,7 @@ def main(
     enable_query_generation,
     worker_bucket_concurrency,
     enrichment_bucket_concurrency,
+    verifier_sample_size,
 ):
     """Couchbase MCP Server"""
     # Store configuration in context
@@ -267,6 +276,7 @@ def main(
             "port": port,
             "worker_bucket_concurrency": worker_bucket_concurrency,
             "enrichment_bucket_concurrency": enrichment_bucket_concurrency,
+            "verifier_sample_size": verifier_sample_size,
         }
     )
 

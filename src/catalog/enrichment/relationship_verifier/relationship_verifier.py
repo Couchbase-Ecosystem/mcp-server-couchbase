@@ -30,6 +30,7 @@ from catalog.enrichment.relationship_verifier.relationships.primary_key_relation
     PrimaryKeyRelationshipRule,
 )
 from catalog.enrichment.relationship_verifier.tasks import AnyTask
+from utils.config import get_settings
 
 __all__ = ["RelationshipVerifier", "VerificationResult"]
 
@@ -68,6 +69,16 @@ class RelationshipVerifier:
         self.keyspace_map = keyspace_map or {}
         self.index_map = index_map or {}
         self._sdk_operation_logs: list[dict[str, Any]] = []
+        settings = get_settings()
+        configured_sample_size = settings.get(
+            "verifier_sample_size", self.VALUE_SET_TIMEOUT_SAMPLE_SIZE
+        )
+        try:
+            parsed_sample_size = max(1, int(configured_sample_size))
+        except (TypeError, ValueError):
+            parsed_sample_size = self.VALUE_SET_TIMEOUT_SAMPLE_SIZE
+        self._value_set_timeout_sample_size = parsed_sample_size
+        self._meta_id_timeout_sample_size = parsed_sample_size
 
     def verify(self, relationships: list[AnyRelationship]) -> list[VerificationResult]:
         logger = get_verifier_logger()
@@ -136,9 +147,9 @@ class RelationshipVerifier:
             "keyspace_map": self.keyspace_map,
             "index_map": self.index_map,
             "max_unindexed_scan_rows": self.MAX_UNINDEXED_SCAN_ROWS,
-            "value_set_timeout_sample_size": self.VALUE_SET_TIMEOUT_SAMPLE_SIZE,
+            "value_set_timeout_sample_size": self._value_set_timeout_sample_size,
             "value_set_timeout_sample_seed": self.VALUE_SET_TIMEOUT_SAMPLE_SEED,
-            "meta_id_timeout_sample_size": self.META_ID_TIMEOUT_SAMPLE_SIZE,
+            "meta_id_timeout_sample_size": self._meta_id_timeout_sample_size,
             "meta_id_timeout_sample_seed": self.META_ID_TIMEOUT_SAMPLE_SEED,
             "sdk_operation_logs": self._sdk_operation_logs,
         }
