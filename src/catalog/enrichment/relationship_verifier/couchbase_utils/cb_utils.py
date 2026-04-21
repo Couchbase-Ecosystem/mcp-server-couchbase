@@ -401,14 +401,8 @@ class CB:
         rows: list[tuple[str, Any]] = []
         for scan_result in scan_results:
             document_id = getattr(scan_result, "id", None)
-            if document_id is None:
-                document_id = getattr(scan_result, "key", None)
             value = getattr(scan_result, "value", None)
-            if document_id is None:
-                continue
             rows.append((str(document_id), value))
-            if len(rows) >= limit:
-                break
 
         return rows
 
