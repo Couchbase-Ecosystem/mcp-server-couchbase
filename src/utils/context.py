@@ -69,6 +69,11 @@ class StaticClusterProvider:
             cluster.close()
             self._cluster = None
 
+    @property
+    def is_connected(self) -> bool:
+        """True once get_cluster has successfully opened a connection."""
+        return self._cluster is not None
+
 
 @dataclass
 class AppContext:

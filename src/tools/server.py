@@ -42,8 +42,11 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     }
 
     app_context = ctx.request_context.lifespan_context
+    provider = app_context.cluster_provider
     connection_status = {
-        "cluster_connected": app_context.cluster is not None,
+        "cluster_connected": bool(
+            provider is not None and getattr(provider, "is_connected", False)
+        ),
     }
 
     return {

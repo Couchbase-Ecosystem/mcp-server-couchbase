@@ -11,11 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from tools.server import get_server_configuration_status
 
 
-def _make_ctx(settings=None):
+def _make_ctx(settings=None, cluster_provider=None):
     return SimpleNamespace(
         request_context=SimpleNamespace(
             lifespan_context=SimpleNamespace(
-                cluster=None,
+                cluster_provider=cluster_provider,
                 settings=settings if settings is not None else {},
             )
         )
