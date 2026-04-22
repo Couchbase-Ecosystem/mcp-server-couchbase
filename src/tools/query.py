@@ -8,8 +8,8 @@ import logging
 import re
 from typing import Any
 
+from fastmcp import Context
 from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
-from mcp.server.fastmcp import Context
 
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME

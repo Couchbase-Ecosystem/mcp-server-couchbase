@@ -7,7 +7,8 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 import click
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+from fastmcp.tools import FunctionTool
 
 # Import tools
 from tools import TOOL_ANNOTATIONS, get_tools
@@ -266,32 +267,23 @@ def main(
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
 
-    # If the transport is network based, we need to pass the host and port to the MCP server
-    config = (
-        {
-            "host": host,
-            "port": port,
-        }
-        if transport in NETWORK_TRANSPORTS
-        else {}
-    )
-
-    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
+    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
 
     logger.info(
         f"Registering {len(final_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
         f"read_only_query_mode={read_only_query_mode})"
     )
 
-    # Register tools with their annotations
+    # Register tools; FastMCP 3.x add_tool has no annotations kwarg, so wrap first.
     for tool in final_tools:
         annotations = TOOL_ANNOTATIONS.get(tool.__name__)
-        mcp.add_tool(tool, annotations=annotations)
+        tool_obj = FunctionTool.from_function(tool, annotations=annotations)
+        mcp.add_tool(tool_obj)
 
     logger.info(f"Registered {len(final_tools)} tool(s)")
 
-    # Run the server
-    mcp.run(transport=sdk_transport)  # type: ignore
+    run_kwargs = {"host": host, "port": port} if transport in NETWORK_TRANSPORTS else {}
+    mcp.run(transport=sdk_transport, **run_kwargs)  # type: ignore
 
 
 if __name__ == "__main__":
