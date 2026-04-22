@@ -25,10 +25,10 @@ from utils import (
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
-    get_settings,
     parse_tool_names,
     wrap_with_confirmation,
 )
+from utils.context import StaticClusterProvider
 
 # Configure logging
 logging.basicConfig(
@@ -97,38 +97,6 @@ def prepare_tools_for_registration(
     ]
 
     return final_tools, configured_confirmation_tool_names, disabled_tool_names
-
-
-@asynccontextmanager
-async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
-    """Initialize the MCP server context without establishing database connections."""
-    # Get configuration from Click context
-    settings = get_settings()
-    read_only_mode = settings.get("read_only_mode", True)
-    read_only_query_mode = settings.get("read_only_query_mode", True)
-
-    # Note: We don't validate configuration here to allow tool discovery
-    # Configuration will be validated when tools are actually used
-    logger.info(
-        f"MCP server initialized in lazy mode for tool discovery. "
-        f"Modes: (read_only_mode={read_only_mode}, read_only_query_mode={read_only_query_mode})"
-    )
-    app_context = None
-    try:
-        app_context = AppContext(
-            read_only_mode=read_only_mode,
-            read_only_query_mode=read_only_query_mode,
-        )
-        yield app_context
-
-    except Exception as e:
-        logger.error(f"Error in app lifespan: {e}")
-        raise
-    finally:
-        # Close the cluster connection
-        if app_context and app_context.cluster:
-            app_context.cluster.close()
-        logger.info("Closing MCP server")
 
 
 @click.command()
@@ -247,8 +215,11 @@ def main(
         confirmation_required_tools=confirmation_required_tools,
     )
 
-    # Store configuration in context
-    ctx.obj = {
+    # CLI-resolved configuration lives on AppContext, not in a module global.
+    # This lets FastMCP's threadpool workers read it through ``ctx`` without
+    # relying on click.get_current_context() (which only exists on the main
+    # call stack).
+    settings = {
         "connection_string": connection_string,
         "username": username,
         "password": password,
@@ -263,6 +234,31 @@ def main(
         "disabled_tools": disabled_tool_names,
         "confirmation_required_tools": configured_confirmation_tool_names,
     }
+    ctx.obj = settings
+
+    @asynccontextmanager
+    async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
+        """Build the lifespan AppContext with settings captured from the CLI."""
+        logger.info(
+            f"MCP server initialized in lazy mode for tool discovery. "
+            f"Modes: (read_only_mode={read_only_mode}, "
+            f"read_only_query_mode={read_only_query_mode})"
+        )
+        app_context = AppContext(
+            cluster_provider=StaticClusterProvider(settings=settings),
+            settings=settings,
+            read_only_mode=read_only_mode,
+            read_only_query_mode=read_only_query_mode,
+        )
+        try:
+            yield app_context
+        except Exception as e:
+            logger.error(f"Error in app lifespan: {e}")
+            raise
+        finally:
+            if app_context.cluster_provider:
+                app_context.cluster_provider.close()
+            logger.info("Closing MCP server")
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)

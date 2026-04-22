@@ -26,7 +26,7 @@ from utils.constants import (
 )
 from utils.context import (
     AppContext,
-    _set_cluster_in_lifespan_context,
+    StaticClusterProvider,
     get_cluster_connection,
 )
 from utils.index_utils import (
@@ -302,48 +302,23 @@ class TestConstants:
 class TestConfigModule:
     """Unit tests for config.py module."""
 
-    def test_get_settings_returns_dict(self) -> None:
-        """Verify get_settings returns a dictionary from Click context."""
-        mock_ctx = MagicMock()
-        mock_ctx.obj = {
+    def test_get_settings_reads_from_lifespan_context(self) -> None:
+        """get_settings returns the mapping attached to AppContext.settings."""
+        payload = {
             "connection_string": "couchbase://localhost",
             "username": "admin",
         }
-
-        with patch("utils.config.click.get_current_context", return_value=mock_ctx):
-            settings = get_settings()
-
-        assert isinstance(settings, dict)
-        assert settings["connection_string"] == "couchbase://localhost"
-        assert settings["username"] == "admin"
-
-    def test_get_settings_returns_empty_dict_when_obj_none(self) -> None:
-        """Verify get_settings returns empty dict when ctx.obj is None."""
         mock_ctx = MagicMock()
-        mock_ctx.obj = None
+        mock_ctx.request_context.lifespan_context.settings = payload
 
-        with patch("utils.config.click.get_current_context", return_value=mock_ctx):
-            settings = get_settings()
+        assert get_settings(mock_ctx) is payload
 
-        assert settings == {}
-
-    def test_get_settings_preserves_all_keys(self) -> None:
-        """Verify get_settings preserves all configuration keys."""
+    def test_get_settings_returns_empty_when_unset(self) -> None:
+        """Before the lifespan populates settings, the default empty dict is returned."""
         mock_ctx = MagicMock()
-        mock_ctx.obj = {
-            "connection_string": "couchbases://host.cloud.couchbase.com",
-            "username": "admin",
-            "password": "secret",
-            "ca_cert_path": "/path/to/ca.pem",
-            "client_cert_path": "/path/to/client.pem",
-            "client_key_path": "/path/to/client.key",
-        }
+        mock_ctx.request_context.lifespan_context.settings = {}
 
-        with patch("utils.config.click.get_current_context", return_value=mock_ctx):
-            settings = get_settings()
-
-        assert len(settings) == 6
-        assert settings["ca_cert_path"] == "/path/to/ca.pem"
+        assert get_settings(mock_ctx) == {}
 
 
 class TestConnectionModule:
@@ -461,96 +436,115 @@ class TestContextModule:
     def test_app_context_default_values(self) -> None:
         """Verify AppContext has correct default values."""
         ctx = AppContext()
-        assert ctx.cluster is None
+        assert ctx.cluster_provider is None
         assert ctx.read_only_query_mode is True
 
-    def test_app_context_with_cluster(self) -> None:
-        """Verify AppContext can hold a cluster reference."""
-        mock_cluster = MagicMock()
-        ctx = AppContext(cluster=mock_cluster, read_only_query_mode=False)
+    def test_app_context_with_provider(self) -> None:
+        """Verify AppContext can hold a cluster provider."""
+        mock_provider = MagicMock()
+        ctx = AppContext(cluster_provider=mock_provider, read_only_query_mode=False)
 
-        assert ctx.cluster == mock_cluster
+        assert ctx.cluster_provider is mock_provider
         assert ctx.read_only_query_mode is False
 
-    def test_get_cluster_connection_returns_existing(self) -> None:
-        """Verify get_cluster_connection returns existing cluster."""
+    def test_get_cluster_connection_delegates_to_provider(self) -> None:
+        """get_cluster_connection calls into the provider attached to AppContext."""
         mock_cluster = MagicMock()
+        mock_provider = MagicMock()
+        mock_provider.get_cluster.return_value = mock_cluster
+
         mock_ctx = MagicMock()
-        mock_ctx.request_context.lifespan_context.cluster = mock_cluster
+        mock_ctx.request_context.lifespan_context.cluster_provider = mock_provider
 
         result = get_cluster_connection(mock_ctx)
 
-        assert result == mock_cluster
+        assert result is mock_cluster
+        mock_provider.get_cluster.assert_called_once_with(mock_ctx)
 
-    def test_get_cluster_connection_creates_new(self) -> None:
-        """Verify get_cluster_connection creates connection if not exists."""
-        mock_cluster = MagicMock()
+    def test_get_cluster_connection_raises_without_provider(self) -> None:
+        """get_cluster_connection fails fast if the lifespan forgot to wire a provider."""
         mock_ctx = MagicMock()
-        # Cluster starts as None (no existing connection)
-        mock_ctx.request_context.lifespan_context.cluster = None
+        mock_ctx.request_context.lifespan_context.cluster_provider = None
 
+        with pytest.raises(RuntimeError, match="Cluster provider not initialized"):
+            get_cluster_connection(mock_ctx)
+
+    def test_static_cluster_provider_connects_lazily(self) -> None:
+        """StaticClusterProvider defers connection until first get_cluster call."""
+        mock_cluster = MagicMock()
         mock_settings = {
             "connection_string": "couchbase://localhost",
             "username": "admin",
             "password": "password",
         }
 
-        # Simulate the cluster being set after connection
-        def set_cluster_side_effect(*args, **kwargs):
-            mock_ctx.request_context.lifespan_context.cluster = mock_cluster
-            return mock_cluster
+        with patch(
+            "utils.context.connect_to_couchbase_cluster",
+            return_value=mock_cluster,
+        ) as mock_connect:
+            provider = StaticClusterProvider(settings=mock_settings)
+            # Constructor alone must not open a connection.
+            mock_connect.assert_not_called()
 
-        with (
-            patch("utils.context.get_settings", return_value=mock_settings),
-            patch(
-                "utils.context.connect_to_couchbase_cluster",
-                side_effect=set_cluster_side_effect,
-            ),
-        ):
-            # Since cluster is None, it will try to connect and create a new connection
-            result = get_cluster_connection(mock_ctx)
+            result = provider.get_cluster(MagicMock())
+            assert result is mock_cluster
+            mock_connect.assert_called_once()
 
-        assert result == mock_cluster
-        assert mock_ctx.request_context.lifespan_context.cluster == mock_cluster
-
-    def test_set_cluster_in_lifespan_context_success(self) -> None:
-        """Verify _set_cluster_in_lifespan_context sets cluster correctly."""
+    def test_static_cluster_provider_caches_cluster(self) -> None:
+        """Repeated get_cluster calls reuse the first cluster."""
         mock_cluster = MagicMock()
-        mock_ctx = MagicMock()
         mock_settings = {
             "connection_string": "couchbase://localhost",
             "username": "admin",
             "password": "password",
-            "ca_cert_path": None,
-            "client_cert_path": None,
-            "client_key_path": None,
         }
 
-        with (
-            patch("utils.context.get_settings", return_value=mock_settings),
-            patch(
-                "utils.context.connect_to_couchbase_cluster", return_value=mock_cluster
-            ),
-        ):
-            _set_cluster_in_lifespan_context(mock_ctx)
+        with patch(
+            "utils.context.connect_to_couchbase_cluster",
+            return_value=mock_cluster,
+        ) as mock_connect:
+            provider = StaticClusterProvider(settings=mock_settings)
+            first = provider.get_cluster(MagicMock())
+            second = provider.get_cluster(MagicMock())
 
-        assert mock_ctx.request_context.lifespan_context.cluster == mock_cluster
+        assert first is second is mock_cluster
+        mock_connect.assert_called_once()
 
-    def test_set_cluster_in_lifespan_context_failure(self) -> None:
-        """Verify _set_cluster_in_lifespan_context raises on connection failure."""
-        mock_ctx = MagicMock()
+    def test_static_cluster_provider_propagates_connection_failure(self) -> None:
+        """A failed connect raises and does not poison the cache."""
         mock_settings = {
             "connection_string": "couchbase://invalid",
             "username": "admin",
             "password": "wrong",
         }
 
-        with (
-            patch("utils.context.get_settings", return_value=mock_settings),
-            patch(
-                "utils.context.connect_to_couchbase_cluster",
-                side_effect=Exception("Auth failed"),
-            ),
-            pytest.raises(Exception, match="Auth failed"),
+        with patch(
+            "utils.context.connect_to_couchbase_cluster",
+            side_effect=Exception("Auth failed"),
         ):
-            _set_cluster_in_lifespan_context(mock_ctx)
+            provider = StaticClusterProvider(settings=mock_settings)
+            with pytest.raises(Exception, match="Auth failed"):
+                provider.get_cluster(MagicMock())
+
+        # Cache stayed empty so a subsequent attempt can retry.
+        assert provider._cluster is None
+
+    def test_static_cluster_provider_close_releases_cluster(self) -> None:
+        """close() calls cluster.close() and clears the cache."""
+        mock_cluster = MagicMock()
+        mock_settings = {
+            "connection_string": "couchbase://localhost",
+            "username": "admin",
+            "password": "password",
+        }
+
+        with patch(
+            "utils.context.connect_to_couchbase_cluster",
+            return_value=mock_cluster,
+        ):
+            provider = StaticClusterProvider(settings=mock_settings)
+            provider.get_cluster(MagicMock())
+            provider.close()
+
+        mock_cluster.close.assert_called_once()
+        assert provider._cluster is None

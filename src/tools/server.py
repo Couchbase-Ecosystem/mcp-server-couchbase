@@ -23,7 +23,7 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     """Get the server status and configuration without establishing connection.
     This tool can be used to verify if the server is running and check the configuration.
     """
-    settings = get_settings()
+    settings = get_settings(ctx)
 
     # Don't expose sensitive information like passwords
     configuration = {

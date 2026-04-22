@@ -133,7 +133,7 @@ def list_indexes(
         validate_filter_params(bucket_name, scope_name, collection_name, index_name)
 
         # Get and validate connection settings
-        settings = get_settings()
+        settings = get_settings(ctx)
         validate_connection_settings(settings)
 
         # Fetch indexes from REST API

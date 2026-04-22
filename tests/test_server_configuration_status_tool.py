@@ -11,18 +11,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from tools.server import get_server_configuration_status
 
 
-def _make_ctx(cluster=None):
+def _make_ctx(settings=None):
     return SimpleNamespace(
         request_context=SimpleNamespace(
-            lifespan_context=SimpleNamespace(cluster=cluster)
+            lifespan_context=SimpleNamespace(
+                cluster=None,
+                settings=settings if settings is not None else {},
+            )
         )
     )
 
 
-def test_configuration_status_exposes_tool_lists(monkeypatch):
-    monkeypatch.setattr(
-        "tools.server.get_settings",
-        lambda: {
+def test_configuration_status_exposes_tool_lists():
+    ctx = _make_ctx(
+        {
             "connection_string": "couchbases://example",
             "username": "test-user",
             "read_only_mode": True,
@@ -32,10 +34,10 @@ def test_configuration_status_exposes_tool_lists(monkeypatch):
                 "delete_document_by_id",
                 "replace_document_by_id",
             },
-        },
+        }
     )
 
-    payload = get_server_configuration_status(_make_ctx())
+    payload = get_server_configuration_status(ctx)
     config = payload["configuration"]
 
     assert config["disabled_tools"] == ["a_tool", "z_tool"]
@@ -45,9 +47,7 @@ def test_configuration_status_exposes_tool_lists(monkeypatch):
     ]
 
 
-def test_configuration_status_defaults_tool_lists_to_empty(monkeypatch):
-    monkeypatch.setattr("tools.server.get_settings", dict)
-
+def test_configuration_status_defaults_tool_lists_to_empty():
     payload = get_server_configuration_status(_make_ctx())
     config = payload["configuration"]
 
