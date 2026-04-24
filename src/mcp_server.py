@@ -28,7 +28,7 @@ from utils import (
     parse_tool_names,
     wrap_with_confirmation,
 )
-from utils.context import StaticClusterProvider
+from utils.provider import StaticClusterProvider
 
 # Configure logging
 logging.basicConfig(
