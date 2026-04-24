@@ -6,6 +6,7 @@ This module contains helper functions for working with Couchbase indexes.
 
 import logging
 import os
+from collections.abc import Mapping
 from importlib.resources import files
 from typing import Any
 from urllib.parse import urlparse
@@ -36,7 +37,7 @@ def validate_filter_params(
         )
 
 
-def validate_connection_settings(settings: dict[str, Any]) -> None:
+def validate_connection_settings(settings: Mapping[str, Any]) -> None:
     """Validate that required connection settings are present."""
     required = ["connection_string", "username", "password"]
     missing = [key for key in required if not settings.get(key)]

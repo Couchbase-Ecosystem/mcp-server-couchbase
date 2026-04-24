@@ -7,12 +7,14 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 import click
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+from fastmcp.tools import FunctionTool
+
+# Import utilities
+from providers.static import StaticClusterProvider
 
 # Import tools
 from tools import TOOL_ANNOTATIONS, get_tools
-
-# Import utilities
 from utils import (
     ALLOWED_TRANSPORTS,
     DEFAULT_HOST,
@@ -24,7 +26,6 @@ from utils import (
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
-    get_settings,
     parse_tool_names,
     wrap_with_confirmation,
 )
@@ -96,38 +97,6 @@ def prepare_tools_for_registration(
     ]
 
     return final_tools, configured_confirmation_tool_names, disabled_tool_names
-
-
-@asynccontextmanager
-async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
-    """Initialize the MCP server context without establishing database connections."""
-    # Get configuration from Click context
-    settings = get_settings()
-    read_only_mode = settings.get("read_only_mode", True)
-    read_only_query_mode = settings.get("read_only_query_mode", True)
-
-    # Note: We don't validate configuration here to allow tool discovery
-    # Configuration will be validated when tools are actually used
-    logger.info(
-        f"MCP server initialized in lazy mode for tool discovery. "
-        f"Modes: (read_only_mode={read_only_mode}, read_only_query_mode={read_only_query_mode})"
-    )
-    app_context = None
-    try:
-        app_context = AppContext(
-            read_only_mode=read_only_mode,
-            read_only_query_mode=read_only_query_mode,
-        )
-        yield app_context
-
-    except Exception as e:
-        logger.error(f"Error in app lifespan: {e}")
-        raise
-    finally:
-        # Close the cluster connection
-        if app_context and app_context.cluster:
-            app_context.cluster.close()
-        logger.info("Closing MCP server")
 
 
 @click.command()
@@ -246,8 +215,9 @@ def main(
         confirmation_required_tools=confirmation_required_tools,
     )
 
-    # Store configuration in context
-    ctx.obj = {
+    # CLI-resolved configuration lives on AppContext, not in a module global.
+    # This lets FastMCP's threadpool workers read it through ``ctx``.
+    settings = {
         "connection_string": connection_string,
         "username": username,
         "password": password,
@@ -262,36 +232,52 @@ def main(
         "disabled_tools": disabled_tool_names,
         "confirmation_required_tools": configured_confirmation_tool_names,
     }
+    ctx.obj = settings
+
+    @asynccontextmanager
+    async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
+        """Build the lifespan AppContext with settings captured from the CLI."""
+        logger.info(
+            f"MCP server initialized in lazy mode for tool discovery. "
+            f"Modes: (read_only_mode={read_only_mode}, "
+            f"read_only_query_mode={read_only_query_mode})"
+        )
+        app_context = AppContext(
+            cluster_provider=StaticClusterProvider(settings=settings),
+            settings=settings,
+            read_only_mode=read_only_mode,
+            read_only_query_mode=read_only_query_mode,
+        )
+        try:
+            yield app_context
+        except Exception as e:
+            logger.error(f"Error in app lifespan: {e}")
+            raise
+        finally:
+            if app_context.cluster_provider:
+                app_context.cluster_provider.close()
+            logger.info("Closing MCP server")
 
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
 
-    # If the transport is network based, we need to pass the host and port to the MCP server
-    config = (
-        {
-            "host": host,
-            "port": port,
-        }
-        if transport in NETWORK_TRANSPORTS
-        else {}
-    )
-
-    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, **config)
+    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
 
     logger.info(
         f"Registering {len(final_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
         f"read_only_query_mode={read_only_query_mode})"
     )
 
-    # Register tools with their annotations
+    # Register tools; FastMCP 3.x add_tool has no annotations kwarg, so wrap first.
     for tool in final_tools:
         annotations = TOOL_ANNOTATIONS.get(tool.__name__)
-        mcp.add_tool(tool, annotations=annotations)
+        tool_obj = FunctionTool.from_function(tool, annotations=annotations)
+        mcp.add_tool(tool_obj)
 
     logger.info(f"Registered {len(final_tools)} tool(s)")
 
-    # Run the server
-    mcp.run(transport=sdk_transport)  # type: ignore
+    run_kwargs = {"host": host, "port": port} if transport in NETWORK_TRANSPORTS else {}
+    mcp.run(transport=sdk_transport, **run_kwargs)  # type: ignore
 
 
 if __name__ == "__main__":

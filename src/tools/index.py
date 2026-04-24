@@ -7,7 +7,7 @@ This module contains tools for listing and managing indexes in the Couchbase clu
 import logging
 from typing import Any
 
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
 from tools.query import run_sql_plus_plus_query
 from utils.config import get_settings
@@ -133,7 +133,7 @@ def list_indexes(
         validate_filter_params(bucket_name, scope_name, collection_name, index_name)
 
         # Get and validate connection settings
-        settings = get_settings()
+        settings = get_settings(ctx)
         validate_connection_settings(settings)
 
         # Fetch indexes from REST API

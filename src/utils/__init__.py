@@ -33,6 +33,7 @@ from .constants import (
 from .context import (
     AppContext,
     get_cluster_connection,
+    get_cluster_provider,
 )
 
 # Elicitation utilities
@@ -56,6 +57,7 @@ __all__ = [
     # Context
     "AppContext",
     "get_cluster_connection",
+    "get_cluster_provider",
     # Index utilities
     "fetch_indexes_from_rest_api",
     # Constants
