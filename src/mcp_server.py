@@ -10,10 +10,11 @@ import click
 from fastmcp import FastMCP
 from fastmcp.tools import FunctionTool
 
+# Import utilities
+from providers.static import StaticClusterProvider
+
 # Import tools
 from tools import TOOL_ANNOTATIONS, get_tools
-
-# Import utilities
 from utils import (
     ALLOWED_TRANSPORTS,
     DEFAULT_HOST,
@@ -28,7 +29,6 @@ from utils import (
     parse_tool_names,
     wrap_with_confirmation,
 )
-from utils.provider import StaticClusterProvider
 
 # Configure logging
 logging.basicConfig(

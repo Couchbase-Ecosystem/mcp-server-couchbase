@@ -14,7 +14,7 @@ from tools.query import run_cluster_query
 from utils.config import get_settings
 from utils.connection import connect_to_bucket
 from utils.constants import MCP_SERVER_NAME
-from utils.context import get_cluster_connection
+from utils.context import get_cluster_connection, get_cluster_provider
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.server")
 
@@ -41,8 +41,7 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
         "client_key_path_configured": bool(settings.get("client_key_path")),
     }
 
-    app_context = ctx.request_context.lifespan_context
-    provider = app_context.cluster_provider
+    provider = get_cluster_provider(ctx)
     connection_status = {
         "cluster_connected": bool(
             provider is not None and getattr(provider, "is_connected", False)
@@ -73,7 +72,7 @@ def test_cluster_connection(
 
         return {
             "status": "success",
-            "cluster_connected": cluster is not None,
+            "cluster_connected": True,
             "bucket_connected": bucket is not None,
             "bucket_name": bucket_name,
             "message": "Successfully connected to Couchbase cluster",

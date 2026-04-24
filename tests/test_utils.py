@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from providers.static import StaticClusterProvider
 from utils.config import get_settings
 from utils.connection import connect_to_bucket, connect_to_couchbase_cluster
 from utils.constants import (
@@ -37,7 +38,6 @@ from utils.index_utils import (
     validate_connection_settings,
     validate_filter_params,
 )
-from utils.provider import StaticClusterProvider
 
 
 class TestIndexUtilsFunctions:
@@ -479,7 +479,7 @@ class TestContextModule:
         }
 
         with patch(
-            "utils.provider.connect_to_couchbase_cluster",
+            "providers.static.connect_to_couchbase_cluster",
             return_value=mock_cluster,
         ) as mock_connect:
             provider = StaticClusterProvider(settings=mock_settings)
@@ -500,7 +500,7 @@ class TestContextModule:
         }
 
         with patch(
-            "utils.provider.connect_to_couchbase_cluster",
+            "providers.static.connect_to_couchbase_cluster",
             return_value=mock_cluster,
         ) as mock_connect:
             provider = StaticClusterProvider(settings=mock_settings)
@@ -519,7 +519,7 @@ class TestContextModule:
         }
 
         with patch(
-            "utils.provider.connect_to_couchbase_cluster",
+            "providers.static.connect_to_couchbase_cluster",
             side_effect=Exception("Auth failed"),
         ):
             provider = StaticClusterProvider(settings=mock_settings)
@@ -539,7 +539,7 @@ class TestContextModule:
         }
 
         with patch(
-            "utils.provider.connect_to_couchbase_cluster",
+            "providers.static.connect_to_couchbase_cluster",
             return_value=mock_cluster,
         ):
             provider = StaticClusterProvider(settings=mock_settings)

@@ -32,10 +32,14 @@ class AppContext:
     read_only_query_mode: bool = True
 
 
+def get_cluster_provider(ctx: Context):
+    """Return the ClusterProvider for this request."""
+    return ctx.request_context.lifespan_context.cluster_provider
+
+
 def get_cluster_connection(ctx: Context) -> Cluster:
     """Return the Couchbase cluster for this request via the provider."""
-    app_context = ctx.request_context.lifespan_context
-    provider = app_context.cluster_provider
+    provider = get_cluster_provider(ctx)
     if provider is None:
         raise RuntimeError(
             "Cluster provider not initialized. "
