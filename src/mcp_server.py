@@ -216,9 +216,7 @@ def main(
     )
 
     # CLI-resolved configuration lives on AppContext, not in a module global.
-    # This lets FastMCP's threadpool workers read it through ``ctx`` without
-    # relying on click.get_current_context() (which only exists on the main
-    # call stack).
+    # This lets FastMCP's threadpool workers read it through ``ctx``.
     settings = {
         "connection_string": connection_string,
         "username": username,

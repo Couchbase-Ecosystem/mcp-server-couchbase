@@ -33,6 +33,11 @@ class StaticClusterProvider:
     def get_cluster(
         self, ctx: Context
     ) -> Cluster:  # ctx unused; settings come from init
+        """Return the shared cluster, connecting on the first call.
+
+        Thread-safe: concurrent first calls are serialised by an internal
+        lock so only one connection attempt is made.
+        """
         if self._cluster is not None:
             return self._cluster
         with self._lock:
@@ -41,6 +46,7 @@ class StaticClusterProvider:
         return self._cluster
 
     def _connect(self) -> Cluster:
+        """Open a new cluster connection from the init-time settings."""
         try:
             return connect_to_couchbase_cluster(
                 self._settings.get("connection_string"),  # type: ignore[arg-type]
@@ -62,6 +68,7 @@ class StaticClusterProvider:
             raise
 
     def close(self) -> None:
+        """Close the cluster connection and reset internal state."""
         cluster = self._cluster
         if cluster is not None:
             cluster.close()

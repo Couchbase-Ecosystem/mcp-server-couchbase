@@ -2,9 +2,8 @@
 Host-agnostic contracts implemented by each MCP server host.
 
 A *host* is a concrete MCP server — today either the standalone CLI in
-this repo or the managed Capella runtime in
-``couchbase-mcp-as-a-service``. Tool bodies live per-host (sync here,
-async there), but both hosts reach a Couchbase cluster through the same
+this repo or the managed Capella runtime. Tool bodies live per-host, but
+both hosts reach a Couchbase cluster through the same
 ``ClusterProvider`` shape so that the rest of the machinery
 (lifespans, middleware, shared helpers) can be written against a single
 interface.
