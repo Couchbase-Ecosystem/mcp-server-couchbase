@@ -222,7 +222,7 @@ def _build_query_params(
     return params
 
 
-def fetch_indexes_from_rest_api(
+async def fetch_indexes_from_rest_api(
     connection_string: str,
     username: str,
     password: str,
@@ -272,34 +272,33 @@ def fetch_indexes_from_rest_api(
 
     # Try each host one by one until we get a successful response
     last_error = None
-    for host in hosts:
-        try:
-            url = f"{protocol}://{host}:{port}/getIndexStatus"
-            logger.info(
-                f"Attempting to fetch indexes from: {url} with params: {params}"
-            )
+    async with httpx.AsyncClient(verify=verify_ssl, timeout=timeout) as client:
+        for host in hosts:
+            try:
+                url = f"{protocol}://{host}:{port}/getIndexStatus"
+                logger.info(
+                    f"Attempting to fetch indexes from: {url} with params: {params}"
+                )
 
-            response = httpx.get(
-                url,
-                params=params,
-                auth=(username, password),
-                verify=verify_ssl,
-                timeout=timeout,
-            )
+                response = await client.get(
+                    url,
+                    params=params,
+                    auth=(username, password),
+                )
 
-            response.raise_for_status()
-            data = response.json()
-            indexes = data.get("status", [])
+                response.raise_for_status()
+                data = response.json()
+                indexes = data.get("status", [])
 
-            logger.info(f"Successfully fetched {len(indexes)} indexes from {host}")
-            return indexes
+                logger.info(f"Successfully fetched {len(indexes)} indexes from {host}")
+                return indexes
 
-        except httpx.HTTPError as e:
-            logger.warning(f"Failed to fetch indexes from {host}: {e}")
-            last_error = e
-        except Exception as e:
-            logger.warning(f"Unexpected error when fetching from {host}: {e}")
-            last_error = e
+            except httpx.HTTPError as e:
+                logger.warning(f"Failed to fetch indexes from {host}: {e}")
+                last_error = e
+            except Exception as e:
+                logger.warning(f"Unexpected error when fetching from {host}: {e}")
+                last_error = e
 
     # If we get here, all hosts failed
     error_msg = f"Failed to fetch indexes from all hosts: {hosts}"

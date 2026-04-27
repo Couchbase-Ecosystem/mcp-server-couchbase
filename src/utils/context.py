@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from couchbase.cluster import Cluster
+from acouchbase.cluster import Cluster
 from fastmcp import Context
 
 from core.contracts import ClusterProvider
@@ -37,7 +37,7 @@ def get_cluster_provider(ctx: Context):
     return ctx.request_context.lifespan_context.cluster_provider
 
 
-def get_cluster_connection(ctx: Context) -> Cluster:
+async def get_cluster_connection(ctx: Context) -> Cluster:
     """Return the Couchbase cluster for this request via the provider."""
     provider = get_cluster_provider(ctx)
     if provider is None:
@@ -45,4 +45,4 @@ def get_cluster_connection(ctx: Context) -> Cluster:
             "Cluster provider not initialized. "
             "The lifespan must populate AppContext.cluster_provider before tools run."
         )
-    return provider.get_cluster(ctx)
+    return await provider.get_cluster(ctx)

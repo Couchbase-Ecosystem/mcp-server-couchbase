@@ -9,8 +9,9 @@ both hosts reach a Couchbase cluster through the same
 interface.
 """
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
+from acouchbase.cluster import Cluster
 from fastmcp import Context
 
 
@@ -22,17 +23,12 @@ class ClusterProvider(Protocol):
     Secrets Manager, etc.) and how clusters are cached (one per server,
     one per principal, etc.).
 
-    The return type is deliberately ``Any``: sync hosts return a
-    ``couchbase.cluster.Cluster`` directly; async hosts return a
-    coroutine yielding an ``acouchbase.cluster.Cluster``. Callers on
-    each host know which they will receive and handle awaiting
-    accordingly.
     """
 
-    def get_cluster(self, ctx: Context) -> Any:
+    async def get_cluster(self, ctx: Context) -> Cluster:
         """Return (or begin returning) a cluster for this request."""
         ...
 
-    def close(self) -> Any:
-        """Release any clusters held by this provider. May be sync or async."""
+    async def close(self) -> None:
+        """Release any clusters held by this provider and perform cleanup."""
         ...

@@ -255,7 +255,7 @@ def main(
             raise
         finally:
             if app_context.cluster_provider:
-                app_context.cluster_provider.close()
+                await app_context.cluster_provider.close()
             logger.info("Closing MCP server")
 
     # Map user-friendly transport names to SDK transport names

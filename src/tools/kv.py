@@ -21,7 +21,7 @@ from utils.context import get_cluster_connection
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.kv")
 
 
-def get_document_by_id(
+async def get_document_by_id(
     ctx: Context,
     bucket_name: str,
     scope_name: str,
@@ -31,18 +31,18 @@ def get_document_by_id(
     """Get a document by its ID from the specified scope and collection.
     If the document is not found, it will raise an exception."""
 
-    cluster = get_cluster_connection(ctx)
-    bucket = connect_to_bucket(cluster, bucket_name)
+    cluster = await get_cluster_connection(ctx)
+    bucket = await connect_to_bucket(cluster, bucket_name)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
-        result = collection.get(document_id)
+        result = await collection.get(document_id)
         return result.content_as[dict]
     except Exception as e:
         logger.error(f"Error getting document {document_id}: {e}")
         raise
 
 
-def upsert_document_by_id(
+async def upsert_document_by_id(
     ctx: Context,
     bucket_name: str,
     scope_name: str,
@@ -58,11 +58,11 @@ def upsert_document_by_id(
     DO NOT use this as a fallback when insert_document_by_id or replace_document_by_id fails.
 
     Returns True on success, False on failure."""
-    cluster = get_cluster_connection(ctx)
-    bucket = connect_to_bucket(cluster, bucket_name)
+    cluster = await get_cluster_connection(ctx)
+    bucket = await connect_to_bucket(cluster, bucket_name)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
-        collection.upsert(document_id, document_content)
+        await collection.upsert(document_id, document_content)
         logger.info(f"Successfully upserted document {document_id}")
         return True
     except Exception as e:
@@ -70,7 +70,7 @@ def upsert_document_by_id(
         return False
 
 
-def delete_document_by_id(
+async def delete_document_by_id(
     ctx: Context,
     bucket_name: str,
     scope_name: str,
@@ -79,11 +79,11 @@ def delete_document_by_id(
 ) -> bool:
     """Delete a document by its ID.
     Returns True on success, False on failure."""
-    cluster = get_cluster_connection(ctx)
-    bucket = connect_to_bucket(cluster, bucket_name)
+    cluster = await get_cluster_connection(ctx)
+    bucket = await connect_to_bucket(cluster, bucket_name)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
-        collection.remove(document_id)
+        await collection.remove(document_id)
         logger.info(f"Successfully deleted document {document_id}")
         return True
     except Exception as e:
@@ -91,7 +91,7 @@ def delete_document_by_id(
         return False
 
 
-def insert_document_by_id(
+async def insert_document_by_id(
     ctx: Context,
     bucket_name: str,
     scope_name: str,
@@ -105,11 +105,11 @@ def insert_document_by_id(
     Report the failure to the user. They can choose to 'replace' or 'upsert' if desired.
 
     Returns True on success, False on failure (including if document already exists)."""
-    cluster = get_cluster_connection(ctx)
-    bucket = connect_to_bucket(cluster, bucket_name)
+    cluster = await get_cluster_connection(ctx)
+    bucket = await connect_to_bucket(cluster, bucket_name)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
-        collection.insert(document_id, document_content)
+        await collection.insert(document_id, document_content)
         logger.info(f"Successfully inserted document {document_id}")
         return True
     except Exception as e:
@@ -117,7 +117,7 @@ def insert_document_by_id(
         return False
 
 
-def replace_document_by_id(
+async def replace_document_by_id(
     ctx: Context,
     bucket_name: str,
     scope_name: str,
@@ -131,11 +131,11 @@ def replace_document_by_id(
     Report the failure to the user. They can choose to 'insert' or 'upsert' if desired.
 
     Returns True on success, False on failure (including if document does not exist)."""
-    cluster = get_cluster_connection(ctx)
-    bucket = connect_to_bucket(cluster, bucket_name)
+    cluster = await get_cluster_connection(ctx)
+    bucket = await connect_to_bucket(cluster, bucket_name)
     try:
         collection = bucket.scope(scope_name).collection(collection_name)
-        collection.replace(document_id, document_content)
+        await collection.replace(document_id, document_content)
         logger.info(f"Successfully replaced document {document_id}")
         return True
     except Exception as e:
