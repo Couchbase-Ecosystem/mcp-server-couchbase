@@ -3,6 +3,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
+from acouchbase.cluster import Cluster
 from fastmcp import Context
 
 from utils.connection import connect_to_couchbase_cluster
@@ -26,10 +27,12 @@ class StaticClusterProvider:
 
     def __init__(self, settings: Mapping[str, Any]) -> None:
         self._settings = settings
-        self._cluster = None
+        self._cluster: Cluster | None = None
         self._lock = asyncio.Lock()
 
-    async def get_cluster(self, ctx: Context):  # ctx unused; settings come from init
+    async def get_cluster(
+        self, ctx: Context
+    ) -> Cluster:  # ctx unused; settings come from init
         """Return the shared cluster, connecting on the first call."""
         if self._cluster is not None:
             return self._cluster
@@ -38,7 +41,7 @@ class StaticClusterProvider:
                 self._cluster = await self._connect()
         return self._cluster
 
-    async def _connect(self):
+    async def _connect(self) -> Cluster:
         """Open a new cluster connection from the init-time settings."""
         try:
             return await connect_to_couchbase_cluster(
