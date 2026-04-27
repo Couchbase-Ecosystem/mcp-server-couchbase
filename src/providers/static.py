@@ -64,7 +64,7 @@ class StaticClusterProvider:
         """Close the cluster connection and reset internal state."""
         cluster = self._cluster
         if cluster is not None:
-            cluster.close()
+            await cluster.close()
             self._cluster = None
 
     @property
