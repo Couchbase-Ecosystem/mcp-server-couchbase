@@ -11,7 +11,7 @@ Tests for:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -324,9 +324,11 @@ class TestConfigModule:
 class TestConnectionModule:
     """Unit tests for connection.py module."""
 
-    def test_connect_to_couchbase_cluster_with_password(self) -> None:
+    @pytest.mark.asyncio
+    async def test_connect_to_couchbase_cluster_with_password(self) -> None:
         """Verify password authentication path is used correctly."""
         mock_cluster = MagicMock()
+        mock_cluster.wait_until_ready = AsyncMock()
 
         with (
             patch("utils.connection.PasswordAuthenticator") as mock_auth,
@@ -338,7 +340,7 @@ class TestConnectionModule:
             mock_options_instance = MagicMock()
             mock_options.return_value = mock_options_instance
 
-            result = connect_to_couchbase_cluster(
+            result = await connect_to_couchbase_cluster(
                 connection_string="couchbase://localhost",
                 username="admin",
                 password="password",
@@ -349,9 +351,11 @@ class TestConnectionModule:
             mock_cluster.wait_until_ready.assert_called_once()
             assert result == mock_cluster
 
-    def test_connect_to_couchbase_cluster_with_certificate(self) -> None:
+    @pytest.mark.asyncio
+    async def test_connect_to_couchbase_cluster_with_certificate(self) -> None:
         """Verify certificate authentication path is used when certs provided."""
         mock_cluster = MagicMock()
+        mock_cluster.wait_until_ready = AsyncMock()
 
         with (
             patch("utils.connection.CertificateAuthenticator") as mock_cert_auth,
@@ -362,7 +366,7 @@ class TestConnectionModule:
             mock_options_instance = MagicMock()
             mock_options.return_value = mock_options_instance
 
-            result = connect_to_couchbase_cluster(
+            result = await connect_to_couchbase_cluster(
                 connection_string="couchbases://localhost",
                 username="admin",
                 password="password",
@@ -378,7 +382,8 @@ class TestConnectionModule:
             )
             assert result == mock_cluster
 
-    def test_connect_to_couchbase_cluster_missing_cert_file(self) -> None:
+    @pytest.mark.asyncio
+    async def test_connect_to_couchbase_cluster_missing_cert_file(self) -> None:
         """Verify FileNotFoundError raised when cert files don't exist."""
         with (
             patch("utils.connection.os.path.exists", return_value=False),
@@ -386,7 +391,7 @@ class TestConnectionModule:
                 FileNotFoundError, match="Client certificate files not found"
             ),
         ):
-            connect_to_couchbase_cluster(
+            await connect_to_couchbase_cluster(
                 connection_string="couchbases://localhost",
                 username="admin",
                 password="password",
@@ -394,7 +399,8 @@ class TestConnectionModule:
                 client_key_path="/path/to/missing.key",
             )
 
-    def test_connect_to_couchbase_cluster_connection_failure(self) -> None:
+    @pytest.mark.asyncio
+    async def test_connect_to_couchbase_cluster_connection_failure(self) -> None:
         """Verify exceptions are re-raised on connection failure."""
         with (
             patch("utils.connection.PasswordAuthenticator"),
@@ -404,30 +410,33 @@ class TestConnectionModule:
             ),
             pytest.raises(Exception, match="Connection refused"),
         ):
-            connect_to_couchbase_cluster(
+            await connect_to_couchbase_cluster(
                 connection_string="couchbase://invalid-host",
                 username="admin",
                 password="password",
             )
 
-    def test_connect_to_bucket_success(self) -> None:
+    @pytest.mark.asyncio
+    async def test_connect_to_bucket_success(self) -> None:
         """Verify connect_to_bucket returns bucket object."""
         mock_cluster = MagicMock()
         mock_bucket = MagicMock()
+        mock_bucket.on_connect = AsyncMock()
         mock_cluster.bucket.return_value = mock_bucket
 
-        result = connect_to_bucket(mock_cluster, "my-bucket")
+        result = await connect_to_bucket(mock_cluster, "my-bucket")
 
         mock_cluster.bucket.assert_called_once_with("my-bucket")
         assert result == mock_bucket
 
-    def test_connect_to_bucket_failure(self) -> None:
+    @pytest.mark.asyncio
+    async def test_connect_to_bucket_failure(self) -> None:
         """Verify connect_to_bucket raises exception on failure."""
         mock_cluster = MagicMock()
         mock_cluster.bucket.side_effect = Exception("Bucket not found")
 
         with pytest.raises(Exception, match="Bucket not found"):
-            connect_to_bucket(mock_cluster, "nonexistent-bucket")
+            await connect_to_bucket(mock_cluster, "nonexistent-bucket")
 
 
 class TestContextModule:
@@ -447,29 +456,32 @@ class TestContextModule:
         assert ctx.cluster_provider is mock_provider
         assert ctx.read_only_query_mode is False
 
-    def test_get_cluster_connection_delegates_to_provider(self) -> None:
+    @pytest.mark.asyncio
+    async def test_get_cluster_connection_delegates_to_provider(self) -> None:
         """get_cluster_connection calls into the provider attached to AppContext."""
         mock_cluster = MagicMock()
         mock_provider = MagicMock()
-        mock_provider.get_cluster.return_value = mock_cluster
+        mock_provider.get_cluster = AsyncMock(return_value=mock_cluster)
 
         mock_ctx = MagicMock()
         mock_ctx.request_context.lifespan_context.cluster_provider = mock_provider
 
-        result = get_cluster_connection(mock_ctx)
+        result = await get_cluster_connection(mock_ctx)
 
         assert result is mock_cluster
         mock_provider.get_cluster.assert_called_once_with(mock_ctx)
 
-    def test_get_cluster_connection_raises_without_provider(self) -> None:
+    @pytest.mark.asyncio
+    async def test_get_cluster_connection_raises_without_provider(self) -> None:
         """get_cluster_connection fails fast if the lifespan forgot to wire a provider."""
         mock_ctx = MagicMock()
         mock_ctx.request_context.lifespan_context.cluster_provider = None
 
         with pytest.raises(RuntimeError, match="Cluster provider not initialized"):
-            get_cluster_connection(mock_ctx)
+            await get_cluster_connection(mock_ctx)
 
-    def test_static_cluster_provider_connects_lazily(self) -> None:
+    @pytest.mark.asyncio
+    async def test_static_cluster_provider_connects_lazily(self) -> None:
         """StaticClusterProvider defers connection until first get_cluster call."""
         mock_cluster = MagicMock()
         mock_settings = {
@@ -486,11 +498,12 @@ class TestContextModule:
             # Constructor alone must not open a connection.
             mock_connect.assert_not_called()
 
-            result = provider.get_cluster(MagicMock())
+            result = await provider.get_cluster(MagicMock())
             assert result is mock_cluster
             mock_connect.assert_called_once()
 
-    def test_static_cluster_provider_caches_cluster(self) -> None:
+    @pytest.mark.asyncio
+    async def test_static_cluster_provider_caches_cluster(self) -> None:
         """Repeated get_cluster calls reuse the first cluster."""
         mock_cluster = MagicMock()
         mock_settings = {
@@ -504,13 +517,14 @@ class TestContextModule:
             return_value=mock_cluster,
         ) as mock_connect:
             provider = StaticClusterProvider(settings=mock_settings)
-            first = provider.get_cluster(MagicMock())
-            second = provider.get_cluster(MagicMock())
+            first = await provider.get_cluster(MagicMock())
+            second = await provider.get_cluster(MagicMock())
 
         assert first is second is mock_cluster
         mock_connect.assert_called_once()
 
-    def test_static_cluster_provider_propagates_connection_failure(self) -> None:
+    @pytest.mark.asyncio
+    async def test_static_cluster_provider_propagates_connection_failure(self) -> None:
         """A failed connect raises and does not poison the cache."""
         mock_settings = {
             "connection_string": "couchbase://invalid",
@@ -524,12 +538,13 @@ class TestContextModule:
         ):
             provider = StaticClusterProvider(settings=mock_settings)
             with pytest.raises(Exception, match="Auth failed"):
-                provider.get_cluster(MagicMock())
+                await provider.get_cluster(MagicMock())
 
         # Cache stayed empty so a subsequent attempt can retry.
         assert provider._cluster is None
 
-    def test_static_cluster_provider_close_releases_cluster(self) -> None:
+    @pytest.mark.asyncio
+    async def test_static_cluster_provider_close_releases_cluster(self) -> None:
         """close() calls cluster.close() and clears the cache."""
         mock_cluster = MagicMock()
         mock_settings = {
@@ -543,8 +558,8 @@ class TestContextModule:
             return_value=mock_cluster,
         ):
             provider = StaticClusterProvider(settings=mock_settings)
-            provider.get_cluster(MagicMock())
-            provider.close()
+            await provider.get_cluster(MagicMock())
+            await provider.close()
 
         mock_cluster.close.assert_called_once()
         assert provider._cluster is None

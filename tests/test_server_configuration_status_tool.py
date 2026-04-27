@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from tools.server import get_server_configuration_status
@@ -22,7 +24,8 @@ def _make_ctx(settings=None, cluster_provider=None):
     )
 
 
-def test_configuration_status_exposes_tool_lists():
+@pytest.mark.asyncio
+async def test_configuration_status_exposes_tool_lists():
     ctx = _make_ctx(
         {
             "connection_string": "couchbases://example",
@@ -37,7 +40,7 @@ def test_configuration_status_exposes_tool_lists():
         }
     )
 
-    payload = get_server_configuration_status(ctx)
+    payload = await get_server_configuration_status(ctx)
     config = payload["configuration"]
 
     assert config["disabled_tools"] == ["a_tool", "z_tool"]
@@ -47,8 +50,9 @@ def test_configuration_status_exposes_tool_lists():
     ]
 
 
-def test_configuration_status_defaults_tool_lists_to_empty():
-    payload = get_server_configuration_status(_make_ctx())
+@pytest.mark.asyncio
+async def test_configuration_status_defaults_tool_lists_to_empty():
+    payload = await get_server_configuration_status(_make_ctx())
     config = payload["configuration"]
 
     assert config["disabled_tools"] == []
