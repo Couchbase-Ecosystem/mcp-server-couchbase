@@ -547,6 +547,7 @@ class TestContextModule:
     async def test_static_cluster_provider_close_releases_cluster(self) -> None:
         """close() calls cluster.close() and clears the cache."""
         mock_cluster = MagicMock()
+        mock_cluster.close = AsyncMock()
         mock_settings = {
             "connection_string": "couchbase://localhost",
             "username": "admin",
