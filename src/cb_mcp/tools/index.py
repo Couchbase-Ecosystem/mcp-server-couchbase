@@ -9,20 +9,20 @@ from typing import Any
 
 from fastmcp import Context
 
-from tools.query import run_sql_plus_plus_query
-from utils.config import get_settings
-from utils.constants import MCP_SERVER_NAME
-from utils.index_utils import (
+from ..utils.config import get_settings
+from ..utils.constants import MCP_SERVER_NAME
+from ..utils.index_utils import (
     fetch_indexes_from_rest_api,
     process_index_data,
     validate_connection_settings,
     validate_filter_params,
 )
+from .query import run_sql_plus_plus_query
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
 
-def get_index_advisor_recommendations(
+async def get_index_advisor_recommendations(
     ctx: Context, bucket_name: str, scope_name: str, query: str
 ) -> dict[str, Any]:
     """Get index recommendations from Couchbase Index Advisor for a given SQL++ query.
@@ -47,7 +47,7 @@ def get_index_advisor_recommendations(
         logger.info("Running Index Advisor for the provided query")
 
         # Execute the ADVISOR function at cluster level using run_sql_plus_plus_query
-        advisor_results = run_sql_plus_plus_query(
+        advisor_results = await run_sql_plus_plus_query(
             ctx, bucket_name, scope_name, advisor_query
         )
 
@@ -95,7 +95,7 @@ def get_index_advisor_recommendations(
         raise
 
 
-def list_indexes(
+async def list_indexes(
     ctx: Context,
     bucket_name: str | None = None,
     scope_name: str | None = None,
@@ -142,7 +142,7 @@ def list_indexes(
             f"scope={scope_name}, collection={collection_name}, index={index_name}"
         )
 
-        raw_indexes = fetch_indexes_from_rest_api(
+        raw_indexes = await fetch_indexes_from_rest_api(
             settings["connection_string"],
             settings["username"],
             settings["password"],

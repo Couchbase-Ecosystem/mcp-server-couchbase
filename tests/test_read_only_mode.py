@@ -7,21 +7,14 @@ This module tests:
 - Verification that KV write tools are not loaded when READ_ONLY_MODE=True
 """
 
-import sys
-from pathlib import Path
-
-from utils.constants import DEFAULT_READ_ONLY_MODE
-from utils.context import AppContext
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from tools import (
+from cb_mcp.tools import (
     ALL_TOOLS,
     KV_WRITE_TOOLS,
     READ_ONLY_TOOLS,
     get_tools,
 )
+from cb_mcp.utils.constants import DEFAULT_READ_ONLY_MODE
+from cb_mcp.utils.context import AppContext
 
 # KV write tool names that should be disabled when READ_ONLY_MODE=True
 KV_WRITE_TOOL_NAMES = {

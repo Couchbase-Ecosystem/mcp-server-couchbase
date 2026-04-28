@@ -2,8 +2,9 @@ import logging
 import os
 from datetime import timedelta
 
+from acouchbase.bucket import Bucket
+from acouchbase.cluster import Cluster
 from couchbase.auth import CertificateAuthenticator, PasswordAuthenticator
-from couchbase.cluster import Bucket, Cluster
 from couchbase.options import ClusterOptions
 
 from .constants import MCP_SERVER_NAME
@@ -11,7 +12,7 @@ from .constants import MCP_SERVER_NAME
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.connection")
 
 
-def connect_to_couchbase_cluster(
+async def connect_to_couchbase_cluster(
     connection_string: str,
     username: str,
     password: str,
@@ -50,7 +51,7 @@ def connect_to_couchbase_cluster(
         options.apply_profile("wan_development")
 
         cluster = Cluster(connection_string, options)  # type: ignore
-        cluster.wait_until_ready(timedelta(seconds=5))
+        await cluster.wait_until_ready(timedelta(seconds=5))
 
         logger.info("Successfully connected to Couchbase cluster")
         return cluster
@@ -59,12 +60,14 @@ def connect_to_couchbase_cluster(
         raise
 
 
-def connect_to_bucket(cluster: Cluster, bucket_name: str) -> Bucket:
+async def connect_to_bucket(cluster: Cluster, bucket_name: str) -> Bucket:
     """Connect to a bucket and return the bucket object if successful.
     If the operation fails, it will raise an exception.
     """
     try:
         bucket = cluster.bucket(bucket_name)
+        await bucket.on_connect()
+        logger.info(f"Successfully connected to bucket: {bucket_name}")
         return bucket
     except Exception as e:
         logger.error(f"Failed to connect to bucket: {e}")

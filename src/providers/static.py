@@ -1,13 +1,13 @@
+import asyncio
 import logging
 from collections.abc import Mapping
-from threading import Lock
 from typing import Any
 
-from couchbase.cluster import Cluster
+from acouchbase.cluster import Cluster
 from fastmcp import Context
 
-from utils.connection import connect_to_couchbase_cluster
-from utils.constants import MCP_SERVER_NAME
+from cb_mcp.utils.connection import connect_to_couchbase_cluster
+from cb_mcp.utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.providers.static")
 
@@ -21,34 +21,30 @@ class StaticClusterProvider:
     first request so that ``--help`` and tool discovery don't require a
     live Couchbase.
 
-    Concurrent first calls coalesce on an internal lock so only one
+    Concurrent first calls coalesce on an asyncio lock so only one
     connection attempt is made.
     """
 
     def __init__(self, settings: Mapping[str, Any]) -> None:
         self._settings = settings
         self._cluster: Cluster | None = None
-        self._lock = Lock()
+        self._lock = asyncio.Lock()
 
-    def get_cluster(
+    async def get_cluster(
         self, ctx: Context
     ) -> Cluster:  # ctx unused; settings come from init
-        """Return the shared cluster, connecting on the first call.
-
-        Thread-safe: concurrent first calls are serialised by an internal
-        lock so only one connection attempt is made.
-        """
+        """Return the shared cluster, connecting on the first call."""
         if self._cluster is not None:
             return self._cluster
-        with self._lock:
+        async with self._lock:
             if self._cluster is None:
-                self._cluster = self._connect()
+                self._cluster = await self._connect()
         return self._cluster
 
-    def _connect(self) -> Cluster:
+    async def _connect(self) -> Cluster:
         """Open a new cluster connection from the init-time settings."""
         try:
-            return connect_to_couchbase_cluster(
+            return await connect_to_couchbase_cluster(
                 self._settings.get("connection_string"),  # type: ignore[arg-type]
                 self._settings.get("username"),  # type: ignore[arg-type]
                 self._settings.get("password"),  # type: ignore[arg-type]
@@ -67,11 +63,11 @@ class StaticClusterProvider:
             )
             raise
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Close the cluster connection and reset internal state."""
         cluster = self._cluster
         if cluster is not None:
-            cluster.close()
+            await cluster.close()
             self._cluster = None
 
     @property

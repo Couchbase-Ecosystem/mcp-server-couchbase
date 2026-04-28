@@ -10,12 +10,9 @@ import click
 from fastmcp import FastMCP
 from fastmcp.tools import FunctionTool
 
-# Import utilities
-from providers.static import StaticClusterProvider
-
-# Import tools
-from tools import TOOL_ANNOTATIONS, get_tools
-from utils import (
+# Reusable tools and utilities from the cb_mcp package
+from cb_mcp.tools import TOOL_ANNOTATIONS, get_tools
+from cb_mcp.utils import (
     ALLOWED_TRANSPORTS,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
@@ -29,6 +26,9 @@ from utils import (
     parse_tool_names,
     wrap_with_confirmation,
 )
+
+# Standalone-host provider implementation
+from providers.static import StaticClusterProvider
 
 # Configure logging
 logging.basicConfig(
@@ -255,7 +255,7 @@ def main(
             raise
         finally:
             if app_context.cluster_provider:
-                app_context.cluster_provider.close()
+                await app_context.cluster_provider.close()
             logger.info("Closing MCP server")
 
     # Map user-friendly transport names to SDK transport names
