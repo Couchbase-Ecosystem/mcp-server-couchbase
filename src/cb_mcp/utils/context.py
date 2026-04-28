@@ -14,11 +14,11 @@ class AppContext:
 
     Attributes:
         cluster_provider: The host's ``ClusterProvider`` implementation.
-            The standalone host populates this with ``StaticClusterProvider``
-            during lifespan startup; other hosts supply their own.
+            The standalone MCP server populates this with ``StaticClusterProvider``
+            during lifespan startup; other implementations supply their own.
         settings: Snapshot of CLI/environment-resolved configuration
             captured once at lifespan startup. Tools should read values
-            from here via :func:`utils.config.get_settings` rather than
+            from here via :func:`cb_mcp.utils.config.get_settings` rather than
             reaching for a module global.
         read_only_mode: When True, all write operations (KV and Query) are
             disabled and KV write tools are not loaded.

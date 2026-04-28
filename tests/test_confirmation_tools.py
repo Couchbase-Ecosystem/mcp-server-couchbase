@@ -15,7 +15,7 @@ Coverage map:
 from types import SimpleNamespace
 
 import pytest
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
 from cb_mcp.tools import TOOL_ANNOTATIONS, get_tools
 from cb_mcp.utils.config import parse_tool_names
