@@ -101,7 +101,7 @@ def _get_capella_root_ca_path() -> str:
     """
     try:
         # Use importlib.resources to get the certificate path (works for installed packages)
-        cert_file = files("certs").joinpath("capella_root_ca.pem")
+        cert_file = files("cb_mcp.certs").joinpath("capella_root_ca.pem")
         # Convert to string path - this works for both installed packages and dev mode
         return str(cert_file)
     except (ImportError, FileNotFoundError, TypeError):

@@ -12,18 +12,14 @@ Coverage map:
   - positional argument forwarding compatibility
 """
 
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from mcp.server.fastmcp import Context
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from tools import TOOL_ANNOTATIONS, get_tools
-from utils.config import parse_tool_names
-from utils.elicitation import (
+from cb_mcp.tools import TOOL_ANNOTATIONS, get_tools
+from cb_mcp.utils.config import parse_tool_names
+from cb_mcp.utils.elicitation import (
     ConfirmationResult,
     _build_confirmation_message,
     wrap_with_confirmation,

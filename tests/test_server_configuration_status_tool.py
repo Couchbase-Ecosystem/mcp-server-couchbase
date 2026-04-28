@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from tools.server import get_server_configuration_status
+from cb_mcp.tools.server import get_server_configuration_status
 
 
 def _make_ctx(settings=None, cluster_provider=None):

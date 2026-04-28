@@ -6,8 +6,8 @@ from typing import Any
 from acouchbase.cluster import Cluster
 from fastmcp import Context
 
-from utils.connection import connect_to_couchbase_cluster
-from utils.constants import MCP_SERVER_NAME
+from cb_mcp.utils.connection import connect_to_couchbase_cluster
+from cb_mcp.utils.constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.providers.static")
 

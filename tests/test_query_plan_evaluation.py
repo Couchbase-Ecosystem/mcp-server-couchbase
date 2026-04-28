@@ -1,13 +1,7 @@
 """Unit tests for query plan evaluation helpers."""
 
-import sys
-from pathlib import Path
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from tools.query import evaluate_query_plan
-from utils.query_utils import extract_plan_from_explain_results
+from cb_mcp.tools.query import evaluate_query_plan
+from cb_mcp.utils.query_utils import extract_plan_from_explain_results
 
 
 def test_evaluate_query_plan_detects_primary_scan() -> None:

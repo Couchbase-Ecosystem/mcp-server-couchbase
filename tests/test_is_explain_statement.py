@@ -7,13 +7,7 @@ Tests for:
 - Non-detection of non-EXPLAIN statements
 """
 
-import sys
-from pathlib import Path
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from tools.query import _is_explain_statement
+from cb_mcp.tools.query import _is_explain_statement
 
 
 class TestIsExplainStatement:

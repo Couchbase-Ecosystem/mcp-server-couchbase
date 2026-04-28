@@ -15,21 +15,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from providers.static import StaticClusterProvider
-from utils.config import get_settings
-from utils.connection import connect_to_bucket, connect_to_couchbase_cluster
-from utils.constants import (
+from cb_mcp.utils.config import get_settings
+from cb_mcp.utils.connection import connect_to_bucket, connect_to_couchbase_cluster
+from cb_mcp.utils.constants import (
     ALLOWED_TRANSPORTS,
     DEFAULT_READ_ONLY_MODE,
     DEFAULT_TRANSPORT,
     MCP_SERVER_NAME,
     NETWORK_TRANSPORTS,
 )
-from utils.context import (
+from cb_mcp.utils.context import (
     AppContext,
     get_cluster_connection,
 )
-from utils.index_utils import (
+from cb_mcp.utils.index_utils import (
     _build_query_params,
     _determine_ssl_verification,
     _extract_hosts_from_connection_string,
@@ -38,6 +37,7 @@ from utils.index_utils import (
     validate_connection_settings,
     validate_filter_params,
 )
+from providers.static import StaticClusterProvider
 
 
 class TestIndexUtilsFunctions:
@@ -331,10 +331,10 @@ class TestConnectionModule:
         mock_cluster.wait_until_ready = AsyncMock()
 
         with (
-            patch("utils.connection.PasswordAuthenticator") as mock_auth,
-            patch("utils.connection.ClusterOptions") as mock_options,
+            patch("cb_mcp.utils.connection.PasswordAuthenticator") as mock_auth,
+            patch("cb_mcp.utils.connection.ClusterOptions") as mock_options,
             patch(
-                "utils.connection.Cluster", return_value=mock_cluster
+                "cb_mcp.utils.connection.Cluster", return_value=mock_cluster
             ) as mock_cluster_class,
         ):
             mock_options_instance = MagicMock()
@@ -358,10 +358,10 @@ class TestConnectionModule:
         mock_cluster.wait_until_ready = AsyncMock()
 
         with (
-            patch("utils.connection.CertificateAuthenticator") as mock_cert_auth,
-            patch("utils.connection.ClusterOptions") as mock_options,
-            patch("utils.connection.Cluster", return_value=mock_cluster),
-            patch("utils.connection.os.path.exists", return_value=True),
+            patch("cb_mcp.utils.connection.CertificateAuthenticator") as mock_cert_auth,
+            patch("cb_mcp.utils.connection.ClusterOptions") as mock_options,
+            patch("cb_mcp.utils.connection.Cluster", return_value=mock_cluster),
+            patch("cb_mcp.utils.connection.os.path.exists", return_value=True),
         ):
             mock_options_instance = MagicMock()
             mock_options.return_value = mock_options_instance
@@ -386,7 +386,7 @@ class TestConnectionModule:
     async def test_connect_to_couchbase_cluster_missing_cert_file(self) -> None:
         """Verify FileNotFoundError raised when cert files don't exist."""
         with (
-            patch("utils.connection.os.path.exists", return_value=False),
+            patch("cb_mcp.utils.connection.os.path.exists", return_value=False),
             pytest.raises(
                 FileNotFoundError, match="Client certificate files not found"
             ),
@@ -403,10 +403,11 @@ class TestConnectionModule:
     async def test_connect_to_couchbase_cluster_connection_failure(self) -> None:
         """Verify exceptions are re-raised on connection failure."""
         with (
-            patch("utils.connection.PasswordAuthenticator"),
-            patch("utils.connection.ClusterOptions"),
+            patch("cb_mcp.utils.connection.PasswordAuthenticator"),
+            patch("cb_mcp.utils.connection.ClusterOptions"),
             patch(
-                "utils.connection.Cluster", side_effect=Exception("Connection refused")
+                "cb_mcp.utils.connection.Cluster",
+                side_effect=Exception("Connection refused"),
             ),
             pytest.raises(Exception, match="Connection refused"),
         ):

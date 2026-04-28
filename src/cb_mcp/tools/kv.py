@@ -14,9 +14,9 @@ from typing import Any
 
 from fastmcp import Context
 
-from utils.connection import connect_to_bucket
-from utils.constants import MCP_SERVER_NAME
-from utils.context import get_cluster_connection
+from ..utils.connection import connect_to_bucket
+from ..utils.constants import MCP_SERVER_NAME
+from ..utils.context import get_cluster_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.kv")
 

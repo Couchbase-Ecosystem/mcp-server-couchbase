@@ -5,7 +5,7 @@ from typing import Any
 from acouchbase.cluster import Cluster
 from fastmcp import Context
 
-from core.contracts import ClusterProvider
+from ..core.contracts import ClusterProvider
 
 
 @dataclass

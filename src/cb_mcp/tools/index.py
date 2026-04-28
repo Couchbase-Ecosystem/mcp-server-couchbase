@@ -9,15 +9,15 @@ from typing import Any
 
 from fastmcp import Context
 
-from tools.query import run_sql_plus_plus_query
-from utils.config import get_settings
-from utils.constants import MCP_SERVER_NAME
-from utils.index_utils import (
+from ..utils.config import get_settings
+from ..utils.constants import MCP_SERVER_NAME
+from ..utils.index_utils import (
     fetch_indexes_from_rest_api,
     process_index_data,
     validate_connection_settings,
     validate_filter_params,
 )
+from .query import run_sql_plus_plus_query
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 

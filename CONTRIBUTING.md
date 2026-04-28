@@ -88,25 +88,33 @@ Our Ruff configuration includes:
 ```
 mcp-server-couchbase/
 ├── src/
-│   ├── mcp_server.py                              # MCP server entry point
-│   ├── certs/                                     # SSL/TLS certificates
-│   │   ├── __init__.py                            # Package marker
-│   │   └── capella_root_ca.pem                    # Capella root CA certificate (for Capella connections)
-│   ├── tools/                                     # MCP tool implementations
-│   │   ├── __init__.py                            # Tool exports and ALL_TOOLS list
-│   │   ├── server.py                              # Server status and connection tools
-│   │   ├── kv.py                                  # Key-value operations (CRUD)
-│   │   ├── query.py                               # SQL++ Query based tools
-│   │   └── index.py                               # Index operations and recommendations
-│   └── utils/                                     # Utility modules
-│       ├── __init__.py                            # Utility exports
-│       ├── constants.py                           # Project constants
-│       ├── config.py                              # Configuration management
-│       ├── connection.py                          # Couchbase connection handling
-│       ├── context.py                             # Application context management
-│       ├── elicitation.py                         # Confirmation/elicitation support
-│       ├── index_utils.py                         # Index-related helper functions
-│       └── query_utils.py                         # Query-related helper functions
+│   ├── mcp_server.py                              # MCP server entry point (uv run src/mcp_server.py)
+│   ├── providers/                                 # Standalone-host ClusterProvider implementations
+│   │   ├── __init__.py
+│   │   └── static.py                              # StaticClusterProvider used by mcp_server.py
+│   └── cb_mcp/                                    # Reusable Python package shared with other implementations
+│       ├── __init__.py                            # Package marker
+│       ├── core/                                  # Host-agnostic contracts (ClusterProvider, ...)
+│       │   ├── __init__.py
+│       │   └── contracts.py
+│       ├── certs/                                 # SSL/TLS certificates
+│       │   ├── __init__.py                        # Package marker
+│       │   └── capella_root_ca.pem                # Capella root CA certificate (for Capella connections)
+│       ├── tools/                                 # MCP tool implementations
+│       │   ├── __init__.py                        # Tool exports and ALL_TOOLS list
+│       │   ├── server.py                          # Server status and connection tools
+│       │   ├── kv.py                              # Key-value operations (CRUD)
+│       │   ├── query.py                           # SQL++ Query based tools
+│       │   └── index.py                           # Index operations and recommendations
+│       └── utils/                                 # Utility modules
+│           ├── __init__.py                        # Utility exports
+│           ├── constants.py                       # Project constants
+│           ├── config.py                          # Configuration management
+│           ├── connection.py                      # Couchbase connection handling
+│           ├── context.py                         # Application context management
+│           ├── elicitation.py                     # Confirmation/elicitation support
+│           ├── index_utils.py                     # Index-related helper functions
+│           └── query_utils.py                     # Query-related helper functions
 ├── scripts/                                       # Development scripts
 │   ├── lint.sh                                    # Manual linting script
 │   ├── lint_fix.sh                                # Auto-fix linting issues
