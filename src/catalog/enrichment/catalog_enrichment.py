@@ -10,7 +10,6 @@ This is part of the MCP server infrastructure that enriches catalog data.
 """
 
 import asyncio
-import json
 import logging
 import re
 import time
@@ -176,46 +175,78 @@ def _build_completeness_followup_prompt(
     )
 
 
-def _build_relationship_enrichment_prompt(database_info: dict[str, Any]) -> str:
+def _build_relationship_enrichment_prompt(
+    database_info: dict[str, Any],
+    semantic_context: str | None = None,
+) -> str:
     """
     Build a prompt for the LLM to generate relationships only.
 
+    The compact schema view is always included so the LLM has the structural
+    facts it needs to emit PK/PKA/FK/OO/OM shorthands. When `semantic_context`
+    is provided (the non-relationship enrichment output) it is appended as a
+    "Semantic Context" section so the LLM can use collection/field descriptions
+    to disambiguate join keys, natural keys, and cardinality.
+
     Args:
         database_info: Database schema information
+        semantic_context: Optional non-relationship enrichment text used as
+            additional grounding context. Falls back to schema-only when None
+            or empty.
 
     Returns:
         Formatted relationships-only prompt for the LLM
     """
+    compact_schema = format_database_info_compact(database_info)
     prompt_parts = [
         "# Database Schema Relationship Analysis Request",
         "",
         "Please analyze the following Couchbase database schema and output only the RELATIONSHIPS section.",
         "",
-        "## Database Schema:",
+        "## Database Schema (compact view)",
         "",
-        json.dumps(database_info, indent=2),
+        compact_schema or "(no schema available)",
         "",
-        "## Important Instructions:",
-        "- Include a section titled RELATIONSHIPS.",
-        "- In the RELATIONSHIPS section, first add a short legend that explains each shorthand and its structure:",
-        "  - PK: Primary key for a collection. Format: PK(scope.collection,$meta_id)",
-        "  - PKA: Primary key alternative (logical key). Format: PKA(scope.collection,col1,col2)",
-        "  - FK: Foreign key mapping from child columns to parent columns. Format: FK(scope.collection,child_col1,child_col2;scope.collection,parent_col1,parent_col2)",
-        "  - OO: One-to-one relationship. Format: OO(scope.collection,scope.collection)",
-        "  - OM: One-to-many relationship. Format: OM(scope.collection,scope.collection)",
-        "- Under RELATIONSHIPS, output one relationship per line using only these formats:",
-        "  - PK(scope.collection,$meta_id)",
-        "  - PKA(scope.collection,col1,col2)",
-        "  - FK(scope.collection,child_col1,child_col2;scope.collection,parent_col1,parent_col2)",
-        "  - OO(scope.collection,scope.collection)",
-        "  - OM(scope.collection,scope.collection)",
-        "- Identify potential join keys even if they are not explicitly defined as foreign keys.",
-        "- Emit PKA only when a stable logical key candidate exists.",
-        "- For nested object fields, use dot paths (for example: a.b).",
-        "- For fields inside arrays of objects, use [] in the path (for example: a.[].c.d).",
-        "- Use exact scope.collection names from the schema.",
-        "- Do NOT include collection descriptions, field descriptions, or query guidance.",
     ]
+
+    if semantic_context and semantic_context.strip():
+        prompt_parts.extend(
+            [
+                "## Semantic Context (collection/field descriptions from prior enrichment)",
+                "",
+                "Use the descriptions below to disambiguate join keys, identify natural",
+                "(logical) keys for PKA, and choose OO vs OM cardinality. The structural",
+                "schema above remains authoritative for paths, types, and index names.",
+                "",
+                semantic_context.strip(),
+                "",
+            ]
+        )
+
+    prompt_parts.extend(
+        [
+            "## Important Instructions:",
+            "- Include a section titled RELATIONSHIPS.",
+            "- In the RELATIONSHIPS section, first add a short legend that explains each shorthand and its structure:",
+            "  - PK: Primary key for a collection. Format: PK(scope.collection,$meta_id)",
+            "  - PKA: Primary key alternative (logical key). Format: PKA(scope.collection,col1,col2)",
+            "  - FK: Foreign key mapping from child columns to parent columns. Format: FK(scope.collection,child_col1,child_col2;scope.collection,parent_col1,parent_col2)",
+            "  - OO: One-to-one relationship. Format: OO(scope.collection,scope.collection)",
+            "  - OM: One-to-many relationship. Format: OM(scope.collection,scope.collection)",
+            "- Under RELATIONSHIPS, output one relationship per line using only these formats:",
+            "  - PK(scope.collection,$meta_id)",
+            "  - PKA(scope.collection,col1,col2)",
+            "  - FK(scope.collection,child_col1,child_col2;scope.collection,parent_col1,parent_col2)",
+            "  - OO(scope.collection,scope.collection)",
+            "  - OM(scope.collection,scope.collection)",
+            "- Identify potential join keys even if they are not explicitly defined as foreign keys.",
+            "- Emit PKA only when a stable logical key candidate exists.",
+            "- For nested object fields, use dot paths (for example: a.b).",
+            "- For fields inside arrays of objects, use [] in the path (for example: a.[].c.d).",
+            "- Use exact scope.collection names from the schema.",
+            "- Do NOT include collection descriptions, field descriptions, or query guidance.",
+        ]
+    )
     return "\n".join(prompt_parts)
 
 
@@ -438,9 +469,18 @@ async def _request_llm_non_relationship_enrichment(
 async def _request_llm_relationship_enrichment(
     session: ServerSession,
     database_info: dict[str, Any],
+    semantic_context: str | None = None,
 ) -> str | None:
-    """Request relationships-only enrichment content from the LLM."""
-    prompt = _build_relationship_enrichment_prompt(database_info)
+    """Request relationships-only enrichment content from the LLM.
+
+    When `semantic_context` is provided (typically the non-relationship
+    enrichment output) it is appended to the prompt so the LLM can ground
+    its FK/PKA/OO/OM choices in collection and field descriptions instead of
+    structural facts alone.
+    """
+    prompt = _build_relationship_enrichment_prompt(
+        database_info, semantic_context=semantic_context
+    )
     return await _request_llm_enrichment_with_prompt(
         session=session,
         prompt=prompt,
@@ -495,22 +535,21 @@ async def _process_bucket_enrichment(
                 bucket_name,
             )
 
-            non_relationship_result, relationships_result = await asyncio.gather(
-                _request_llm_non_relationship_enrichment(session, database_info),
-                _request_llm_relationship_enrichment(session, database_info),
-                return_exceptions=True,
-            )
-
-            non_relationship_prompt = _resolve_enrichment_result(
-                bucket_name=bucket_name,
-                job_label="Non-relationship",
-                result=non_relationship_result,
-            )
-            relationships_prompt = _resolve_enrichment_result(
-                bucket_name=bucket_name,
-                job_label="Relationships",
-                result=relationships_result,
-            )
+            # Run non-relationship enrichment FIRST so its output can be passed
+            # as semantic context to the relationship job (better grounding for
+            # PKA / FK / OO / OM choices). Falls back to schema-only context
+            # automatically if the non-relationship job fails or returns empty.
+            try:
+                non_relationship_prompt = await _request_llm_non_relationship_enrichment(
+                    session, database_info
+                )
+            except Exception as non_rel_error:
+                logger.warning(
+                    "Non-relationship enrichment job failed for bucket=%s: %s",
+                    bucket_name,
+                    non_rel_error,
+                )
+                non_relationship_prompt = None
 
             if not non_relationship_prompt:
                 logger.warning(
@@ -518,6 +557,23 @@ async def _process_bucket_enrichment(
                     bucket_name,
                 )
                 return
+
+            try:
+                relationships_result: str | Exception | None = (
+                    await _request_llm_relationship_enrichment(
+                        session,
+                        database_info,
+                        semantic_context=non_relationship_prompt,
+                    )
+                )
+            except Exception as rel_error:
+                relationships_result = rel_error
+
+            relationships_prompt = _resolve_enrichment_result(
+                bucket_name=bucket_name,
+                job_label="Relationships",
+                result=relationships_result,
+            )
 
             merged_prompt = _merge_enrichment_sections(
                 non_relationship_prompt=non_relationship_prompt,
