@@ -392,23 +392,20 @@ async def append_verified_relationships_to_prompt(
         expression = _relationship_to_expression(result.relationship)
         if result.is_unable_to_verify:
             reason = result.failure_reason or "unable_to_verify"
-            status_lines.append(f"- UNABLE: {expression} — {reason}")
-        elif result.is_valid:
-            status_lines.append(f"- VERIFIED: {expression}")
-        else:
+            status_lines.append(f"- U: {expression} | {reason}")
+        elif not result.is_valid:
             reason = result.failure_reason or "verification_failed"
-            status_lines.append(f"- FAILED: {expression} — {reason}")
+            status_lines.append(f"- F: {expression} | {reason}")
 
     for skipped_relationship, skip_reason in skipped_relationships:
         expression = _relationship_to_expression(skipped_relationship)
-        status_lines.append(f"- SKIPPED: {expression} — {skip_reason}")
+        status_lines.append(f"- S: {expression} | {skip_reason}")
 
     appended_section = "\n".join(
         [
             "## Relationship Verification Status",
-            "Verification uses live SQL++ checks against sampled/queryable data for column presence, nullability, uniqueness, and FK inclusion.",
-            "Results are data-backed but sample-sensitive, so unseen values can still fail candidate checks.",
-            f"Summary: {verified_count} verified, {failed_count} failed, {unable_count} unable, {skipped_count} skipped.",
+            "Key: F=failed, U=unable, S=skipped; not listed => verified",
+            f"Summary: V={verified_count} F={failed_count} U={unable_count} S={skipped_count}",
             *status_lines,
         ]
     )
