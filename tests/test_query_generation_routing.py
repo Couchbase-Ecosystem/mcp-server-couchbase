@@ -96,6 +96,8 @@ def test_generate_query_warns_when_bucket_prompt_not_ready(monkeypatch) -> None:
 
 def test_generate_query_uses_routed_bucket_on_success(monkeypatch) -> None:
     """Use routed bucket name in final response even if query LLM returns another one."""
+    captured_call: dict[str, object] = {}
+
     monkeypatch.setattr(
         query_tools,
         "_get_bucket_catalog_prompt_states",
@@ -109,15 +111,18 @@ def test_generate_query_uses_routed_bucket_on_success(monkeypatch) -> None:
     monkeypatch.setattr(
         query_tools,
         "call_agent",
-        lambda **_kwargs: {
-            "content": json.dumps(
-                {
-                    "query": "SELECT COUNT(*) AS c FROM `users`",
-                    "bucket_name": "wrong_bucket",
-                    "scope_name": "_default",
-                }
-            )
-        },
+        lambda **kwargs: (
+            captured_call.update(kwargs)
+            or {
+                "content": json.dumps(
+                    {
+                        "query": "SELECT COUNT(*) AS c FROM `users`",
+                        "bucket_name": "wrong_bucket",
+                        "scope_name": "_default",
+                    }
+                )
+            }
+        ),
     )
     monkeypatch.setattr(
         query_tools, "extract_answer", lambda resp_body: str(resp_body["content"])
@@ -130,3 +135,5 @@ def test_generate_query_uses_routed_bucket_on_success(monkeypatch) -> None:
     assert result["query"] == "SELECT COUNT(*) AS c FROM `users`"
     assert result["bucket_name"] == "b1"
     assert result["scope_name"] == "_default"
+    assert captured_call["content"] == "count users"
+    assert captured_call["extra_data"] == {"catalog": "catalog prompt"}
