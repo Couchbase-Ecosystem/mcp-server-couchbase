@@ -52,17 +52,29 @@ async def test_enrichment_respects_bucket_concurrency_limit(
         lambda: {"enrichment_bucket_concurrency": 2},
     )
 
-    async def _fake_request(_: object, __: dict[str, Any]) -> str:
+    async def _fake_non_relationship_request(_: object, __: dict[str, Any]) -> str:
         counters["current"] += 1
         counters["max"] = max(counters["max"], counters["current"])
         await asyncio.sleep(0.01)
         counters["current"] -= 1
-        return "enriched"
+        return "enriched-nonrel"
+
+    async def _fake_relationship_request(_: object, __: dict[str, Any]) -> str:
+        return "## RELATIONSHIPS\nPK(s.c,$meta_id)"
 
     async def _fake_append_verified_relationships(**kwargs: Any) -> str:
         return kwargs["enriched_prompt"]
 
-    monkeypatch.setattr(catalog_enrichment, "_request_llm_enrichment", _fake_request)
+    monkeypatch.setattr(
+        catalog_enrichment,
+        "_request_llm_non_relationship_enrichment",
+        _fake_non_relationship_request,
+    )
+    monkeypatch.setattr(
+        catalog_enrichment,
+        "_request_llm_relationship_enrichment",
+        _fake_relationship_request,
+    )
     monkeypatch.setattr(
         catalog_enrichment,
         "append_verified_relationships_to_prompt",
@@ -72,7 +84,8 @@ async def test_enrichment_respects_bucket_concurrency_limit(
     await catalog_enrichment._check_and_enrich_catalog(session=object())  # type: ignore[arg-type]
 
     assert counters["max"] <= 2
-    assert all(store.prompt == "enriched" for store in stores.values())
+    assert all("enriched-nonrel" in store.prompt for store in stores.values())
+    assert all("## RELATIONSHIPS" in store.prompt for store in stores.values())
 
 
 @pytest.mark.asyncio
@@ -94,15 +107,27 @@ async def test_enrichment_isolates_bucket_failure(
         lambda: {"enrichment_bucket_concurrency": 2},
     )
 
-    async def _fake_request(_: object, database_info: dict[str, Any]) -> str:
+    async def _fake_non_relationship_request(_: object, database_info: dict[str, Any]) -> str:
         if "bad" in database_info.get("buckets", {}):
             raise RuntimeError("sampling failed")
         return "good-prompt"
 
+    async def _fake_relationship_request(_: object, __: dict[str, Any]) -> str:
+        return "## RELATIONSHIPS\nPK(s.c,$meta_id)"
+
     async def _fake_append_verified_relationships(**kwargs: Any) -> str:
         return kwargs["enriched_prompt"]
 
-    monkeypatch.setattr(catalog_enrichment, "_request_llm_enrichment", _fake_request)
+    monkeypatch.setattr(
+        catalog_enrichment,
+        "_request_llm_non_relationship_enrichment",
+        _fake_non_relationship_request,
+    )
+    monkeypatch.setattr(
+        catalog_enrichment,
+        "_request_llm_relationship_enrichment",
+        _fake_relationship_request,
+    )
     monkeypatch.setattr(
         catalog_enrichment,
         "append_verified_relationships_to_prompt",
@@ -111,7 +136,7 @@ async def test_enrichment_isolates_bucket_failure(
 
     await catalog_enrichment._check_and_enrich_catalog(session=object())  # type: ignore[arg-type]
 
-    assert stores["good"].prompt == "good-prompt"
+    assert "good-prompt" in stores["good"].prompt
     assert stores["good"].get_schema_hash() == "new"
     assert stores["bad"].prompt == ""
     assert stores["bad"].get_schema_hash() == "old"
@@ -128,22 +153,36 @@ async def test_enrichment_waits_for_first_catalog_refresh(
     monkeypatch.setattr(catalog_enrichment, "get_all_catalog_stores", lambda: stores)
     monkeypatch.setattr(catalog_enrichment, "compute_catalog_schema_hash", lambda _: "new")
 
-    called = {"sampling": 0}
+    called = {"non_relationship": 0, "relationships": 0}
 
-    async def _fake_request(_: object, __: dict[str, Any]) -> str:
-        called["sampling"] += 1
+    async def _fake_non_relationship_request(_: object, __: dict[str, Any]) -> str:
+        called["non_relationship"] += 1
         return "enriched"
 
-    monkeypatch.setattr(catalog_enrichment, "_request_llm_enrichment", _fake_request)
+    async def _fake_relationship_request(_: object, __: dict[str, Any]) -> str:
+        called["relationships"] += 1
+        return "## RELATIONSHIPS\nPK(s.c,$meta_id)"
+
+    monkeypatch.setattr(
+        catalog_enrichment,
+        "_request_llm_non_relationship_enrichment",
+        _fake_non_relationship_request,
+    )
+    monkeypatch.setattr(
+        catalog_enrichment,
+        "_request_llm_relationship_enrichment",
+        _fake_relationship_request,
+    )
 
     await catalog_enrichment._check_and_enrich_catalog(session=object())  # type: ignore[arg-type]
 
-    assert called["sampling"] == 0
+    assert called["non_relationship"] == 0
+    assert called["relationships"] == 0
     assert stores["b1"].prompt == ""
 
 
 @pytest.mark.asyncio
-async def test_request_llm_enrichment_retries_empty_then_succeeds(
+async def test_request_llm_non_relationship_enrichment_retries_empty_then_succeeds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Sampling should retry on empty text and eventually succeed."""
@@ -165,7 +204,7 @@ async def test_request_llm_enrichment_retries_empty_then_succeeds(
             return SimpleNamespace(content=SimpleNamespace(text="final prompt"))
 
     session = _FakeSession()
-    result = await catalog_enrichment._request_llm_enrichment(
+    result = await catalog_enrichment._request_llm_non_relationship_enrichment(
         session=session,  # type: ignore[arg-type]
         database_info={"buckets": {"b1": {}}},
     )
@@ -175,7 +214,7 @@ async def test_request_llm_enrichment_retries_empty_then_succeeds(
 
 
 @pytest.mark.asyncio
-async def test_request_llm_enrichment_returns_none_after_retry_exhaustion(
+async def test_request_llm_non_relationship_enrichment_returns_none_after_retry_exhaustion(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Sampling should return None after exhausting retries."""
@@ -190,9 +229,65 @@ async def test_request_llm_enrichment_returns_none_after_retry_exhaustion(
         async def create_message(self, **_: Any) -> Any:
             return SimpleNamespace(content=SimpleNamespace(text=""))
 
-    result = await catalog_enrichment._request_llm_enrichment(
+    result = await catalog_enrichment._request_llm_non_relationship_enrichment(
         session=_AlwaysEmptySession(),  # type: ignore[arg-type]
         database_info={"buckets": {"b1": {}}},
     )
 
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_enrichment_stores_partial_when_relationship_job_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If relationships job fails, enrichment should store Job1-only prompt."""
+    stores = {"b1": _FakeStore({"buckets": {"b1": {}}})}
+
+    monkeypatch.setattr(catalog_enrichment, "get_all_catalog_stores", lambda: stores)
+    monkeypatch.setattr(catalog_enrichment, "has_catalog_first_refresh_completed", lambda: True)
+    monkeypatch.setattr(catalog_enrichment, "compute_catalog_schema_hash", lambda _: "new")
+
+    async def _fake_non_relationship_request(_: object, __: dict[str, Any]) -> str:
+        return "non-relationship-body"
+
+    async def _fake_relationship_request(_: object, __: dict[str, Any]) -> str | None:
+        return None
+
+    async def _fake_append_verified_relationships(**kwargs: Any) -> str:
+        raise AssertionError("Verifier append should not run for partial storage")
+
+    monkeypatch.setattr(
+        catalog_enrichment,
+        "_request_llm_non_relationship_enrichment",
+        _fake_non_relationship_request,
+    )
+    monkeypatch.setattr(
+        catalog_enrichment,
+        "_request_llm_relationship_enrichment",
+        _fake_relationship_request,
+    )
+    monkeypatch.setattr(
+        catalog_enrichment,
+        "append_verified_relationships_to_prompt",
+        _fake_append_verified_relationships,
+    )
+
+    await catalog_enrichment._check_and_enrich_catalog(session=object())  # type: ignore[arg-type]
+
+    assert stores["b1"].prompt.strip() == "non-relationship-body"
+    assert stores["b1"].get_schema_hash() == "new"
+
+
+def test_non_relationship_prompt_requires_all_nested_key_descriptions() -> None:
+    """Non-relationship prompt should explicitly require all nested key path descriptions."""
+    prompt = catalog_enrichment._build_non_relationship_enrichment_prompt(
+        {"buckets": {"b1": {}}}
+    )
+
+    assert "Field descriptions for each key path in each collection" in prompt
+    assert (
+        "Include key descriptions for all nested and array-object paths, not only top-level keys."
+        in prompt
+    )
+    assert "Do NOT include a RELATIONSHIPS section in this response." in prompt
