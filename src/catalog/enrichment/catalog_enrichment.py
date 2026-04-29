@@ -19,6 +19,13 @@ from typing import Any
 from mcp.server.session import ServerSession
 from mcp.types import SamplingMessage, TextContent
 
+from catalog.enrichment.catalog_info_formatter import (
+    build_coverage_checklist,
+    build_stub_section,
+    find_missing_ids,
+    format_database_info_compact,
+    parse_described_ids,
+)
 from catalog.enrichment.relationship_verifier.integration_utils import (
     append_verified_relationships_to_prompt,
 )
@@ -35,6 +42,8 @@ ENRICHMENT_CHECK_INTERVAL = 120  # seconds
 LLM_SAMPLING_TIMEOUT_SECONDS = 160
 LLM_SAMPLING_MAX_ATTEMPTS = 3
 LLM_SAMPLING_INITIAL_BACKOFF_SECONDS = 1.0
+# Maximum coverage checklist items to send back in a follow-up "fill missing" prompt.
+COMPLETENESS_FOLLOWUP_MAX_IDS = 200
 
 
 def _compute_sampling_backoff_seconds(attempt: int) -> float:
@@ -54,9 +63,21 @@ def _get_enrichment_bucket_concurrency() -> int:
     return max(1, parsed_value)
 
 
+def _format_checklist_block(checklist_ids: list[str]) -> str:
+    """Render the coverage checklist as numbered lines for the LLM."""
+    if not checklist_ids:
+        return "(no entries)"
+    return "\n".join(f"{idx + 1}. {entry}" for idx, entry in enumerate(checklist_ids))
+
+
 def _build_non_relationship_enrichment_prompt(database_info: dict[str, Any]) -> str:
     """
     Build a prompt for the LLM to generate schema descriptions excluding relationships.
+
+    The schema is rendered in a compact markdown layout (vs raw JSON) to reduce
+    token usage and reduce the chance of truncated responses. A coverage
+    checklist with stable IDs is embedded so the response can be programmatically
+    verified and missing entries can be backfilled deterministically.
 
     Args:
         database_info: Database schema information
@@ -64,6 +85,10 @@ def _build_non_relationship_enrichment_prompt(database_info: dict[str, Any]) -> 
     Returns:
         Formatted prompt string for the LLM
     """
+    compact_schema = format_database_info_compact(database_info)
+    checklist_ids = build_coverage_checklist(database_info)
+    checklist_block = _format_checklist_block(checklist_ids)
+
     prompt_parts = [
         "# Database Schema Analysis Request",
         "",
@@ -74,19 +99,27 @@ def _build_non_relationship_enrichment_prompt(database_info: dict[str, Any]) -> 
         "",
         "Format your response as a structured prompt that can be used by an AI assistant to help users write better SQL++ queries.",
         "",
-        "## Database Schema:",
+        "## Database Schema (compact view)",
         "",
-        json.dumps(database_info, indent=2),
+        "Each table row lists path, observed types, and up to three sample values per type.",
+        "Indexes are listed under each collection with their key columns.",
         "",
-        "Please provide your analysis in a clear, concise format that includes:",
-        "- Bucket descriptions",
-        "- Scope descriptions",
-        "- Collection descriptions with their purpose",
-        "- Key descriptions for every path in each collection",
+        compact_schema or "(no schema available)",
+        "",
+        "## Coverage Checklist (you MUST address every entry below)",
+        "",
+        "Each entry has a stable ID. In your response, describe each entry on its own",
+        "line and include the entry's ID verbatim (so coverage can be machine-verified).",
+        "Use these formats exactly:",
+        "- COLLECTION: <scope>.<collection> -- <description>",
+        "- FIELD: <scope>.<collection> :: <path> -- <description>",
+        "- INDEX: <scope>.<collection> :: <name> -- <description>",
+        "",
+        checklist_block,
         "",
         "## Important Instructions:",
-        "- Analyze the 'indexes' field to understand which fields are optimized for filtering and sorting.",
-        "- Analyze the 'samples' field to understand the actual data values, date formats, and status codes.",
+        "- Analyze the indexes section to understand which fields are optimized for filtering and sorting.",
+        "- Analyze the sample values to understand actual data formats, date formats, and status codes.",
         "- Suggest optimal query patterns based on the available indexes.",
         "- Handle polymorphic collections (multiple document shapes in one collection) as a union schema.",
         "- Represent each collection with one merged schema (do not output separate schemas per variant).",
@@ -98,9 +131,49 @@ def _build_non_relationship_enrichment_prompt(database_info: dict[str, Any]) -> 
         "- Include key descriptions for all nested and array-object paths, not only top-level keys.",
         "- Use exact scope.collection names from the schema.",
         "- Do NOT include a RELATIONSHIPS section in this response.",
+        "- Do NOT skip any checklist entry; every COLLECTION, FIELD, and INDEX ID above must appear in your response.",
     ]
 
     return "\n".join(prompt_parts)
+
+
+def _build_completeness_followup_prompt(
+    database_info: dict[str, Any],
+    missing_ids: list[str],
+) -> str:
+    """Build a focused follow-up prompt asking only for the missing checklist IDs."""
+    truncated = missing_ids[:COMPLETENESS_FOLLOWUP_MAX_IDS]
+    compact_schema = format_database_info_compact(database_info)
+    checklist_block = _format_checklist_block(truncated)
+    note = ""
+    if len(missing_ids) > len(truncated):
+        note = (
+            f"\n(Only the first {len(truncated)} of {len(missing_ids)} missing entries "
+            "are listed; remaining entries will be auto-filled from the schema.)\n"
+        )
+    return "\n".join(
+        [
+            "# Schema Enrichment Follow-up",
+            "",
+            "Your previous response was missing descriptions for the entries listed below.",
+            "Please return ONLY descriptions for these missing entries, one per line, using",
+            "the same exact ID formats:",
+            "- COLLECTION: <scope>.<collection> -- <description>",
+            "- FIELD: <scope>.<collection> :: <path> -- <description>",
+            "- INDEX: <scope>.<collection> :: <name> -- <description>",
+            "",
+            "Do not repeat entries that you already described. Do not include a",
+            "RELATIONSHIPS section. Keep each description concise (one line).",
+            note,
+            "## Schema reference (compact view)",
+            "",
+            compact_schema or "(no schema available)",
+            "",
+            "## Missing entries to describe",
+            "",
+            checklist_block,
+        ]
+    )
 
 
 def _build_relationship_enrichment_prompt(database_info: dict[str, Any]) -> str:
@@ -273,16 +346,92 @@ async def _request_llm_enrichment_with_prompt(
     return None
 
 
+def _ensure_complete_non_relationship_prompt(
+    *,
+    database_info: dict[str, Any],
+    enriched_text: str,
+    followup_text: str | None,
+) -> str:
+    """Combine LLM output with deterministic stubs so coverage is 100% guaranteed.
+
+    Returns the merged prompt that contains all checklist IDs (whether described
+    by the LLM or auto-filled from the schema).
+    """
+    expected_ids = build_coverage_checklist(database_info)
+    described = parse_described_ids(enriched_text)
+    if followup_text:
+        described |= parse_described_ids(followup_text)
+
+    missing = find_missing_ids(expected_ids, described)
+
+    parts: list[str] = [enriched_text.rstrip()]
+    if followup_text and followup_text.strip():
+        parts.append("")
+        parts.append("## Follow-up Coverage Additions")
+        parts.append("")
+        parts.append(followup_text.strip())
+
+    if missing:
+        logger.warning(
+            "Auto-filling %d missing checklist entries after LLM enrichment "
+            "(total expected=%d, described=%d)",
+            len(missing),
+            len(expected_ids),
+            len(expected_ids) - len(missing),
+        )
+        stub_section = build_stub_section(database_info, missing)
+        if stub_section:
+            parts.append("")
+            parts.append(stub_section)
+
+    return "\n".join(parts).rstrip()
+
+
 async def _request_llm_non_relationship_enrichment(
     session: ServerSession,
     database_info: dict[str, Any],
 ) -> str | None:
-    """Request non-relationship enrichment content from the LLM."""
+    """Request non-relationship enrichment content from the LLM with coverage safety net.
+
+    Steps:
+      1. Send the compact + checklist prompt.
+      2. Parse described IDs from the response.
+      3. If any IDs are missing, send ONE focused follow-up sampling request.
+      4. Backfill any still-missing IDs with deterministic stubs so the stored
+         prompt never loses schema information.
+    """
     prompt = _build_non_relationship_enrichment_prompt(database_info)
-    return await _request_llm_enrichment_with_prompt(
+    enriched_text = await _request_llm_enrichment_with_prompt(
         session=session,
         prompt=prompt,
         job_label="non_relationships",
+    )
+    if enriched_text is None:
+        return None
+
+    expected_ids = build_coverage_checklist(database_info)
+    described = parse_described_ids(enriched_text)
+    missing = find_missing_ids(expected_ids, described)
+
+    followup_text: str | None = None
+    if missing:
+        logger.info(
+            "LLM enrichment response missing %d/%d checklist entries; "
+            "issuing follow-up sampling for missing items",
+            len(missing),
+            len(expected_ids),
+        )
+        followup_prompt = _build_completeness_followup_prompt(database_info, missing)
+        followup_text = await _request_llm_enrichment_with_prompt(
+            session=session,
+            prompt=followup_prompt,
+            job_label="non_relationships_followup",
+        )
+
+    return _ensure_complete_non_relationship_prompt(
+        database_info=database_info,
+        enriched_text=enriched_text,
+        followup_text=followup_text,
     )
 
 
