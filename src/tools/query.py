@@ -373,56 +373,6 @@ def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, A
     )
 
 
-def _build_query_generation_prompt(
-    *,
-    user_question: str,
-    catalog_prompt: str,
-) -> str:
-    """Build a structured, multi-section prompt for the query-generation agent.
-
-    Sections
-    --------
-    1. Target keyspace — bucket / scope context so the agent knows the query
-       scope is already set and collection names should be used directly.
-    2. Per-collection metadata — schema, and sample docs.
-    3. User question — the natural-language request.
-    """
-    lines: list[str] = []
-
-    # ── 1. Keyspace context ──────────────────────────────────────────────
-    lines.append(
-        "- The query will be executed with the scope context already set. "
-        "Use collection names directly — do NOT prefix with bucket or scope."
-    )
-    lines.append("")
-
-    # ── 2. Catalog context ────────────────────────────────────────────────
-    lines.append("## Catalog Context")
-    lines.append(
-        "Use the following catalog-generated context (including verified relationships) "
-        "to produce the SQL++ query:"
-    )
-    lines.append("")
-    lines.append(catalog_prompt.strip())
-    lines.append("")
-
-    # ── 3. User question ─────────────────────────────────────────────────
-    lines.append("## User Question")
-    lines.append(user_question)
-    lines.append(
-        ""
-    )  # TODO: We need to move the part about getting bucket, scope to backend like iQ-FastAPI
-    lines.append("## Output Format")
-    lines.append(
-        'Return ONLY valid JSON with keys: "query", "bucket_name", "scope_name".'
-    )
-    lines.append(
-        "If bucket or scope cannot be determined confidently, set them to an empty string."
-    )
-
-    return "\n".join(lines)
-
-
 def _get_bucket_catalog_prompt_states(ctx: Context) -> dict[str, dict[str, Any]]:
     """Return per-bucket prompt and routing metadata from bucket-scoped stores."""
     _ = ctx
@@ -650,10 +600,8 @@ def generate_or_modify_sql_plus_plus_query(
             "The generated query may be less accurate until enrichment completes."
         )
 
-    prompt = _build_query_generation_prompt(user_question=message, catalog_prompt=catalog_prompt)
-
     try:
-        resp_body = call_agent(content=prompt)
+        resp_body = call_agent(content=message, extra_data={"catalog": catalog_prompt})
         raw_answer = extract_answer(resp_body)
         try:
             parsed = json.loads(raw_answer)
