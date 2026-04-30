@@ -19,7 +19,6 @@ from utils.constants import MCP_SERVER_NAME
 from utils.context import get_cluster_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
-_ROUTING_CONFIDENCE_THRESHOLD = 0.7
 
 
 def get_schema_for_collection(
@@ -398,113 +397,6 @@ def _get_bucket_catalog_prompt_states(ctx: Context) -> dict[str, dict[str, Any]]
     return states
 
 
-def _route_question_to_bucket_with_llm(
-    user_question: str,
-    bucket_states: dict[str, dict[str, Any]],
-) -> dict[str, Any]:
-    """Route a natural-language question to one bucket using the LLM router."""
-    bucket_names = sorted(bucket_states.keys())
-    fallback_candidates = bucket_names[:2]
-    if not bucket_names:
-        return {
-            "resolved": False,
-            "bucket_name": "",
-            "confidence": 0.0,
-            "reason": "No bucket catalog state is available.",
-            "top_candidates": [],
-        }
-
-    # Build a compact routing context for the router model:
-    # a deterministic one-line summary plus known scopes/collections.
-    bucket_context: list[dict[str, Any]] = []
-    for bucket_name in bucket_names:
-        state = bucket_states[bucket_name]
-        bucket_context.append(
-            {
-                "bucket_name": bucket_name,
-                "summary_line": state.get("summary_line", ""),
-                "scope_names": state.get("scope_names", []),
-                "collection_names": state.get("collection_names", []),
-            }
-        )
-    prompt = "\n".join(
-        [
-            "You are a Couchbase bucket router.",
-            "Pick the single best bucket for the user question.",
-            "Return ONLY valid JSON with keys:",
-            '{"bucket_name":"", "confidence":0.0, "reason":"", "top_candidates":[]}',
-            "top_candidates should contain up to 3 entries with bucket_name.",
-            "",
-            "## Available Buckets",
-            json.dumps(bucket_context, indent=2),
-            "",
-            "## User Question",
-            user_question,
-        ]
-    )
-
-    try:
-        resp_body = call_agent(content=prompt)
-        raw_answer = extract_answer(resp_body)
-        parsed = json.loads(raw_answer)
-        if not isinstance(parsed, dict):
-            raise ValueError("Router response is not a JSON object")
-    except (ConnectionError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
-        logger.warning("Bucket routing LLM call failed: %s", exc)
-        return {
-            "resolved": False,
-            "bucket_name": "",
-            "confidence": 0.0,
-            "reason": "Bucket routing failed for this question.",
-            "top_candidates": fallback_candidates,
-        }
-
-    routed_bucket_name = str(parsed.get("bucket_name", "")).strip()
-    try:
-        confidence = float(parsed.get("confidence", 0.0))
-    except (TypeError, ValueError):
-        confidence = 0.0
-
-    reason = str(parsed.get("reason", "")).strip()
-    raw_candidates = parsed.get("top_candidates", [])
-    top_candidates: list[str] = []
-    if isinstance(raw_candidates, list):
-        # Normalize candidate names from either {"bucket_name": "..."} or "..." formats.
-        candidate_names = [
-            str(item.get("bucket_name", "")).strip() if isinstance(item, dict) else str(item).strip()
-            for item in raw_candidates
-        ]
-        top_candidates = [name for name in candidate_names if name in bucket_states]
-    if not top_candidates:
-        top_candidates = fallback_candidates
-
-    if routed_bucket_name not in bucket_states:
-        return {
-            "resolved": False,
-            "bucket_name": "",
-            "confidence": confidence,
-            "reason": reason or "Router did not return a valid bucket.",
-            "top_candidates": top_candidates,
-        }
-
-    if confidence < _ROUTING_CONFIDENCE_THRESHOLD:
-        return {
-            "resolved": False,
-            "bucket_name": "",
-            "confidence": confidence,
-            "reason": reason or "Low confidence bucket match.",
-            "top_candidates": top_candidates,
-        }
-
-    return {
-        "resolved": True,
-        "bucket_name": routed_bucket_name,
-        "confidence": confidence,
-        "reason": reason,
-        "top_candidates": top_candidates,
-    }
-
-
 def generate_or_modify_sql_plus_plus_query(
     ctx: Context,
     message: Annotated[
@@ -517,22 +409,31 @@ def generate_or_modify_sql_plus_plus_query(
             ),
         ),
     ],
+    bucket_name: Annotated[
+        str,
+        Field(
+            description=(
+                "Target bucket name for SQL++ generation. "
+                "This tool does not infer bucket names automatically."
+            ),
+        ),
+    ],
 ) -> dict[str, Any]:
     """Create or modify a SQL++ query from a natural-language description.
 
     For efficient and effective SQL++ generation, prefer this tool over calling
     individual schema/bucket/scope/collection discovery tools.
-    This tool takes the raw question, uses catalog context internally, and
-    returns a ready-to-run SQL++ query.
-    It also returns the inferred bucket and scope name so you do not need to
-    infer execution context separately.
+    This tool takes the raw question and explicit bucket name, uses the
+    selected bucket's catalog context internally, and returns a ready-to-run
+    SQL++ query.
     If catalog enrichment is not ready, it returns a warning message instead.
 
     Returns:
         Dictionary with keys: query, bucket_name, scope_name.
     """
     logger.debug(
-        "generate_or_modify_sql_plus_plus_query — message=%s",
+        "generate_or_modify_sql_plus_plus_query — bucket_name=%s message=%s",
+        bucket_name,
         message,
     )
 
@@ -544,6 +445,15 @@ def generate_or_modify_sql_plus_plus_query(
             "message": (
                 "Error: A natural-language message describing the desired query is required."
             ),
+        }
+
+    selected_bucket_name = bucket_name.strip()
+    if not selected_bucket_name:
+        return {
+            "query": "",
+            "bucket_name": "",
+            "scope_name": "",
+            "message": "Error: bucket_name is required.",
         }
 
     bucket_states = _get_bucket_catalog_prompt_states(ctx)
@@ -559,26 +469,25 @@ def generate_or_modify_sql_plus_plus_query(
             ),
         }
 
-    routing_state = _route_question_to_bucket_with_llm(message, bucket_states)
-    if not routing_state.get("resolved"):
-        candidates = routing_state.get("top_candidates", [])
-        candidate_text = ", ".join(candidates) if candidates else "No candidates"
+    if selected_bucket_name not in bucket_states:
+        available_buckets = sorted(bucket_states.keys())
+        available_bucket_text = (
+            ", ".join(available_buckets) if available_buckets else "No buckets"
+        )
         return {
             "query": "",
-            "bucket_name": "",
+            "bucket_name": selected_bucket_name,
             "scope_name": "",
-            "candidate_buckets": candidates,
+            "available_buckets": available_buckets,
             "message": (
-                "Unable to choose a bucket with high confidence. "
-                f"Please choose one bucket and retry. Candidates: {candidate_text}"
+                f"Error: bucket '{selected_bucket_name}' was not found in the catalog. "
+                f"Available buckets: {available_bucket_text}"
             ),
-            "routing_reason": routing_state.get("reason", ""),
         }
 
-    # We have a routed bucket. Prefer enriched prompt when available.
+    # We have the requested bucket. Prefer enriched prompt when available.
     # If prompt is missing, still attempt generation with lightweight context and warning.
-    routed_bucket_name = str(routing_state["bucket_name"])
-    bucket_state = bucket_states[routed_bucket_name]
+    bucket_state = bucket_states[selected_bucket_name]
     catalog_prompt = str(bucket_state.get("prompt", "")).strip()
     warning_message = ""
     if not catalog_prompt:
@@ -588,7 +497,7 @@ def generate_or_modify_sql_plus_plus_query(
         fallback_lines = [
             "Catalog enrichment is not ready for this bucket.",
             "Generate the best possible SQL++ query using limited metadata.",
-            f"Chosen bucket: {routed_bucket_name}",
+            f"Chosen bucket: {selected_bucket_name}",
             f"Bucket summary: {summary_line or 'Not available'}",
             "Known scopes: " + (", ".join(scope_names) if scope_names else "Not available"),
             "Known collections: "
@@ -596,7 +505,7 @@ def generate_or_modify_sql_plus_plus_query(
         ]
         catalog_prompt = "\n".join(fallback_lines)
         warning_message = (
-            f"Warning: Catalog prompt for bucket '{routed_bucket_name}' is not ready yet. "
+            f"Warning: Catalog prompt for bucket '{selected_bucket_name}' is not ready yet. "
             "The generated query may be less accurate until enrichment completes."
         )
 
@@ -608,19 +517,19 @@ def generate_or_modify_sql_plus_plus_query(
             if isinstance(parsed, dict):
                 response: dict[str, Any] = {
                     "query": str(parsed.get("query", "")).strip(),
-                    "bucket_name": routed_bucket_name,
+                    "bucket_name": selected_bucket_name,
                     "scope_name": str(parsed.get("scope_name", "")).strip(),
                 }
             else:
                 response = {
                     "query": raw_answer.strip(),
-                    "bucket_name": routed_bucket_name,
+                    "bucket_name": selected_bucket_name,
                     "scope_name": "",
                 }
         except Exception:
             response = {
                 "query": raw_answer.strip(),
-                "bucket_name": routed_bucket_name,
+                "bucket_name": selected_bucket_name,
                 "scope_name": "",
             }
         if warning_message:
@@ -629,7 +538,7 @@ def generate_or_modify_sql_plus_plus_query(
     except (ConnectionError, RuntimeError) as exc:
         return {
             "query": "",
-            "bucket_name": "",
+            "bucket_name": selected_bucket_name,
             "scope_name": "",
             "message": f"Error: {exc}",
         }
