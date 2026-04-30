@@ -213,8 +213,7 @@ async def list_indexes(
         List of dictionaries with keys:
         - name (str): Index name
         - definition (str): Cleaned-up CREATE INDEX statement
-        - status (str): Current status of the index (e.g., "Ready", "Building", "Deferred").
-          Status values are normalised across both data-source paths
+        - status (str): Current status of the index
         - isPrimary (bool): Whether this is a primary index
         - bucket (str): Bucket name where the index exists
         - scope (str): Scope name where the index exists

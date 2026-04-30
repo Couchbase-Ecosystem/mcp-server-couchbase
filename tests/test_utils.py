@@ -33,7 +33,6 @@ from cb_mcp.utils.context import (
     get_cluster_connection,
 )
 from cb_mcp.utils.index_utils import (
-    _QUERY_STATE_TO_STATUS,
     _build_query_params,
     _determine_ssl_verification,
     _extract_hosts_from_connection_string,
@@ -325,7 +324,7 @@ class TestIndexUtilsFunctions:
         assert result["bucket"] == "travel-sample"
         assert result["scope"] == "inventory"
         assert result["collection"] == "airport"
-        assert result["status"] == "Ready"
+        assert result["status"] == "online"
         assert "city" in result["definition"]
         assert result["isPrimary"] is False
         assert "raw_index_stats" not in result
@@ -378,23 +377,6 @@ class TestIndexUtilsFunctions:
         result = process_query_index_data(idx, include_raw_index_stats=False)
         assert result is not None
         assert "definition" not in result
-
-    def test_process_query_index_data_status_normalization(self) -> None:
-        """Query-service state values should be normalised to REST API names."""
-        for query_state, expected_status in _QUERY_STATE_TO_STATUS.items():
-            idx = {"name": "idx", "state": query_state}
-            result = process_query_index_data(idx, include_raw_index_stats=False)
-            assert result is not None
-            assert result["status"] == expected_status, (
-                f"state '{query_state}' should map to '{expected_status}'"
-            )
-
-    def test_process_query_index_data_unknown_status_passthrough(self) -> None:
-        """Unknown state values should pass through unchanged."""
-        idx = {"name": "idx", "state": "scheduled_for_creation"}
-        result = process_query_index_data(idx, include_raw_index_stats=False)
-        assert result is not None
-        assert result["status"] == "scheduled_for_creation"
 
 
 class TestConstants:

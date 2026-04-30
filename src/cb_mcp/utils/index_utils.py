@@ -91,15 +91,6 @@ def process_index_data(
     return index_info
 
 
-# Map query-service index state values to the REST API status names so that
-# callers get a consistent experience regardless of cluster version.
-_QUERY_STATE_TO_STATUS: dict[str, str] = {
-    "online": "Ready",
-    "deferred": "Deferred",
-    "building": "Building",
-}
-
-
 def process_query_index_data(
     idx: dict[str, Any], include_raw_index_stats: bool
 ) -> dict[str, Any] | None:
@@ -136,9 +127,9 @@ def process_query_index_data(
     if clean_def:
         index_info["definition"] = clean_def
 
-    state = idx.get("state")
-    if state:
-        index_info["status"] = _QUERY_STATE_TO_STATUS.get(state, state)
+    normalized_status = idx.get("state")
+    if normalized_status:
+        index_info["status"] = normalized_status
 
     if "bucket_id" in idx:
         index_info["bucket"] = idx["bucket_id"]
