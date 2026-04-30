@@ -15,6 +15,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from cb_mcp.tools.index import (
+    _fetch_indexes_via_query_service,
+    _resolve_cluster_major_version,
+)
 from cb_mcp.utils.config import get_settings
 from cb_mcp.utils.connection import connect_to_bucket, connect_to_couchbase_cluster
 from cb_mcp.utils.constants import (
@@ -29,11 +33,14 @@ from cb_mcp.utils.context import (
     get_cluster_connection,
 )
 from cb_mcp.utils.index_utils import (
+    _QUERY_STATE_TO_STATUS,
     _build_query_params,
     _determine_ssl_verification,
     _extract_hosts_from_connection_string,
     clean_index_definition,
+    parse_major_version,
     process_index_data,
+    process_query_index_data,
     validate_connection_settings,
     validate_filter_params,
 )
@@ -270,6 +277,124 @@ class TestIndexUtilsFunctions:
             "couchbases://localhost", "/path/to/ca.pem"
         )
         assert result == "/path/to/ca.pem"
+
+    def test_parse_major_version_basic(self) -> None:
+        """Parse a typical full version string."""
+        assert parse_major_version("8.0.0-1928-enterprise") == 8
+        assert parse_major_version("7.6.11") == 7
+
+    def test_parse_major_version_only_major(self) -> None:
+        """Parse a string that is just a major version."""
+        assert parse_major_version("8") == 8
+
+    def test_parse_major_version_v_prefix(self) -> None:
+        """A 'v' prefix should be tolerated."""
+        assert parse_major_version("v8.0.0") == 8
+
+    def test_parse_major_version_empty_or_none(self) -> None:
+        """Empty/None inputs should return 0."""
+        assert parse_major_version("") == 0
+        assert parse_major_version(None) == 0
+
+    def test_parse_major_version_malformed(self) -> None:
+        """Malformed input should return 0."""
+        assert parse_major_version("unknown") == 0
+        assert parse_major_version("abc.def") == 0
+
+    def test_process_query_index_data_basic(self) -> None:
+        """Map a typical system:all_indexes row to the standard schema."""
+        idx = {
+            "name": "def_inventory_airport_city",
+            "bucket_id": "travel-sample",
+            "scope_id": "inventory",
+            "keyspace_id": "airport",
+            "state": "online",
+            "using": "gsi",
+            "metadata": {
+                "definition": (
+                    "CREATE INDEX `def_inventory_airport_city` ON "
+                    "`travel-sample`.`inventory`.`airport`(`city`)"
+                ),
+            },
+        }
+
+        result = process_query_index_data(idx, include_raw_index_stats=False)
+
+        assert result is not None
+        assert result["name"] == "def_inventory_airport_city"
+        assert result["bucket"] == "travel-sample"
+        assert result["scope"] == "inventory"
+        assert result["collection"] == "airport"
+        assert result["status"] == "Ready"
+        assert "city" in result["definition"]
+        assert result["isPrimary"] is False
+        assert "raw_index_stats" not in result
+
+    def test_process_query_index_data_primary(self) -> None:
+        """Primary index rows should set isPrimary=True."""
+        idx = {
+            "name": "def_inventory_airport_primary",
+            "bucket_id": "travel-sample",
+            "scope_id": "inventory",
+            "keyspace_id": "airport",
+            "is_primary": True,
+            "state": "online",
+            "metadata": {"definition": "CREATE PRIMARY INDEX ..."},
+        }
+
+        result = process_query_index_data(idx, include_raw_index_stats=False)
+
+        assert result is not None
+        assert result["isPrimary"] is True
+
+    def test_process_query_index_data_with_raw_stats(self) -> None:
+        """Raw stats should be included when requested."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "state": "online",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_query_index_data(idx, include_raw_index_stats=True)
+        assert result is not None
+        assert result["raw_index_stats"] == idx
+
+    def test_process_query_index_data_no_name(self) -> None:
+        """Rows without a name should be filtered out."""
+        idx = {"bucket_id": "b"}
+        assert process_query_index_data(idx, include_raw_index_stats=False) is None
+
+    def test_process_query_index_data_no_metadata(self) -> None:
+        """Missing metadata should not crash and should omit definition."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "state": "online",
+        }
+        result = process_query_index_data(idx, include_raw_index_stats=False)
+        assert result is not None
+        assert "definition" not in result
+
+    def test_process_query_index_data_status_normalization(self) -> None:
+        """Query-service state values should be normalised to REST API names."""
+        for query_state, expected_status in _QUERY_STATE_TO_STATUS.items():
+            idx = {"name": "idx", "state": query_state}
+            result = process_query_index_data(idx, include_raw_index_stats=False)
+            assert result is not None
+            assert result["status"] == expected_status, (
+                f"state '{query_state}' should map to '{expected_status}'"
+            )
+
+    def test_process_query_index_data_unknown_status_passthrough(self) -> None:
+        """Unknown state values should pass through unchanged."""
+        idx = {"name": "idx", "state": "scheduled_for_creation"}
+        result = process_query_index_data(idx, include_raw_index_stats=False)
+        assert result is not None
+        assert result["status"] == "scheduled_for_creation"
 
 
 class TestConstants:
@@ -565,3 +690,172 @@ class TestContextModule:
 
         mock_cluster.close.assert_called_once()
         assert provider._cluster is None
+
+
+class TestFetchIndexesViaQueryService:
+    """Unit tests for _fetch_indexes_via_query_service."""
+
+    @pytest.mark.asyncio
+    async def test_no_filters(self) -> None:
+        """With no filters, query should only have the GSI clause."""
+        mock_ctx = MagicMock()
+        expected_query = (
+            "SELECT RAW all_indexes FROM system:all_indexes WHERE `using` = 'gsi'"
+        )
+
+        with patch(
+            "cb_mcp.tools.index.run_cluster_query",
+            new_callable=AsyncMock,
+            return_value=[{"name": "idx1"}, {"name": "idx2"}],
+        ) as mock_query:
+            result = await _fetch_indexes_via_query_service(
+                mock_ctx, None, None, None, None
+            )
+
+        mock_query.assert_called_once_with(
+            mock_ctx, expected_query, named_parameters={}
+        )
+        assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_all_filters(self) -> None:
+        """All filters should produce named_parameters with the right keys."""
+        mock_ctx = MagicMock()
+
+        with patch(
+            "cb_mcp.tools.index.run_cluster_query",
+            new_callable=AsyncMock,
+            return_value=[{"name": "idx1"}],
+        ) as mock_query:
+            result = await _fetch_indexes_via_query_service(
+                mock_ctx, "bucket", "scope", "collection", "idx1"
+            )
+
+        _, kwargs = mock_query.call_args
+        params = kwargs["named_parameters"]
+        assert params == {
+            "bucket_id": "bucket",
+            "scope_id": "scope",
+            "keyspace_id": "collection",
+            "index_name": "idx1",
+        }
+        assert len(result) == 1
+
+    @pytest.mark.asyncio
+    async def test_non_dict_rows_filtered(self) -> None:
+        """Non-dict rows returned by the query should be dropped."""
+
+        mock_ctx = MagicMock()
+
+        with patch(
+            "cb_mcp.tools.index.run_cluster_query",
+            new_callable=AsyncMock,
+            return_value=[{"name": "idx1"}, "stray_string", 42, None],
+        ):
+            result = await _fetch_indexes_via_query_service(
+                mock_ctx, None, None, None, None
+            )
+
+        assert result == [{"name": "idx1"}]
+
+
+class TestResolveClusterMajorVersion:
+    """Unit tests for _resolve_cluster_major_version."""
+
+    @pytest.mark.asyncio
+    async def test_dict_nodes(self) -> None:
+        """Version detection with nodes represented as dicts."""
+
+        mock_ctx = MagicMock()
+        mock_cluster = AsyncMock()
+        info = MagicMock()
+        info.nodes = [
+            {"version": "8.0.0-1928-enterprise"},
+            {"version": "8.0.1-2000-enterprise"},
+        ]
+        mock_cluster.cluster_info.return_value = info
+
+        with patch(
+            "cb_mcp.tools.index.get_cluster_connection",
+            new_callable=AsyncMock,
+            return_value=mock_cluster,
+        ):
+            result = await _resolve_cluster_major_version(mock_ctx)
+
+        assert result == 8
+
+    @pytest.mark.asyncio
+    async def test_object_nodes(self) -> None:
+        """Version detection with nodes represented as objects with attributes."""
+
+        mock_ctx = MagicMock()
+        mock_cluster = AsyncMock()
+        info = MagicMock()
+        node = MagicMock()
+        node.version = "7.6.0"
+        info.nodes = [node]
+        mock_cluster.cluster_info.return_value = info
+
+        with patch(
+            "cb_mcp.tools.index.get_cluster_connection",
+            new_callable=AsyncMock,
+            return_value=mock_cluster,
+        ):
+            result = await _resolve_cluster_major_version(mock_ctx)
+
+        assert result == 7
+
+    @pytest.mark.asyncio
+    async def test_mixed_versions_returns_min(self) -> None:
+        """Mixed-version cluster returns the minimum major version."""
+
+        mock_ctx = MagicMock()
+        mock_cluster = AsyncMock()
+        info = MagicMock()
+        info.nodes = [
+            {"version": "8.0.0-enterprise"},
+            {"version": "7.6.11-enterprise"},
+        ]
+        mock_cluster.cluster_info.return_value = info
+
+        with patch(
+            "cb_mcp.tools.index.get_cluster_connection",
+            new_callable=AsyncMock,
+            return_value=mock_cluster,
+        ):
+            result = await _resolve_cluster_major_version(mock_ctx)
+
+        assert result == 7
+
+    @pytest.mark.asyncio
+    async def test_cluster_info_exception_returns_zero(self) -> None:
+        """If cluster_info() throws, fall back to 0."""
+        mock_ctx = MagicMock()
+
+        with patch(
+            "cb_mcp.tools.index.get_cluster_connection",
+            new_callable=AsyncMock,
+            side_effect=Exception("connection refused"),
+        ):
+            result = await _resolve_cluster_major_version(mock_ctx)
+
+        assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_empty_nodes_returns_zero(self) -> None:
+        """If cluster reports no nodes, return 0."""
+
+        mock_ctx = MagicMock()
+        mock_cluster = AsyncMock()
+        info = MagicMock()
+        info.nodes = []
+        mock_cluster.cluster_info.return_value = info
+
+        with patch(
+            "cb_mcp.tools.index.get_cluster_connection",
+            new_callable=AsyncMock,
+            return_value=mock_cluster,
+        ):
+            result = await _resolve_cluster_major_version(mock_ctx)
+
+        assert result == 0

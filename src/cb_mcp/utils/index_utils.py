@@ -91,6 +91,95 @@ def process_index_data(
     return index_info
 
 
+# Map query-service index state values to the REST API status names so that
+# callers get a consistent experience regardless of cluster version.
+_QUERY_STATE_TO_STATUS: dict[str, str] = {
+    "online": "Ready",
+    "deferred": "Deferred",
+    "building": "Building",
+}
+
+
+def process_query_index_data(
+    idx: dict[str, Any], include_raw_index_stats: bool
+) -> dict[str, Any] | None:
+    """Process a row from ``system:all_indexes`` into the same shape produced
+    by :func:`process_index_data`.
+
+    Field mapping (system:all_indexes -> output):
+        - name              -> name
+        - metadata.definition -> definition
+        - state             -> status
+        - bucket_id         -> bucket
+        - scope_id          -> scope
+        - keyspace_id       -> collection
+        - is_primary        -> isPrimary
+
+    Args:
+        idx: Raw row from ``system:all_indexes`` (already unwrapped from the
+            ``all_indexes`` alias produced by ``SELECT *``).
+        include_raw_index_stats: Whether to include the complete raw row in
+            the output under ``raw_index_stats``.
+
+    Returns:
+        Formatted index info dictionary, or None if the row should be skipped
+        (no name).
+    """
+    name = idx.get("name", "")
+    if not name:
+        return None
+
+    index_info: dict[str, Any] = {"name": name}
+
+    metadata = idx.get("metadata") or {}
+    clean_def = clean_index_definition(metadata.get("definition", ""))
+    if clean_def:
+        index_info["definition"] = clean_def
+
+    state = idx.get("state")
+    if state:
+        index_info["status"] = _QUERY_STATE_TO_STATUS.get(state, state)
+
+    if "bucket_id" in idx:
+        index_info["bucket"] = idx["bucket_id"]
+    if "scope_id" in idx:
+        index_info["scope"] = idx["scope_id"]
+    if "keyspace_id" in idx:
+        index_info["collection"] = idx["keyspace_id"]
+
+    index_info["isPrimary"] = bool(idx.get("is_primary", False))
+
+    if include_raw_index_stats:
+        index_info["raw_index_stats"] = idx
+
+    return index_info
+
+
+def parse_major_version(version_str: str | None) -> int:
+    """Extract the integer major version from a Couchbase version string.
+
+    Examples:
+        - "8.0.0-1928-enterprise" -> 8
+        - "7.6.0"                 -> 7
+        - "" / None / malformed   -> 0
+
+    Args:
+        version_str: implementationVersion string returned by the cluster.
+
+    Returns:
+        Major version as int, or 0 if it cannot be parsed.
+    """
+    if not version_str:
+        return 0
+    try:
+        first = version_str.strip().split(".", 1)[0]
+        # Handle prefixes like "v8" defensively.
+        first = first.lstrip("vV")
+        return int(first)
+    except (ValueError, IndexError):
+        return 0
+
+
 def _get_capella_root_ca_path() -> str:
     """Get the path to the Capella root CA certificate.
 
