@@ -107,8 +107,9 @@ def process_query_index_data(
         - is_primary        -> isPrimary
 
     Args:
-        idx: Raw row from ``system:all_indexes`` (already unwrapped from the
-            ``all_indexes`` alias produced by ``SELECT *``).
+        idx: A single index document from ``system:all_indexes``, returned
+            directly by ``SELECT RAW all_indexes`` (i.e. the outer wrapper is
+            already stripped by the ``RAW`` keyword).
         include_raw_index_stats: Whether to include the complete raw row in
             the output under ``raw_index_stats``.
 

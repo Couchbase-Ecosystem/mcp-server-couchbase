@@ -160,8 +160,9 @@ async def _resolve_cluster_major_version(ctx: Context) -> int:
         info = await cluster.cluster_info()
     except Exception as e:
         logger.warning(
-            f"Could not call cluster.cluster_info(), falling back to Index "
-            f"Service REST API for list_indexes: {e}"
+            f"Could not obtain cluster connection or call "
+            f"cluster.cluster_info(), falling back to Index Service REST API "
+            f"for list_indexes: {e}"
         )
         return 0
 
