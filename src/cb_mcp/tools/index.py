@@ -14,9 +14,9 @@ from ..utils.constants import MCP_SERVER_NAME
 from ..utils.context import get_cluster_connection
 from ..utils.index_utils import (
     fetch_indexes_from_rest_api,
-    parse_major_version,
     process_index_data,
     process_query_index_data,
+    resolve_cluster_major_version,
     validate_connection_settings,
     validate_filter_params,
 )
@@ -139,50 +139,6 @@ async def _fetch_indexes_via_query_service(
     return [row for row in rows if isinstance(row, dict)]
 
 
-async def _resolve_cluster_major_version(ctx: Context) -> int:
-    """Detect the cluster's major version via the SDK.
-
-    Reads the per-node ``version`` field from ``cluster.cluster_info().nodes``
-    (Python SDK 4.1+) and returns the *minimum* major version across all nodes
-    so we only enable the 8.x+ query-service path when every node supports it.
-
-    The high-level helper properties (``server_version`` /
-    ``server_version_short`` / ``server_version_full``) are intentionally not
-    used: the SDK collapses them to ``None`` whenever the cluster reports
-    mixed node versions, which is exactly the case where we still need an
-    answer. Each node entry, in contrast, always carries a ``version`` string.
-
-    Returns 0 (treated as "older than 8.x") if cluster_info() itself fails so
-    that callers fall back to the existing Index Service REST API path.
-    """
-    try:
-        cluster = await get_cluster_connection(ctx)
-        info = await cluster.cluster_info()
-    except Exception as e:
-        logger.warning(
-            f"Could not obtain cluster connection or call "
-            f"cluster.cluster_info(), falling back to Index Service REST API "
-            f"for list_indexes: {e}"
-        )
-        return 0
-
-    nodes = info.nodes or []
-    versions: list[str] = []
-    for node in nodes:
-        if isinstance(node, dict):
-            version = node.get("version")
-        else:
-            version = getattr(node, "version", None)
-        if version:
-            versions.append(str(version))
-
-    majors = [parse_major_version(v) for v in versions]
-    min_major = min(majors) if majors else 0
-
-    logger.info(f"Detected cluster node versions={versions} (min major={min_major})")
-    return min_major
-
-
 async def list_indexes(
     ctx: Context,
     bucket_name: str | None = None,
@@ -231,7 +187,8 @@ async def list_indexes(
         validate_connection_settings(settings)
 
         # Decide which path to use based on cluster version (via SDK).
-        major_version = await _resolve_cluster_major_version(ctx)
+        cluster = await get_cluster_connection(ctx)
+        major_version = await resolve_cluster_major_version(cluster)
 
         if major_version >= _QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION:
             logger.info(

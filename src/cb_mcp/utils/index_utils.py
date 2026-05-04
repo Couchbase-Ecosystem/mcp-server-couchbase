@@ -124,9 +124,9 @@ def process_query_index_data(
     index_info: dict[str, Any] = {"name": name}
 
     metadata = idx.get("metadata") or {}
-    clean_def = clean_index_definition(metadata.get("definition", ""))
-    if clean_def:
-        index_info["definition"] = clean_def
+    definition = metadata.get("definition", "")
+    if definition:
+        index_info["definition"] = definition
 
     normalized_status = idx.get("state")
     if normalized_status:
@@ -170,6 +170,44 @@ def parse_major_version(version_str: str | None) -> int:
         return int(first)
     except (ValueError, IndexError):
         return 0
+
+
+async def resolve_cluster_major_version(cluster: Any) -> int:
+    """Detect the cluster's major version via the SDK.
+
+    Reads the per-node ``version`` field from ``cluster.cluster_info().nodes``
+    (Python SDK 4.1+) and returns the *minimum* major version across all nodes
+    so we only enable the 8.x+ query-service path when every node supports it.
+
+    The high-level helper properties (``server_version`` /
+    ``server_version_short`` / ``server_version_full``) are intentionally not
+    used: the SDK collapses them to ``None`` whenever the cluster reports
+    mixed node versions, which is exactly the case where we still need an
+    answer. Each node entry, in contrast, always carries a ``version`` string.
+
+    Args:
+        cluster: An already-connected Couchbase ``Cluster`` instance.
+
+    Raises if cluster_info() fails — callers should not silently degrade
+    when version detection is unavailable.
+    """
+    info = await cluster.cluster_info()
+
+    nodes = info.nodes or []
+    versions: list[str] = []
+    for node in nodes:
+        if isinstance(node, dict):
+            version = node.get("version")
+        else:
+            version = getattr(node, "version", None)
+        if version:
+            versions.append(str(version))
+
+    majors = [parse_major_version(v) for v in versions]
+    min_major = min(majors) if majors else 0
+
+    logger.info(f"Detected cluster node versions={versions} (min major={min_major})")
+    return min_major
 
 
 def _get_capella_root_ca_path() -> str:

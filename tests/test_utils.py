@@ -17,7 +17,6 @@ import pytest
 
 from cb_mcp.tools.index import (
     _fetch_indexes_via_query_service,
-    _resolve_cluster_major_version,
 )
 from cb_mcp.utils.config import get_settings
 from cb_mcp.utils.connection import connect_to_bucket, connect_to_couchbase_cluster
@@ -40,6 +39,7 @@ from cb_mcp.utils.index_utils import (
     parse_major_version,
     process_index_data,
     process_query_index_data,
+    resolve_cluster_major_version,
     validate_connection_settings,
     validate_filter_params,
 )
@@ -726,7 +726,6 @@ class TestFetchIndexesViaQueryService:
     @pytest.mark.asyncio
     async def test_non_dict_rows_filtered(self) -> None:
         """Non-dict rows returned by the query should be dropped."""
-
         mock_ctx = MagicMock()
 
         with patch(
@@ -742,13 +741,11 @@ class TestFetchIndexesViaQueryService:
 
 
 class TestResolveClusterMajorVersion:
-    """Unit tests for _resolve_cluster_major_version."""
+    """Unit tests for resolve_cluster_major_version."""
 
     @pytest.mark.asyncio
     async def test_dict_nodes(self) -> None:
         """Version detection with nodes represented as dicts."""
-
-        mock_ctx = MagicMock()
         mock_cluster = AsyncMock()
         info = MagicMock()
         info.nodes = [
@@ -757,20 +754,13 @@ class TestResolveClusterMajorVersion:
         ]
         mock_cluster.cluster_info.return_value = info
 
-        with patch(
-            "cb_mcp.tools.index.get_cluster_connection",
-            new_callable=AsyncMock,
-            return_value=mock_cluster,
-        ):
-            result = await _resolve_cluster_major_version(mock_ctx)
+        result = await resolve_cluster_major_version(mock_cluster)
 
         assert result == 8
 
     @pytest.mark.asyncio
     async def test_object_nodes(self) -> None:
         """Version detection with nodes represented as objects with attributes."""
-
-        mock_ctx = MagicMock()
         mock_cluster = AsyncMock()
         info = MagicMock()
         node = MagicMock()
@@ -778,20 +768,13 @@ class TestResolveClusterMajorVersion:
         info.nodes = [node]
         mock_cluster.cluster_info.return_value = info
 
-        with patch(
-            "cb_mcp.tools.index.get_cluster_connection",
-            new_callable=AsyncMock,
-            return_value=mock_cluster,
-        ):
-            result = await _resolve_cluster_major_version(mock_ctx)
+        result = await resolve_cluster_major_version(mock_cluster)
 
         assert result == 7
 
     @pytest.mark.asyncio
     async def test_mixed_versions_returns_min(self) -> None:
         """Mixed-version cluster returns the minimum major version."""
-
-        mock_ctx = MagicMock()
         mock_cluster = AsyncMock()
         info = MagicMock()
         info.nodes = [
@@ -800,44 +783,27 @@ class TestResolveClusterMajorVersion:
         ]
         mock_cluster.cluster_info.return_value = info
 
-        with patch(
-            "cb_mcp.tools.index.get_cluster_connection",
-            new_callable=AsyncMock,
-            return_value=mock_cluster,
-        ):
-            result = await _resolve_cluster_major_version(mock_ctx)
+        result = await resolve_cluster_major_version(mock_cluster)
 
         assert result == 7
 
     @pytest.mark.asyncio
-    async def test_cluster_info_exception_returns_zero(self) -> None:
-        """If cluster_info() throws, fall back to 0."""
-        mock_ctx = MagicMock()
+    async def test_cluster_info_exception_propagates(self) -> None:
+        """If cluster_info() throws, the exception should propagate."""
+        mock_cluster = AsyncMock()
+        mock_cluster.cluster_info.side_effect = Exception("connection refused")
 
-        with patch(
-            "cb_mcp.tools.index.get_cluster_connection",
-            new_callable=AsyncMock,
-            side_effect=Exception("connection refused"),
-        ):
-            result = await _resolve_cluster_major_version(mock_ctx)
-
-        assert result == 0
+        with pytest.raises(Exception, match="connection refused"):
+            await resolve_cluster_major_version(mock_cluster)
 
     @pytest.mark.asyncio
     async def test_empty_nodes_returns_zero(self) -> None:
         """If cluster reports no nodes, return 0."""
-
-        mock_ctx = MagicMock()
         mock_cluster = AsyncMock()
         info = MagicMock()
         info.nodes = []
         mock_cluster.cluster_info.return_value = info
 
-        with patch(
-            "cb_mcp.tools.index.get_cluster_connection",
-            new_callable=AsyncMock,
-            return_value=mock_cluster,
-        ):
-            result = await _resolve_cluster_major_version(mock_ctx)
+        result = await resolve_cluster_major_version(mock_cluster)
 
         assert result == 0
