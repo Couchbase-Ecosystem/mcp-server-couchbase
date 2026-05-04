@@ -17,6 +17,7 @@ import pytest
 
 from cb_mcp.tools.index import (
     _fetch_indexes_via_query_service,
+    list_indexes,
 )
 from cb_mcp.utils.config import get_settings
 from cb_mcp.utils.connection import connect_to_bucket, connect_to_couchbase_cluster
@@ -810,3 +811,104 @@ class TestResolveClusterMajorVersion:
 
         with pytest.raises(RuntimeError, match="no nodes"):
             await resolve_cluster_major_version(mock_cluster)
+
+
+class TestListIndexesVersionRouting:
+    """Integration-level tests verifying list_indexes routes to the correct path."""
+
+    @pytest.mark.asyncio
+    async def test_version_8_uses_query_service(self) -> None:
+        """Cluster version >= 8 should use system:all_indexes, not REST API."""
+        mock_ctx = MagicMock()
+        mock_cluster = AsyncMock()
+        info = MagicMock()
+        info.nodes = [{"version": "8.0.0-enterprise"}]
+        mock_cluster.cluster_info.return_value = info
+
+        with (
+            patch(
+                "cb_mcp.tools.index.get_settings",
+                return_value={
+                    "connection_string": "couchbase://localhost",
+                    "username": "u",
+                    "password": "p",
+                },
+            ),
+            patch(
+                "cb_mcp.tools.index.get_cluster_connection",
+                new_callable=AsyncMock,
+                return_value=mock_cluster,
+            ),
+            patch(
+                "cb_mcp.tools.index.run_cluster_query",
+                new_callable=AsyncMock,
+                return_value=[
+                    {
+                        "name": "idx1",
+                        "bucket_id": "b",
+                        "scope_id": "s",
+                        "keyspace_id": "c",
+                        "state": "online",
+                        "metadata": {"definition": "CREATE INDEX idx1 ON b.s.c(x)"},
+                    }
+                ],
+            ) as mock_query,
+            patch(
+                "cb_mcp.tools.index.fetch_indexes_from_rest_api", new_callable=AsyncMock
+            ) as mock_rest,
+        ):
+            result = await list_indexes(mock_ctx)
+
+        mock_query.assert_called_once()
+        mock_rest.assert_not_called()
+        assert len(result) == 1
+        assert result[0]["name"] == "idx1"
+
+    @pytest.mark.asyncio
+    async def test_version_7_uses_rest_api(self) -> None:
+        """Cluster version < 8 should fall back to the REST API."""
+        mock_ctx = MagicMock()
+        mock_cluster = AsyncMock()
+        info = MagicMock()
+        info.nodes = [{"version": "7.6.11-enterprise"}]
+        mock_cluster.cluster_info.return_value = info
+
+        with (
+            patch(
+                "cb_mcp.tools.index.get_settings",
+                return_value={
+                    "connection_string": "couchbase://localhost",
+                    "username": "u",
+                    "password": "p",
+                },
+            ),
+            patch(
+                "cb_mcp.tools.index.get_cluster_connection",
+                new_callable=AsyncMock,
+                return_value=mock_cluster,
+            ),
+            patch(
+                "cb_mcp.tools.index.run_cluster_query", new_callable=AsyncMock
+            ) as mock_query,
+            patch(
+                "cb_mcp.tools.index.fetch_indexes_from_rest_api",
+                new_callable=AsyncMock,
+                return_value=[
+                    {
+                        "name": "idx1",
+                        "definition": "CREATE INDEX idx1 ON b.s.c(x)",
+                        "status": "Ready",
+                        "bucket": "b",
+                        "scope": "s",
+                        "collection": "c",
+                        "isPrimary": False,
+                    }
+                ],
+            ) as mock_rest,
+        ):
+            result = await list_indexes(mock_ctx)
+
+        mock_query.assert_not_called()
+        mock_rest.assert_called_once()
+        assert len(result) == 1
+        assert result[0]["name"] == "idx1"

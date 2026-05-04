@@ -154,7 +154,7 @@ async def list_indexes(
     - Cluster version >= 8.x: query ``system:all_indexes`` via the query
       service, which exposes the original CREATE INDEX statement directly in
       ``metadata.definition``.
-    - Cluster version < 8.x (or version detection fails): fall back to the
+    - Cluster version < 8.x: fall back to the
       Index Service REST API ``/getIndexStatus`` endpoint.
 
     Args:
@@ -206,10 +206,7 @@ async def list_indexes(
             indexes = [
                 processed
                 for idx in raw_indexes
-                if isinstance(idx, dict)
-                and (
-                    processed := process_query_index_data(idx, include_raw_index_stats)
-                )
+                if (processed := process_query_index_data(idx, include_raw_index_stats))
                 is not None
             ]
             logger.info(

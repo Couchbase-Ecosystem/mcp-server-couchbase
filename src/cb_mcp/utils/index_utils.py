@@ -128,9 +128,9 @@ def process_query_index_data(
     if definition:
         index_info["definition"] = definition
 
-    normalized_status = idx.get("state")
-    if normalized_status:
-        index_info["status"] = normalized_status
+    state = idx.get("state")
+    if state:
+        index_info["status"] = state
 
     if "bucket_id" in idx:
         index_info["bucket"] = idx["bucket_id"]
