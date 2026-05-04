@@ -291,14 +291,18 @@ class TestIndexUtilsFunctions:
         assert parse_major_version("v8.0.0") == 8
 
     def test_parse_major_version_empty_or_none(self) -> None:
-        """Empty/None inputs should return 0."""
-        assert parse_major_version("") == 0
-        assert parse_major_version(None) == 0
+        """Empty/None inputs should raise ValueError."""
+        with pytest.raises(ValueError):
+            parse_major_version("")
+        with pytest.raises(ValueError):
+            parse_major_version(None)
 
     def test_parse_major_version_malformed(self) -> None:
-        """Malformed input should return 0."""
-        assert parse_major_version("unknown") == 0
-        assert parse_major_version("abc.def") == 0
+        """Malformed input should raise ValueError."""
+        with pytest.raises(ValueError):
+            parse_major_version("unknown")
+        with pytest.raises(ValueError):
+            parse_major_version("abc.def")
 
     def test_process_query_index_data_basic(self) -> None:
         """Map a typical system:all_indexes row to the standard schema."""
@@ -797,13 +801,12 @@ class TestResolveClusterMajorVersion:
             await resolve_cluster_major_version(mock_cluster)
 
     @pytest.mark.asyncio
-    async def test_empty_nodes_returns_zero(self) -> None:
-        """If cluster reports no nodes, return 0."""
+    async def test_empty_nodes_raises(self) -> None:
+        """If cluster reports no nodes, raise RuntimeError."""
         mock_cluster = AsyncMock()
         info = MagicMock()
         info.nodes = []
         mock_cluster.cluster_info.return_value = info
 
-        result = await resolve_cluster_major_version(mock_cluster)
-
-        assert result == 0
+        with pytest.raises(RuntimeError, match="no nodes"):
+            await resolve_cluster_major_version(mock_cluster)

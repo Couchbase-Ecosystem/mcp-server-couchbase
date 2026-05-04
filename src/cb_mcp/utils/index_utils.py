@@ -153,23 +153,25 @@ def parse_major_version(version_str: str | None) -> int:
     Examples:
         - "8.0.0-1928-enterprise" -> 8
         - "7.6.0"                 -> 7
-        - "" / None / malformed   -> 0
 
     Args:
         version_str: implementationVersion string returned by the cluster.
 
     Returns:
-        Major version as int, or 0 if it cannot be parsed.
+        Major version as int.
+
+    Raises:
+        ValueError: If *version_str* is empty, None, or cannot be parsed.
     """
     if not version_str:
-        return 0
+        raise ValueError("version_str is empty or None")
+    first = version_str.strip().split(".", 1)[0]
+    # Handle prefixes like "v8" defensively.
+    first = first.lstrip("vV")
     try:
-        first = version_str.strip().split(".", 1)[0]
-        # Handle prefixes like "v8" defensively.
-        first = first.lstrip("vV")
         return int(first)
-    except (ValueError, IndexError):
-        return 0
+    except ValueError:
+        raise ValueError(f"Cannot parse major version from {version_str!r}") from None
 
 
 async def resolve_cluster_major_version(cluster: Any) -> int:
@@ -203,8 +205,13 @@ async def resolve_cluster_major_version(cluster: Any) -> int:
         if version:
             versions.append(str(version))
 
+    if not versions:
+        raise RuntimeError(
+            "cluster_info() reported no nodes — cannot determine cluster version"
+        )
+
     majors = [parse_major_version(v) for v in versions]
-    min_major = min(majors) if majors else 0
+    min_major = min(majors)
 
     logger.info(f"Detected cluster node versions={versions} (min major={min_major})")
     return min_major
