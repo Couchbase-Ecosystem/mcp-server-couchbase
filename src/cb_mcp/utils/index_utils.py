@@ -52,7 +52,7 @@ def clean_index_definition(definition: Any) -> str:
     return ""
 
 
-def process_index_data(
+def process_index_data_from_rest_api(
     idx: dict[str, Any], include_raw_index_stats: bool
 ) -> dict[str, Any] | None:
     """Process raw index data into formatted index info.
@@ -91,7 +91,7 @@ def process_index_data(
     return index_info
 
 
-def process_query_index_data(
+def process_index_data_from_query(
     idx: dict[str, Any], include_raw_index_stats: bool
 ) -> dict[str, Any] | None:
     """Process a row from ``system:all_indexes`` into the same shape produced
@@ -165,11 +165,11 @@ def parse_major_version(version_str: str | None) -> int:
     """
     if not version_str:
         raise ValueError("version_str is empty or None")
-    first = version_str.strip().split(".", 1)[0]
+    major_version = version_str.strip().split(".", 1)[0]
     # Handle prefixes like "v8" defensively.
-    first = first.lstrip("vV")
+    major_version = major_version.lstrip("vV")
     try:
-        return int(first)
+        return int(major_version)
     except ValueError:
         raise ValueError(f"Cannot parse major version from {version_str!r}") from None
 

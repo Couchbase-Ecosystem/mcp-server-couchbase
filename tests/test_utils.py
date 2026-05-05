@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from cb_mcp.tools.index import (
-    _fetch_indexes_via_query_service,
+    fetch_indexes_via_query_service,
     list_indexes,
 )
 from cb_mcp.utils.config import get_settings
@@ -38,8 +38,8 @@ from cb_mcp.utils.index_utils import (
     _extract_hosts_from_connection_string,
     clean_index_definition,
     parse_major_version,
-    process_index_data,
-    process_query_index_data,
+    process_index_data_from_query,
+    process_index_data_from_rest_api,
     resolve_cluster_major_version,
     validate_connection_settings,
     validate_filter_params,
@@ -155,7 +155,7 @@ class TestIndexUtilsFunctions:
             "scope": "_default",
             "collection": "_default",
         }
-        result = process_index_data(idx, include_raw_index_stats=False)
+        result = process_index_data_from_rest_api(idx, include_raw_index_stats=False)
 
         assert result is not None
         assert result["name"] == "idx_test"
@@ -174,7 +174,7 @@ class TestIndexUtilsFunctions:
             "collection": "collection",
             "extra_field": "some_value",
         }
-        result = process_index_data(idx, include_raw_index_stats=True)
+        result = process_index_data_from_rest_api(idx, include_raw_index_stats=True)
 
         assert result is not None
         assert "raw_index_stats" in result
@@ -183,7 +183,7 @@ class TestIndexUtilsFunctions:
     def test_process_index_data_no_name(self) -> None:
         """Index without name should return None."""
         idx = {"status": "Ready", "bucket": "bucket"}
-        result = process_index_data(idx, include_raw_index_stats=False)
+        result = process_index_data_from_rest_api(idx, include_raw_index_stats=False)
         assert result is None
 
     def test_process_index_data_primary_index(self) -> None:
@@ -193,7 +193,7 @@ class TestIndexUtilsFunctions:
             "isPrimary": True,
             "bucket": "bucket",
         }
-        result = process_index_data(idx, include_raw_index_stats=False)
+        result = process_index_data_from_rest_api(idx, include_raw_index_stats=False)
 
         assert result is not None
         assert result["isPrimary"] is True
@@ -305,7 +305,7 @@ class TestIndexUtilsFunctions:
         with pytest.raises(ValueError):
             parse_major_version("abc.def")
 
-    def test_process_query_index_data_basic(self) -> None:
+    def test_process_index_data_from_query_basic(self) -> None:
         """Map a typical system:all_indexes row to the standard schema."""
         idx = {
             "name": "def_inventory_airport_city",
@@ -322,7 +322,7 @@ class TestIndexUtilsFunctions:
             },
         }
 
-        result = process_query_index_data(idx, include_raw_index_stats=False)
+        result = process_index_data_from_query(idx, include_raw_index_stats=False)
 
         assert result is not None
         assert result["name"] == "def_inventory_airport_city"
@@ -334,7 +334,7 @@ class TestIndexUtilsFunctions:
         assert result["isPrimary"] is False
         assert "raw_index_stats" not in result
 
-    def test_process_query_index_data_primary(self) -> None:
+    def test_process_index_data_from_query_primary(self) -> None:
         """Primary index rows should set isPrimary=True."""
         idx = {
             "name": "def_inventory_airport_primary",
@@ -346,12 +346,12 @@ class TestIndexUtilsFunctions:
             "metadata": {"definition": "CREATE PRIMARY INDEX ..."},
         }
 
-        result = process_query_index_data(idx, include_raw_index_stats=False)
+        result = process_index_data_from_query(idx, include_raw_index_stats=False)
 
         assert result is not None
         assert result["isPrimary"] is True
 
-    def test_process_query_index_data_with_raw_stats(self) -> None:
+    def test_process_index_data_from_query_with_raw_stats(self) -> None:
         """Raw stats should be included when requested."""
         idx = {
             "name": "idx",
@@ -361,16 +361,16 @@ class TestIndexUtilsFunctions:
             "state": "online",
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
-        result = process_query_index_data(idx, include_raw_index_stats=True)
+        result = process_index_data_from_query(idx, include_raw_index_stats=True)
         assert result is not None
         assert result["raw_index_stats"] == idx
 
-    def test_process_query_index_data_no_name(self) -> None:
+    def test_process_index_data_from_query_no_name(self) -> None:
         """Rows without a name should be filtered out."""
         idx = {"bucket_id": "b"}
-        assert process_query_index_data(idx, include_raw_index_stats=False) is None
+        assert process_index_data_from_query(idx, include_raw_index_stats=False) is None
 
-    def test_process_query_index_data_no_metadata(self) -> None:
+    def test_process_index_data_from_query_no_metadata(self) -> None:
         """Missing metadata should not crash and should omit definition."""
         idx = {
             "name": "idx",
@@ -379,7 +379,7 @@ class TestIndexUtilsFunctions:
             "keyspace_id": "c",
             "state": "online",
         }
-        result = process_query_index_data(idx, include_raw_index_stats=False)
+        result = process_index_data_from_query(idx, include_raw_index_stats=False)
         assert result is not None
         assert "definition" not in result
 
@@ -680,7 +680,7 @@ class TestContextModule:
 
 
 class TestFetchIndexesViaQueryService:
-    """Unit tests for _fetch_indexes_via_query_service."""
+    """Unit tests for fetch_indexes_via_query_service."""
 
     @pytest.mark.asyncio
     async def test_no_filters(self) -> None:
@@ -695,7 +695,7 @@ class TestFetchIndexesViaQueryService:
             new_callable=AsyncMock,
             return_value=[{"name": "idx1"}, {"name": "idx2"}],
         ) as mock_query:
-            result = await _fetch_indexes_via_query_service(
+            result = await fetch_indexes_via_query_service(
                 mock_ctx, None, None, None, None
             )
 
@@ -714,7 +714,7 @@ class TestFetchIndexesViaQueryService:
             new_callable=AsyncMock,
             return_value=[{"name": "idx1"}],
         ) as mock_query:
-            result = await _fetch_indexes_via_query_service(
+            result = await fetch_indexes_via_query_service(
                 mock_ctx, "bucket", "scope", "collection", "idx1"
             )
 
@@ -738,7 +738,7 @@ class TestFetchIndexesViaQueryService:
             new_callable=AsyncMock,
             return_value=[{"name": "idx1"}, "stray_string", 42, None],
         ):
-            result = await _fetch_indexes_via_query_service(
+            result = await fetch_indexes_via_query_service(
                 mock_ctx, None, None, None, None
             )
 

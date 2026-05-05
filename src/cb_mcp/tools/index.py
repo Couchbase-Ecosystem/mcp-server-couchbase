@@ -10,12 +10,15 @@ from typing import Any
 from fastmcp import Context
 
 from ..utils.config import get_settings
-from ..utils.constants import MCP_SERVER_NAME
+from ..utils.constants import (
+    MCP_SERVER_NAME,
+    QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION,
+)
 from ..utils.context import get_cluster_connection
 from ..utils.index_utils import (
     fetch_indexes_from_rest_api,
-    process_index_data,
-    process_query_index_data,
+    process_index_data_from_query,
+    process_index_data_from_rest_api,
     resolve_cluster_major_version,
     validate_connection_settings,
     validate_filter_params,
@@ -23,11 +26,6 @@ from ..utils.index_utils import (
 from .query import run_cluster_query, run_sql_plus_plus_query
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
-
-# Cluster major version at which list_indexes prefers the query service over
-# the Index Service REST API (system:all_indexes returns full definitions
-# starting from this version).
-_QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION = 8
 
 
 async def get_index_advisor_recommendations(
@@ -103,7 +101,7 @@ async def get_index_advisor_recommendations(
         raise
 
 
-async def _fetch_indexes_via_query_service(
+async def fetch_indexes_via_query_service(
     ctx: Context,
     bucket_name: str | None,
     scope_name: str | None,
@@ -190,13 +188,13 @@ async def list_indexes(
         cluster = await get_cluster_connection(ctx)
         major_version = await resolve_cluster_major_version(cluster)
 
-        if major_version >= _QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION:
+        if major_version >= QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION:
             logger.info(
                 f"Fetching indexes via query service (system:all_indexes) for "
                 f"bucket={bucket_name}, scope={scope_name}, "
                 f"collection={collection_name}, index={index_name}"
             )
-            raw_indexes = await _fetch_indexes_via_query_service(
+            raw_indexes = await fetch_indexes_via_query_service(
                 ctx,
                 bucket_name=bucket_name,
                 scope_name=scope_name,
@@ -206,7 +204,11 @@ async def list_indexes(
             indexes = [
                 processed
                 for idx in raw_indexes
-                if (processed := process_query_index_data(idx, include_raw_index_stats))
+                if (
+                    processed := process_index_data_from_query(
+                        idx, include_raw_index_stats
+                    )
+                )
                 is not None
             ]
             logger.info(
@@ -236,7 +238,11 @@ async def list_indexes(
         indexes = [
             processed
             for idx in raw_indexes
-            if (processed := process_index_data(idx, include_raw_index_stats))
+            if (
+                processed := process_index_data_from_rest_api(
+                    idx, include_raw_index_stats
+                )
+            )
             is not None
         ]
 
