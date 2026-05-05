@@ -87,5 +87,10 @@ class StaticClusterProvider:
     async def is_connected(
         self, ctx: Context
     ) -> bool:  # ctx unused; one cluster shared across callers
-        """True once get_cluster has successfully opened the shared cluster."""
+        """True if a cluster is currently open for this caller.
+        Reflects cache state at the moment of the call. Does not wait for
+        in-flight connection attempts to settle — concurrent tools that are
+        mid-connect will not yet be reflected here. Callers that want a
+        definitive answer should connect explicitly via test_cluster_connection.
+        """
         return self._cluster is not None
