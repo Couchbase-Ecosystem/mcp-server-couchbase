@@ -38,8 +38,13 @@ class ClusterProvider(Protocol):
         """Provider-specific configuration suitable for status reporting.
 
         Must not include secrets — return ``_configured`` booleans instead.
+        Returned keys are merged into the top-level ``configuration`` dict of
+        ``get_server_configuration_status``; implementations must not reuse
+        server-level key names (``read_only_mode``, ``read_only_query_mode``,
+        ``disabled_tools``, ``confirmation_required_tools``) since those are
+        owned by the server and would silently override any provider value.
         Implementations may use ``ctx`` to return per-caller configuration
-        (e.g., per-API-key in managed hosts) or ignore it (static hosts).
+        (e.g., per-API-key in managed implementations) or ignore it (static implementations).
         """
         ...
 
@@ -47,6 +52,6 @@ class ClusterProvider(Protocol):
         """True if a cluster is currently open for this caller.
 
         Implementations may use ``ctx`` to check per-caller connection state
-        (e.g., per-principal cache entry) or ignore it (static hosts).
+        (e.g., per-principal cache entry) or ignore it (static implementations).
         """
         ...

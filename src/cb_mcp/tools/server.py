@@ -26,15 +26,19 @@ async def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     settings = get_settings(ctx)
     provider = get_cluster_provider(ctx)
 
+    provider_config = (
+        await provider.get_configuration(ctx) if provider is not None else {}
+    )
+
+    # Server-level keys are spread last so they always reflect what the server
+    # actually enforces, even if a provider returns overlapping keys.
     configuration = {
+        **provider_config,
         "read_only_mode": settings.get("read_only_mode", True),
         "read_only_query_mode": settings.get("read_only_query_mode", True),
         "disabled_tools": sorted(settings.get("disabled_tools", set())),
         "confirmation_required_tools": sorted(
             settings.get("confirmation_required_tools", set())
-        ),
-        "provider": (
-            await provider.get_configuration(ctx) if provider is not None else {}
         ),
     }
 

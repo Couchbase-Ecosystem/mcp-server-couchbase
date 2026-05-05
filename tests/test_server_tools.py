@@ -38,17 +38,14 @@ async def test_get_server_configuration_status() -> None:
 
         # Configuration should be present but not expose the password
         config = payload.get("configuration", {})
+        assert "connection_string" in config
+        assert "username" in config
         assert "disabled_tools" in config
         assert "confirmation_required_tools" in config
         assert isinstance(config["disabled_tools"], list)
         assert isinstance(config["confirmation_required_tools"], list)
-
-        # Provider-specific configuration is nested under "provider"
-        provider_config = config.get("provider", {})
-        assert "connection_string" in provider_config
-        assert "username" in provider_config
-        assert "password_configured" in provider_config
-        assert "password" not in provider_config  # password should NOT be exposed
+        assert "password_configured" in config
+        assert "password" not in config  # password should NOT be exposed
 
 
 @pytest.mark.asyncio
