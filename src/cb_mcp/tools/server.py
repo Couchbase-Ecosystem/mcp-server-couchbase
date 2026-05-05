@@ -24,27 +24,23 @@ async def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     This tool can be used to verify if the server is running and check the configuration.
     """
     settings = get_settings(ctx)
+    provider = get_cluster_provider(ctx)
 
-    # Don't expose sensitive information like passwords
     configuration = {
-        "connection_string": settings.get("connection_string", "Not set"),
-        "username": settings.get("username", "Not set"),
         "read_only_mode": settings.get("read_only_mode", True),
         "read_only_query_mode": settings.get("read_only_query_mode", True),
         "disabled_tools": sorted(settings.get("disabled_tools", set())),
         "confirmation_required_tools": sorted(
             settings.get("confirmation_required_tools", set())
         ),
-        "password_configured": bool(settings.get("password")),
-        "ca_cert_path_configured": bool(settings.get("ca_cert_path")),
-        "client_cert_path_configured": bool(settings.get("client_cert_path")),
-        "client_key_path_configured": bool(settings.get("client_key_path")),
+        "provider": (
+            await provider.get_configuration(ctx) if provider is not None else {}
+        ),
     }
 
-    provider = get_cluster_provider(ctx)
     connection_status = {
-        "cluster_connected": bool(
-            provider is not None and getattr(provider, "is_connected", False)
+        "cluster_connected": (
+            await provider.is_connected(ctx) if provider is not None else False
         ),
     }
 
