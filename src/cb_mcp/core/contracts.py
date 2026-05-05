@@ -9,7 +9,8 @@ both hosts reach a Couchbase cluster through the same
 interface.
 """
 
-from typing import Protocol, runtime_checkable
+from collections.abc import Mapping
+from typing import Any, Protocol, runtime_checkable
 
 from acouchbase.cluster import Cluster
 from fastmcp import Context
@@ -31,4 +32,26 @@ class ClusterProvider(Protocol):
 
     async def close(self) -> None:
         """Release any clusters held by this provider and perform cleanup."""
+        ...
+
+    async def get_configuration(self, ctx: Context) -> Mapping[str, Any]:
+        """Provider-specific configuration suitable for status reporting.
+
+        Must not include secrets — return ``_configured`` booleans instead.
+        Returned keys are merged into the top-level ``configuration`` dict of
+        ``get_server_configuration_status``; implementations must not reuse
+        server-level key names (``read_only_mode``, ``read_only_query_mode``,
+        ``disabled_tools``, ``confirmation_required_tools``) since those are
+        owned by the server and would silently override any provider value.
+        Implementations may use ``ctx`` to return per-caller configuration
+        (e.g., per-API-key in managed implementations) or ignore it (static implementations).
+        """
+        ...
+
+    async def is_connected(self, ctx: Context) -> bool:
+        """True if a cluster is currently open for this caller.
+
+        Implementations may use ``ctx`` to check per-caller connection state
+        (e.g., per-principal cache entry) or ignore it (static implementations).
+        """
         ...

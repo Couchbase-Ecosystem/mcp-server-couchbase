@@ -2,7 +2,7 @@
 Unit tests for prepare_tools_for_registration — tool disabling and confirmation wrapping.
 """
 
-from mcp_server import prepare_tools_for_registration
+from cb_mcp.tool_registration import prepare_tools_for_registration
 
 
 class TestPrepareToolsDisabling:

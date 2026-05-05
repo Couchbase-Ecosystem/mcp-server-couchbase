@@ -70,7 +70,27 @@ class StaticClusterProvider:
             await cluster.close()
             self._cluster = None
 
-    @property
-    def is_connected(self) -> bool:
-        """True once get_cluster has successfully opened a connection."""
+    async def get_configuration(
+        self, ctx: Context
+    ) -> Mapping[str, Any]:  # ctx unused; settings come from init
+        """Return credential-related configuration. Never includes secrets."""
+        s = self._settings
+        return {
+            "connection_string": s.get("connection_string", "Not set"),
+            "username": s.get("username", "Not set"),
+            "password_configured": bool(s.get("password")),
+            "ca_cert_path_configured": bool(s.get("ca_cert_path")),
+            "client_cert_path_configured": bool(s.get("client_cert_path")),
+            "client_key_path_configured": bool(s.get("client_key_path")),
+        }
+
+    async def is_connected(
+        self, ctx: Context
+    ) -> bool:  # ctx unused; one cluster shared across callers
+        """True if a cluster is currently open for this caller.
+        Reflects cache state at the moment of the call. Does not wait for
+        in-flight connection attempts to settle — concurrent tools that are
+        mid-connect will not yet be reflected here. Callers that want a
+        definitive answer should connect explicitly via test_cluster_connection.
+        """
         return self._cluster is not None
