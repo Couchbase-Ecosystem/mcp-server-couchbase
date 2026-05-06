@@ -6,6 +6,7 @@ This module contains helper functions for working with Couchbase indexes.
 
 import logging
 import os
+import time
 from collections.abc import Mapping
 from importlib.resources import files
 from typing import Any
@@ -121,9 +122,7 @@ def process_index_data_from_rest_api(
 
     index_info: dict[str, Any] = {"name": name}
 
-    clean_def = clean_index_definition(idx.get("definition", ""))
-    if clean_def:
-        index_info["definition"] = clean_def
+    index_info["definition"] = clean_index_definition(idx.get("definition", ""))
 
     # Map REST status to N1QL-equivalent
     raw_status = idx.get("status", "")
@@ -138,7 +137,7 @@ def process_index_data_from_rest_api(
     if "collection" in idx:
         index_info["collection"] = idx["collection"]
 
-    index_info["lastScanTime"] = idx.get("lastScanTime", "NA")
+    index_info["lastScanTime"] = idx.get("lastScanTime") or "NA"
 
     return index_info
 
@@ -174,9 +173,8 @@ def process_index_data_from_query(
     index_info: dict[str, Any] = {"name": name}
 
     metadata = idx.get("metadata") or {}
-    definition = metadata.get("definition", "")
-    if definition:
-        index_info["definition"] = definition
+    # No cleaning needed — query service returns verbatim SQL++
+    index_info["definition"] = metadata.get("definition", "")
 
     state = idx.get("state")
     index_info["status"] = state if state else ""
@@ -203,7 +201,7 @@ def parse_major_version(version_str: str | None) -> int:
         - "7.6.0"                 -> 7
 
     Args:
-        version_str: implementationVersion string returned by the cluster.
+        version_str: Node ``version`` string returned by the cluster, such as a value from ``cluster_info().nodes``.
 
     Returns:
         Major version as int.
@@ -222,9 +220,14 @@ def parse_major_version(version_str: str | None) -> int:
         raise ValueError(f"Cannot parse major version from {version_str!r}") from None
 
 
+# Module-level cache for cluster version detection.
+# Stores (major_version, timestamp) to avoid repeated cluster_info() calls.
+_VERSION_CACHE_TTL_SECONDS = 300  # 5 minutes
+_version_cache: dict[int, tuple[int, float]] = {}  # id(cluster) -> (major, time)
+
+
 async def resolve_cluster_major_version(cluster: Any) -> int:
     """Detect the cluster's major version via the SDK.
-
     Reads the per-node ``version`` field from ``cluster.cluster_info().nodes``
     (Python SDK 4.1+) and returns the *minimum* major version across all nodes
     so we only enable the 8.x+ query-service path when every node supports it.
@@ -241,6 +244,15 @@ async def resolve_cluster_major_version(cluster: Any) -> int:
     Raises if cluster_info() fails — callers should not silently degrade
     when version detection is unavailable.
     """
+    cluster_key = id(cluster)
+    now = time.monotonic()
+
+    cached = _version_cache.get(cluster_key)
+    if cached is not None:
+        cached_version, cached_at = cached
+        if now - cached_at < _VERSION_CACHE_TTL_SECONDS:
+            return cached_version
+
     info = await cluster.cluster_info()
 
     nodes = info.nodes or []
@@ -261,6 +273,7 @@ async def resolve_cluster_major_version(cluster: Any) -> int:
     majors = [parse_major_version(v) for v in versions]
     min_major = min(majors)
 
+    _version_cache[cluster_key] = (min_major, now)
     logger.info(f"Detected cluster node versions={versions} (min major={min_major})")
     return min_major
 

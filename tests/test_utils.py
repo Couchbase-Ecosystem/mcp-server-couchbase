@@ -36,6 +36,7 @@ from cb_mcp.utils.index_utils import (
     _build_query_params,
     _determine_ssl_verification,
     _extract_hosts_from_connection_string,
+    _version_cache,
     clean_index_definition,
     map_rest_status_to_n1ql,
     parse_major_version,
@@ -377,7 +378,7 @@ class TestIndexUtilsFunctions:
         assert process_index_data_from_query(idx) is None
 
     def test_process_index_data_from_query_no_metadata(self) -> None:
-        """Missing metadata should not crash and should omit definition."""
+        """Missing metadata should not crash and should return empty definition."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
@@ -387,7 +388,7 @@ class TestIndexUtilsFunctions:
         }
         result = process_index_data_from_query(idx)
         assert result is not None
-        assert "definition" not in result
+        assert result["definition"] == ""
         assert result["lastScanTime"] == "NA"
 
     def test_map_rest_status_to_n1ql(self) -> None:
@@ -843,6 +844,23 @@ class TestResolveClusterMajorVersion:
 
         with pytest.raises(RuntimeError, match="no nodes"):
             await resolve_cluster_major_version(mock_cluster)
+
+    @pytest.mark.asyncio
+    async def test_caches_result(self) -> None:
+        """Second call should use cached result without calling cluster_info again."""
+        _version_cache.clear()
+        mock_cluster = AsyncMock()
+        info = MagicMock()
+        info.nodes = [{"version": "8.0.0-enterprise"}]
+        mock_cluster.cluster_info.return_value = info
+
+        first = await resolve_cluster_major_version(mock_cluster)
+        second = await resolve_cluster_major_version(mock_cluster)
+
+        assert first == second == 8
+        # cluster_info should only be called once due to caching
+        mock_cluster.cluster_info.assert_called_once()
+        _version_cache.clear()
 
 
 class TestListIndexesVersionRouting:
