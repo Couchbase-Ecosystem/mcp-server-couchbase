@@ -37,6 +37,7 @@ from cb_mcp.utils.index_utils import (
     _determine_ssl_verification,
     _extract_hosts_from_connection_string,
     clean_index_definition,
+    map_rest_status_to_n1ql,
     parse_major_version,
     process_index_data_from_query,
     process_index_data_from_rest_api,
@@ -155,35 +156,36 @@ class TestIndexUtilsFunctions:
             "scope": "_default",
             "collection": "_default",
         }
-        result = process_index_data_from_rest_api(idx, include_raw_index_stats=False)
+        result = process_index_data_from_rest_api(idx)
 
         assert result is not None
         assert result["name"] == "idx_test"
         assert result["bucket"] == "travel-sample"
-        assert result["status"] == "Ready"
+        assert result["status"] == "online"
         assert result["isPrimary"] is False
-        assert "raw_index_stats" not in result
+        assert "lastScanTime" in result
 
-    def test_process_index_data_with_raw_stats(self) -> None:
-        """Process index data with raw stats included."""
+    def test_process_index_data_with_last_scan_time(self) -> None:
+        """Process index data includes lastScanTime."""
         idx = {
             "name": "idx_test",
             "status": "Ready",
             "bucket": "bucket",
             "scope": "scope",
             "collection": "collection",
+            "lastScanTime": "Thu Feb 26 13:12:55 IST 2026",
             "extra_field": "some_value",
         }
-        result = process_index_data_from_rest_api(idx, include_raw_index_stats=True)
+        result = process_index_data_from_rest_api(idx)
 
         assert result is not None
-        assert "raw_index_stats" in result
-        assert result["raw_index_stats"] == idx
+        assert result["lastScanTime"] == "Thu Feb 26 13:12:55 IST 2026"
+        assert "extra_field" not in result
 
     def test_process_index_data_no_name(self) -> None:
         """Index without name should return None."""
         idx = {"status": "Ready", "bucket": "bucket"}
-        result = process_index_data_from_rest_api(idx, include_raw_index_stats=False)
+        result = process_index_data_from_rest_api(idx)
         assert result is None
 
     def test_process_index_data_primary_index(self) -> None:
@@ -193,7 +195,7 @@ class TestIndexUtilsFunctions:
             "isPrimary": True,
             "bucket": "bucket",
         }
-        result = process_index_data_from_rest_api(idx, include_raw_index_stats=False)
+        result = process_index_data_from_rest_api(idx)
 
         assert result is not None
         assert result["isPrimary"] is True
@@ -319,10 +321,11 @@ class TestIndexUtilsFunctions:
                     "CREATE INDEX `def_inventory_airport_city` ON "
                     "`travel-sample`.`inventory`.`airport`(`city`)"
                 ),
+                "last_scan_time": "2026-02-26T13:12:56.581+05:30",
             },
         }
 
-        result = process_index_data_from_query(idx, include_raw_index_stats=False)
+        result = process_index_data_from_query(idx)
 
         assert result is not None
         assert result["name"] == "def_inventory_airport_city"
@@ -332,7 +335,7 @@ class TestIndexUtilsFunctions:
         assert result["status"] == "online"
         assert "city" in result["definition"]
         assert result["isPrimary"] is False
-        assert "raw_index_stats" not in result
+        assert result["lastScanTime"] == "2026-02-26T13:12:56.581+05:30"
 
     def test_process_index_data_from_query_primary(self) -> None:
         """Primary index rows should set isPrimary=True."""
@@ -346,29 +349,32 @@ class TestIndexUtilsFunctions:
             "metadata": {"definition": "CREATE PRIMARY INDEX ..."},
         }
 
-        result = process_index_data_from_query(idx, include_raw_index_stats=False)
+        result = process_index_data_from_query(idx)
 
         assert result is not None
         assert result["isPrimary"] is True
 
-    def test_process_index_data_from_query_with_raw_stats(self) -> None:
-        """Raw stats should be included when requested."""
+    def test_process_index_data_from_query_last_scan_time(self) -> None:
+        """lastScanTime should be included from metadata."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
             "scope_id": "s",
             "keyspace_id": "c",
             "state": "online",
-            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+            "metadata": {
+                "definition": "CREATE INDEX idx ON b.s.c(x)",
+                "last_scan_time": "2026-02-26T13:12:56.581+05:30",
+            },
         }
-        result = process_index_data_from_query(idx, include_raw_index_stats=True)
+        result = process_index_data_from_query(idx)
         assert result is not None
-        assert result["raw_index_stats"] == idx
+        assert result["lastScanTime"] == "2026-02-26T13:12:56.581+05:30"
 
     def test_process_index_data_from_query_no_name(self) -> None:
         """Rows without a name should be filtered out."""
         idx = {"bucket_id": "b"}
-        assert process_index_data_from_query(idx, include_raw_index_stats=False) is None
+        assert process_index_data_from_query(idx) is None
 
     def test_process_index_data_from_query_no_metadata(self) -> None:
         """Missing metadata should not crash and should omit definition."""
@@ -379,9 +385,35 @@ class TestIndexUtilsFunctions:
             "keyspace_id": "c",
             "state": "online",
         }
-        result = process_index_data_from_query(idx, include_raw_index_stats=False)
+        result = process_index_data_from_query(idx)
         assert result is not None
         assert "definition" not in result
+        assert result["lastScanTime"] == "NA"
+
+    def test_map_rest_status_to_n1ql(self) -> None:
+        """REST API status strings should map to N1QL equivalents."""
+        assert map_rest_status_to_n1ql("Ready") == "online"
+        assert map_rest_status_to_n1ql("Created") == "deferred"
+        assert map_rest_status_to_n1ql("Building") == "building"
+        assert map_rest_status_to_n1ql("Error") == "offline"
+        assert (
+            map_rest_status_to_n1ql("Scheduled for Creation")
+            == "scheduled for creation"
+        )
+        assert map_rest_status_to_n1ql("Moving") == "building"
+        assert map_rest_status_to_n1ql("Paused") == "online"
+        assert map_rest_status_to_n1ql("Warmup") == "online"
+
+    def test_map_rest_status_to_n1ql_qualified(self) -> None:
+        """Qualified REST statuses (with parenthesis) should use prefix for mapping."""
+        assert map_rest_status_to_n1ql("Building (Upgrading)") == "building"
+        assert map_rest_status_to_n1ql("Building (Downgrading)") == "building"
+        assert map_rest_status_to_n1ql("Created (Upgrading)") == "deferred"
+        assert map_rest_status_to_n1ql("Created (Downgrading)") == "deferred"
+
+    def test_map_rest_status_to_n1ql_unknown(self) -> None:
+        """Unknown REST statuses should be returned as-is in lowercase."""
+        assert map_rest_status_to_n1ql("SomeNewStatus") == "somenewstatus"
 
 
 class TestConstants:

@@ -137,25 +137,22 @@ async def test_list_indexes_filtered_by_collection() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_indexes_with_raw_stats() -> None:
-    """Verify list_indexes can include raw index stats."""
+async def test_list_indexes_has_last_scan_time() -> None:
+    """Verify list_indexes includes lastScanTime field."""
     skip_reason = None
 
     async with create_mcp_session() as session:
-        response = await session.call_tool(
-            "list_indexes", arguments={"include_raw_index_stats": True}
-        )
+        response = await session.call_tool("list_indexes", arguments={})
         payload = extract_payload(response)
 
         # Skip if no indexes exist
         if payload is None or (isinstance(payload, list) and len(payload) == 0):
-            skip_reason = "No indexes found to test raw stats"
+            skip_reason = "No indexes found to test lastScanTime"
         else:
             assert isinstance(payload, list), f"Expected list, got {type(payload)}"
-            # When include_raw_index_stats is True, each index should have raw_index_stats
             first_index = payload[0]
-            assert "raw_index_stats" in first_index, (
-                "Expected raw_index_stats when include_raw_index_stats=True"
+            assert "lastScanTime" in first_index, (
+                "Expected lastScanTime in index output"
             )
 
     if skip_reason:
