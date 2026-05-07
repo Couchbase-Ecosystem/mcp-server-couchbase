@@ -38,7 +38,7 @@ from cb_mcp.utils.index_utils import (
     _extract_hosts_from_connection_string,
     _version_cache,
     clean_index_definition,
-    map_rest_status_to_n1ql,
+    map_rest_status_to_query_state,
     parse_major_version,
     process_index_data_from_query,
     process_index_data_from_rest_api,
@@ -391,50 +391,54 @@ class TestIndexUtilsFunctions:
         assert result["definition"] == ""
         assert result["lastScanTime"] == "NA"
 
-    def test_map_rest_status_to_n1ql(self) -> None:
-        """REST API status strings should map to N1QL equivalents."""
-        assert map_rest_status_to_n1ql("Ready") == "online"
-        assert map_rest_status_to_n1ql("Building") == "building"
-        assert map_rest_status_to_n1ql("Error") == "offline"
+    def test_map_rest_status_to_query_state(self) -> None:
+        """REST API status strings should map to SQL++ query service equivalents."""
+        assert map_rest_status_to_query_state("Ready") == "online"
+        assert map_rest_status_to_query_state("Building") == "building"
+        assert map_rest_status_to_query_state("Error") == "offline"
         assert (
-            map_rest_status_to_n1ql("Scheduled for Creation")
+            map_rest_status_to_query_state("Scheduled for Creation")
             == "scheduled for creation"
         )
-        assert map_rest_status_to_n1ql("Moving") == "building"
-        assert map_rest_status_to_n1ql("Paused") == "online"
-        assert map_rest_status_to_n1ql("Warmup") == "pending"
+        assert map_rest_status_to_query_state("Moving") == "building"
+        assert map_rest_status_to_query_state("Paused") == "online"
+        assert map_rest_status_to_query_state("Warmup") == "pending"
 
     def test_map_rest_status_created_with_defer_build(self) -> None:
         """Created + defer_build in definition -> deferred."""
         definition = 'CREATE INDEX idx ON b(x) WITH {"defer_build": true}'
-        assert map_rest_status_to_n1ql("Created", definition) == "deferred"
+        assert map_rest_status_to_query_state("Created", definition) == "deferred"
 
     def test_map_rest_status_created_without_defer_build(self) -> None:
         """Created without defer_build in definition -> pending."""
         definition = "CREATE INDEX idx ON b(x)"
-        assert map_rest_status_to_n1ql("Created", definition) == "pending"
+        assert map_rest_status_to_query_state("Created", definition) == "pending"
 
     def test_map_rest_status_created_no_definition(self) -> None:
         """Created with no definition defaults to pending."""
-        assert map_rest_status_to_n1ql("Created") == "pending"
-        assert map_rest_status_to_n1ql("Created", "") == "pending"
+        assert map_rest_status_to_query_state("Created") == "pending"
+        assert map_rest_status_to_query_state("Created", "") == "pending"
 
-    def test_map_rest_status_to_n1ql_qualified(self) -> None:
+    def test_map_rest_status_to_query_state_qualified(self) -> None:
         """Qualified REST statuses (with parenthesis) should use prefix for mapping."""
-        assert map_rest_status_to_n1ql("Building (Upgrading)") == "building"
-        assert map_rest_status_to_n1ql("Building (Downgrading)") == "building"
+        assert map_rest_status_to_query_state("Building (Upgrading)") == "building"
+        assert map_rest_status_to_query_state("Building (Downgrading)") == "building"
         assert (
-            map_rest_status_to_n1ql("Created (Upgrading)", 'WITH {"defer_build":true}')
+            map_rest_status_to_query_state(
+                "Created (Upgrading)", 'WITH {"defer_build":true}'
+            )
             == "deferred"
         )
         assert (
-            map_rest_status_to_n1ql("Created (Downgrading)", "CREATE INDEX idx ON b(x)")
+            map_rest_status_to_query_state(
+                "Created (Downgrading)", "CREATE INDEX idx ON b(x)"
+            )
             == "pending"
         )
 
-    def test_map_rest_status_to_n1ql_unknown(self) -> None:
+    def test_map_rest_status_to_query_state_unknown(self) -> None:
         """Unknown REST statuses should be returned as-is in lowercase."""
-        assert map_rest_status_to_n1ql("SomeNewStatus") == "somenewstatus"
+        assert map_rest_status_to_query_state("SomeNewStatus") == "somenewstatus"
 
 
 class TestConstants:

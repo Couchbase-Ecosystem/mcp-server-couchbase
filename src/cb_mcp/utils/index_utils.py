@@ -53,14 +53,14 @@ def clean_index_definition(definition: Any) -> str:
     return ""
 
 
-# Mapping from REST API /getIndexStatus status strings to N1QL-equivalent states.
+# Mapping from REST API /getIndexStatus status strings to SQL++ query service states.
 # Source: https://github.com/couchbase/indexing/blob/master/secondary/indexer/request_handler.go
 # The REST API produces these status strings from internal indexer states.
-# N1QL system:all_indexes uses: online, deferred, building, offline, scheduled for creation
-_REST_STATUS_TO_N1QL: dict[str, str] = {
+# SQL++ system:all_indexes uses: online, deferred, building, pending, offline, scheduled for creation
+_REST_STATUS_TO_QUERY_STATE: dict[str, str] = {
     "Ready": "online",
     # "Created" can mean deferred (WITH {\"defer_build\":true}) or pending (waiting to build).
-    # Resolved at call-site by inspecting the definition field — see map_rest_status_to_n1ql.
+    # Resolved at call-site by inspecting the definition field — see map_rest_status_to_query_state.
     "Created": "pending",
     "Building": "building",
     "Moving": "building",
@@ -77,12 +77,12 @@ _REST_STATUS_TO_N1QL: dict[str, str] = {
 }
 
 
-def map_rest_status_to_n1ql(rest_status: str, definition: str = "") -> str:
-    """Map a REST API index status string to its N1QL equivalent.
+def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> str:
+    """Map a REST API index status string to its SQL++ query service equivalent.
 
     The REST API /getIndexStatus endpoint returns status strings like
     "Ready", "Created", "Building", etc. This function normalizes them
-    to the N1QL system:all_indexes state values: online, deferred, building,
+    to the SQL++ system:all_indexes state values: online, deferred, building,
     pending, offline, scheduled for creation.
 
     For statuses with qualifiers (e.g. "Building (Upgrading)"), the prefix
@@ -98,22 +98,22 @@ def map_rest_status_to_n1ql(rest_status: str, definition: str = "") -> str:
             Used to distinguish deferred from pending for "Created" indexes.
 
     Returns:
-        Normalized N1QL state string.
+        Normalized SQL++ query service state string.
     """
     # Direct lookup first
-    if rest_status in _REST_STATUS_TO_N1QL:
+    if rest_status in _REST_STATUS_TO_QUERY_STATE:
         # Refine "Created": defer_build in definition means explicitly deferred;
         # otherwise the index is pending (created normally, not yet built).
         if rest_status == "Created":
             return "deferred" if "defer_build" in definition.lower() else "pending"
-        return _REST_STATUS_TO_N1QL[rest_status]
+        return _REST_STATUS_TO_QUERY_STATE[rest_status]
 
     # Handle qualified statuses like "Building (Upgrading)", "Created (Downgrading)"
     prefix = rest_status.split("(")[0].strip()
-    if prefix in _REST_STATUS_TO_N1QL:
+    if prefix in _REST_STATUS_TO_QUERY_STATE:
         if prefix == "Created":
             return "deferred" if "defer_build" in definition.lower() else "pending"
-        return _REST_STATUS_TO_N1QL[prefix]
+        return _REST_STATUS_TO_QUERY_STATE[prefix]
 
     # Unknown status — return as-is in lowercase
     return rest_status.lower()
@@ -139,10 +139,10 @@ def process_index_data_from_rest_api(
     raw_definition = idx.get("definition", "")
     index_info["definition"] = clean_index_definition(raw_definition)
 
-    # Map REST status to N1QL-equivalent, passing definition to resolve Created → deferred/pending
+    # Map REST status to SQL++ query service state, passing definition to resolve Created → deferred/pending
     raw_status = idx.get("status", "")
     index_info["status"] = (
-        map_rest_status_to_n1ql(raw_status, raw_definition) if raw_status else ""
+        map_rest_status_to_query_state(raw_status, raw_definition) if raw_status else ""
     )
 
     index_info["isPrimary"] = bool(idx.get("isPrimary", False))
