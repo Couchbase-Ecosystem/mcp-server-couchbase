@@ -55,7 +55,7 @@ def clean_index_definition(definition: Any) -> str:
 # Mapping from REST API /getIndexStatus status strings to SQL++ query service states.
 # Source: https://github.com/couchbase/indexing/blob/master/secondary/indexer/request_handler.go
 # The REST API produces these status strings from internal indexer states.
-# SQL++ system:all_indexes uses: online, deferred, building, pending, offline, scheduled for creation
+# SQL++ system:all_indexes uses 7 canonical states:\n# online, deferred, building, pending, offline, abridged, scheduled for creation
 _REST_STATUS_TO_QUERY_STATE: dict[str, str] = {
     "Ready": "online",
     # "Created" can mean deferred (WITH {\"defer_build\":true}) or pending (waiting to build).
@@ -64,15 +64,17 @@ _REST_STATUS_TO_QUERY_STATE: dict[str, str] = {
     "Building": "building",
     "Moving": "building",
     "Error": "offline",
-    "Paused": "online",
+    "Paused": "offline",
     "Warmup": "pending",
     "Not Available": "offline",
     "Retrying": "offline",
     "Scheduled for Creation": "scheduled for creation",
     "Training": "building",
     "Graph Building": "building",
-    "Scheduled for build": "deferred",
-    "Training complete, scheduled for build": "deferred",
+    # "Scheduled for build" and "Training complete, scheduled for build" come from
+    # INDEX_STATE_READY (same as "Created"). Use defer_build check at call-site.
+    "Scheduled for build": "pending",
+    "Training complete, scheduled for build": "pending",
 }
 
 
@@ -101,16 +103,25 @@ def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> st
     """
     # Direct lookup first
     if rest_status in _REST_STATUS_TO_QUERY_STATE:
-        # Refine "Created": defer_build in definition means explicitly deferred;
-        # otherwise the index is pending (created normally, not yet built).
-        if rest_status == "Created":
+        # "Created", "Scheduled for build", and "Training complete, scheduled for build"
+        # all share INDEX_STATE_READY. Use defer_build in definition to distinguish
+        # deferred (explicit defer) from pending (waiting to build).
+        if rest_status in (
+            "Created",
+            "Scheduled for build",
+            "Training complete, scheduled for build",
+        ):
             return "deferred" if "defer_build" in definition.lower() else "pending"
         return _REST_STATUS_TO_QUERY_STATE[rest_status]
 
     # Handle qualified statuses like "Building (Upgrading)", "Created (Downgrading)"
     prefix = rest_status.split("(")[0].strip()
     if prefix in _REST_STATUS_TO_QUERY_STATE:
-        if prefix == "Created":
+        if prefix in (
+            "Created",
+            "Scheduled for build",
+            "Training complete, scheduled for build",
+        ):
             return "deferred" if "defer_build" in definition.lower() else "pending"
         return _REST_STATUS_TO_QUERY_STATE[prefix]
 

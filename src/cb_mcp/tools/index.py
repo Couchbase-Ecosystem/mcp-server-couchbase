@@ -165,7 +165,9 @@ async def list_indexes(
         List of dictionaries with keys:
         - name (str): Index name
         - definition (str): CREATE INDEX statement
-        - status (str): Current status normalized to SQL++ values (online, deferred, building, offline, scheduled for creation)
+        - status (str): Current index state. SQL++ defines 7 canonical values:
+          online, deferred, building, pending, offline, abridged, scheduled for creation.
+          On the REST path, unknown/future statuses are returned lowercased for forward-compat.
         - isPrimary (bool): Whether this is a primary index
         - bucket (str): Bucket name where the index exists
         - scope (str): Scope name where the index exists

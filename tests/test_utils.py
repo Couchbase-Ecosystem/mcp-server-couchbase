@@ -400,7 +400,7 @@ class TestIndexUtilsFunctions:
             == "scheduled for creation"
         )
         assert map_rest_status_to_query_state("Moving") == "building"
-        assert map_rest_status_to_query_state("Paused") == "online"
+        assert map_rest_status_to_query_state("Paused") == "offline"
         assert map_rest_status_to_query_state("Warmup") == "pending"
 
     def test_map_rest_status_created_with_defer_build(self) -> None:
