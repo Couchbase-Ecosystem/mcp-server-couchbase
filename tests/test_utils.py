@@ -394,7 +394,6 @@ class TestIndexUtilsFunctions:
     def test_map_rest_status_to_n1ql(self) -> None:
         """REST API status strings should map to N1QL equivalents."""
         assert map_rest_status_to_n1ql("Ready") == "online"
-        assert map_rest_status_to_n1ql("Created") == "deferred"
         assert map_rest_status_to_n1ql("Building") == "building"
         assert map_rest_status_to_n1ql("Error") == "offline"
         assert (
@@ -403,14 +402,35 @@ class TestIndexUtilsFunctions:
         )
         assert map_rest_status_to_n1ql("Moving") == "building"
         assert map_rest_status_to_n1ql("Paused") == "online"
-        assert map_rest_status_to_n1ql("Warmup") == "online"
+        assert map_rest_status_to_n1ql("Warmup") == "pending"
+
+    def test_map_rest_status_created_with_defer_build(self) -> None:
+        """Created + defer_build in definition -> deferred."""
+        definition = 'CREATE INDEX idx ON b(x) WITH {"defer_build": true}'
+        assert map_rest_status_to_n1ql("Created", definition) == "deferred"
+
+    def test_map_rest_status_created_without_defer_build(self) -> None:
+        """Created without defer_build in definition -> pending."""
+        definition = "CREATE INDEX idx ON b(x)"
+        assert map_rest_status_to_n1ql("Created", definition) == "pending"
+
+    def test_map_rest_status_created_no_definition(self) -> None:
+        """Created with no definition defaults to pending."""
+        assert map_rest_status_to_n1ql("Created") == "pending"
+        assert map_rest_status_to_n1ql("Created", "") == "pending"
 
     def test_map_rest_status_to_n1ql_qualified(self) -> None:
         """Qualified REST statuses (with parenthesis) should use prefix for mapping."""
         assert map_rest_status_to_n1ql("Building (Upgrading)") == "building"
         assert map_rest_status_to_n1ql("Building (Downgrading)") == "building"
-        assert map_rest_status_to_n1ql("Created (Upgrading)") == "deferred"
-        assert map_rest_status_to_n1ql("Created (Downgrading)") == "deferred"
+        assert (
+            map_rest_status_to_n1ql("Created (Upgrading)", 'WITH {"defer_build":true}')
+            == "deferred"
+        )
+        assert (
+            map_rest_status_to_n1ql("Created (Downgrading)", "CREATE INDEX idx ON b(x)")
+            == "pending"
+        )
 
     def test_map_rest_status_to_n1ql_unknown(self) -> None:
         """Unknown REST statuses should be returned as-is in lowercase."""

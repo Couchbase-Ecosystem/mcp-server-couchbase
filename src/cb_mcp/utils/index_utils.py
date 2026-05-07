@@ -59,12 +59,14 @@ def clean_index_definition(definition: Any) -> str:
 # N1QL system:all_indexes uses: online, deferred, building, offline, scheduled for creation
 _REST_STATUS_TO_N1QL: dict[str, str] = {
     "Ready": "online",
-    "Created": "deferred",
+    # "Created" can mean deferred (WITH {\"defer_build\":true}) or pending (waiting to build).
+    # Resolved at call-site by inspecting the definition field — see map_rest_status_to_n1ql.
+    "Created": "pending",
     "Building": "building",
     "Moving": "building",
     "Error": "offline",
     "Paused": "online",
-    "Warmup": "online",
+    "Warmup": "pending",
     "Not Available": "offline",
     "Retrying": "offline",
     "Scheduled for Creation": "scheduled for creation",
@@ -75,30 +77,42 @@ _REST_STATUS_TO_N1QL: dict[str, str] = {
 }
 
 
-def map_rest_status_to_n1ql(rest_status: str) -> str:
+def map_rest_status_to_n1ql(rest_status: str, definition: str = "") -> str:
     """Map a REST API index status string to its N1QL equivalent.
 
     The REST API /getIndexStatus endpoint returns status strings like
     "Ready", "Created", "Building", etc. This function normalizes them
     to the N1QL system:all_indexes state values: online, deferred, building,
-    offline, scheduled for creation.
+    pending, offline, scheduled for creation.
 
     For statuses with qualifiers (e.g. "Building (Upgrading)"), the prefix
     before the parenthesis is used for lookup.
 
+    For "Created" status, the definition field is inspected: if it contains
+    ``defer_build`` the index is explicitly deferred; otherwise it is pending
+    (created normally but not yet built).
+
     Args:
         rest_status: Status string from the REST API.
+        definition: The raw CREATE INDEX definition string from the REST API.
+            Used to distinguish deferred from pending for "Created" indexes.
 
     Returns:
         Normalized N1QL state string.
     """
     # Direct lookup first
     if rest_status in _REST_STATUS_TO_N1QL:
+        # Refine "Created": defer_build in definition means explicitly deferred;
+        # otherwise the index is pending (created normally, not yet built).
+        if rest_status == "Created":
+            return "deferred" if "defer_build" in definition.lower() else "pending"
         return _REST_STATUS_TO_N1QL[rest_status]
 
     # Handle qualified statuses like "Building (Upgrading)", "Created (Downgrading)"
     prefix = rest_status.split("(")[0].strip()
     if prefix in _REST_STATUS_TO_N1QL:
+        if prefix == "Created":
+            return "deferred" if "defer_build" in definition.lower() else "pending"
         return _REST_STATUS_TO_N1QL[prefix]
 
     # Unknown status — return as-is in lowercase
@@ -122,13 +136,16 @@ def process_index_data_from_rest_api(
 
     index_info: dict[str, Any] = {"name": name}
 
-    index_info["definition"] = clean_index_definition(idx.get("definition", ""))
+    raw_definition = idx.get("definition", "")
+    index_info["definition"] = clean_index_definition(raw_definition)
 
-    # Map REST status to N1QL-equivalent
+    # Map REST status to N1QL-equivalent, passing definition to resolve Created → deferred/pending
     raw_status = idx.get("status", "")
-    index_info["status"] = map_rest_status_to_n1ql(raw_status) if raw_status else ""
+    index_info["status"] = (
+        map_rest_status_to_n1ql(raw_status, raw_definition) if raw_status else ""
+    )
 
-    index_info["isPrimary"] = idx.get("isPrimary", False)
+    index_info["isPrimary"] = bool(idx.get("isPrimary", False))
 
     if "bucket" in idx:
         index_info["bucket"] = idx["bucket"]
