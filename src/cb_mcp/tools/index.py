@@ -165,7 +165,7 @@ async def list_indexes(
         List of dictionaries with keys:
         - name (str): Index name
         - definition (str): CREATE INDEX statement
-        - status (str): Current status normalized to N1QL values (online, deferred, building, offline, scheduled for creation)
+        - status (str): Current status normalized to SQL++ values (online, deferred, building, offline, scheduled for creation)
         - isPrimary (bool): Whether this is a primary index
         - bucket (str): Bucket name where the index exists
         - scope (str): Scope name where the index exists
