@@ -94,6 +94,7 @@ mcp-server-couchbase/
 │   │   └── static.py                              # StaticClusterProvider used by mcp_server.py
 │   └── cb_mcp/                                    # Reusable Python package shared with other implementations
 │       ├── __init__.py                            # Package marker
+│       ├── tool_registration.py                   # Shared tool preparation for MCP server: parse, filter, wrap with confirmation
 │       ├── core/                                  # Host-agnostic contracts (ClusterProvider, ...)
 │       │   ├── __init__.py
 │       │   └── contracts.py
