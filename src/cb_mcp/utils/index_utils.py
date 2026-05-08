@@ -55,7 +55,8 @@ def clean_index_definition(definition: Any) -> str:
 # Mapping from REST API /getIndexStatus status strings to SQL++ query service states.
 # Source: https://github.com/couchbase/indexing/blob/master/secondary/indexer/request_handler.go
 # The REST API produces these status strings from internal indexer states.
-# SQL++ system:all_indexes uses 7 canonical states:\n# online, deferred, building, pending, offline, abridged, scheduled for creation
+# SQL++ system:all_indexes uses 7 canonical states:
+# online, deferred, building, pending, offline, abridged, scheduled for creation
 _REST_STATUS_TO_QUERY_STATE: dict[str, str] = {
     "Ready": "online",
     # "Created" can mean deferred (WITH {\"defer_build\":true}) or pending (waiting to build).
