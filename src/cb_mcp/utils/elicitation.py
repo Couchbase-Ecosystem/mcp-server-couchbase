@@ -13,7 +13,7 @@ from collections.abc import Callable
 from mcp import types
 from pydantic import BaseModel, Field
 
-from utils.constants import MCP_SERVER_NAME
+from .constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.elicitation")
 

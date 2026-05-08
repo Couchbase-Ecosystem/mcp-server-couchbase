@@ -9,20 +9,26 @@ from typing import Any
 
 from fastmcp import Context
 
-from tools.query import run_sql_plus_plus_query
-from utils.config import get_settings
-from utils.constants import MCP_SERVER_NAME
-from utils.index_utils import (
+from ..utils.config import get_settings
+from ..utils.constants import (
+    MCP_SERVER_NAME,
+    QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION,
+)
+from ..utils.context import get_cluster_connection
+from ..utils.index_utils import (
     fetch_indexes_from_rest_api,
-    process_index_data,
+    process_index_data_from_query,
+    process_index_data_from_rest_api,
+    resolve_cluster_major_version,
     validate_connection_settings,
     validate_filter_params,
 )
+from .query import run_cluster_query, run_sql_plus_plus_query
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
 
-def get_index_advisor_recommendations(
+async def get_index_advisor_recommendations(
     ctx: Context, bucket_name: str, scope_name: str, query: str
 ) -> dict[str, Any]:
     """Get index recommendations from Couchbase Index Advisor for a given SQL++ query.
@@ -47,7 +53,7 @@ def get_index_advisor_recommendations(
         logger.info("Running Index Advisor for the provided query")
 
         # Execute the ADVISOR function at cluster level using run_sql_plus_plus_query
-        advisor_results = run_sql_plus_plus_query(
+        advisor_results = await run_sql_plus_plus_query(
             ctx, bucket_name, scope_name, advisor_query
         )
 
@@ -95,17 +101,58 @@ def get_index_advisor_recommendations(
         raise
 
 
-def list_indexes(
+async def fetch_indexes_via_query_service(
+    ctx: Context,
+    bucket_name: str | None,
+    scope_name: str | None,
+    collection_name: str | None,
+    index_name: str | None,
+) -> list[dict[str, Any]]:
+    """Fetch indexes by querying ``system:all_indexes`` via the query service.
+    Returns:
+        List of unwrapped raw index rows from ``system:all_indexes``.
+    """
+    clauses: list[str] = ["`using` = 'gsi'"]
+    params: dict[str, Any] = {}
+
+    if bucket_name:
+        clauses.append("bucket_id = $bucket_id")
+        params["bucket_id"] = bucket_name
+    if scope_name:
+        clauses.append("scope_id = $scope_id")
+        params["scope_id"] = scope_name
+    if collection_name:
+        clauses.append("keyspace_id = $keyspace_id")
+        params["keyspace_id"] = collection_name
+    if index_name:
+        clauses.append("name = $index_name")
+        params["index_name"] = index_name
+
+    query = "SELECT RAW all_indexes FROM system:all_indexes WHERE " + " AND ".join(
+        clauses
+    )
+    logger.info(f"Running list_indexes query: {query}")
+
+    rows = await run_cluster_query(ctx, query, named_parameters=params)
+    return [row for row in rows if isinstance(row, dict)]
+
+
+async def list_indexes(
     ctx: Context,
     bucket_name: str | None = None,
     scope_name: str | None = None,
     collection_name: str | None = None,
     index_name: str | None = None,
-    include_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
     """List all indexes in the cluster with optional filtering by bucket, scope, collection, and index name.
     Returns a list of indexes with their names and CREATE INDEX definitions.
-    Uses the Index Service REST API (/getIndexStatus) to retrieve index information directly.
+
+    The data source depends on the Couchbase Server version:
+    - Cluster version >= 8.x: query ``system:all_indexes`` via the query
+      service, which exposes the original CREATE INDEX statement directly in
+      ``metadata.definition``.
+    - Cluster version < 8.x: fall back to the
+      Index Service REST API ``/getIndexStatus`` endpoint.
 
     Args:
         ctx: MCP context for cluster connection
@@ -113,20 +160,19 @@ def list_indexes(
         scope_name: Optional scope name to filter indexes (requires bucket_name)
         collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
         index_name: Optional index name to filter indexes (requires bucket_name, scope_name, and collection_name)
-        include_raw_index_stats: If True, include raw index stats (as-is from API) in addition
-                              to cleaned-up version. Default is False.
 
     Returns:
         List of dictionaries with keys:
         - name (str): Index name
-        - definition (str): Cleaned-up CREATE INDEX statement
-        - status (str): Current status of the index (e.g., "Ready", "Building", "Deferred")
+        - definition (str): CREATE INDEX statement
+        - status (str): Current index state. SQL++ defines 7 canonical values:
+          online, deferred, building, pending, offline, abridged, scheduled for creation.
+          On the REST path, unknown/future statuses are returned lowercased for forward-compat.
         - isPrimary (bool): Whether this is a primary index
         - bucket (str): Bucket name where the index exists
         - scope (str): Scope name where the index exists
         - collection (str): Collection name where the index exists
-        - raw_index_stats (dict, optional): Complete raw index status object from API including metadata,
-                                           state, keyspace info, etc. (only if include_raw_index_stats=True)
+        - lastScanTime (str): Last time the index was scanned
     """
     try:
         # Validate parameters
@@ -136,13 +182,38 @@ def list_indexes(
         settings = get_settings(ctx)
         validate_connection_settings(settings)
 
-        # Fetch indexes from REST API
-        logger.info(
-            f"Fetching indexes from REST API for bucket={bucket_name}, "
-            f"scope={scope_name}, collection={collection_name}, index={index_name}"
-        )
+        # Decide which path to use based on cluster version (via SDK).
+        cluster = await get_cluster_connection(ctx)
+        major_version = await resolve_cluster_major_version(cluster)
 
-        raw_indexes = fetch_indexes_from_rest_api(
+        if major_version >= QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION:
+            logger.info(
+                f"Fetching indexes via query service (system:all_indexes) for "
+                f"bucket={bucket_name}, scope={scope_name}, "
+                f"collection={collection_name}, index={index_name}"
+            )
+            raw_indexes = await fetch_indexes_via_query_service(
+                ctx,
+                bucket_name=bucket_name,
+                scope_name=scope_name,
+                collection_name=collection_name,
+                index_name=index_name,
+            )
+            indexes = [
+                processed
+                for idx in raw_indexes
+                if (processed := process_index_data_from_query(idx)) is not None
+            ]
+            logger.info(f"Found {len(indexes)} indexes via query service")
+            return indexes
+
+        # Fallback / pre-8.x path: Index Service REST API
+        logger.info(
+            f"Fetching indexes from Index Service REST API for "
+            f"bucket={bucket_name}, scope={scope_name}, "
+            f"collection={collection_name}, index={index_name}"
+        )
+        raw_indexes = await fetch_indexes_from_rest_api(
             settings["connection_string"],
             settings["username"],
             settings["password"],
@@ -157,14 +228,10 @@ def list_indexes(
         indexes = [
             processed
             for idx in raw_indexes
-            if (processed := process_index_data(idx, include_raw_index_stats))
-            is not None
+            if (processed := process_index_data_from_rest_api(idx)) is not None
         ]
 
-        logger.info(
-            f"Found {len(indexes)} indexes from REST API "
-            f"(include_raw_index_stats={include_raw_index_stats})"
-        )
+        logger.info(f"Found {len(indexes)} indexes from REST API")
         return indexes
 
     except Exception as e:

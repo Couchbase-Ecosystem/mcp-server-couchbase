@@ -3,19 +3,17 @@ Couchbase MCP Server
 """
 
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import click
 from fastmcp import FastMCP
 from fastmcp.tools import FunctionTool
 
-# Import utilities
-from providers.static import StaticClusterProvider
-
-# Import tools
-from tools import TOOL_ANNOTATIONS, get_tools
-from utils import (
+# Reusable tools and utilities from the cb_mcp package
+from cb_mcp.tool_registration import prepare_tools_for_registration
+from cb_mcp.tools import TOOL_ANNOTATIONS
+from cb_mcp.utils import (
     ALLOWED_TRANSPORTS,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
@@ -26,9 +24,10 @@ from utils import (
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
-    parse_tool_names,
-    wrap_with_confirmation,
 )
+
+# Standalone-host provider implementation
+from providers.static import StaticClusterProvider
 
 # Configure logging
 logging.basicConfig(
@@ -37,66 +36,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(MCP_SERVER_NAME)
-
-
-def prepare_tools_for_registration(
-    read_only_mode: bool,
-    disabled_tools: str | None,
-    confirmation_required_tools: str | None,
-) -> tuple[list[Callable], set[str], set[str]]:
-    """Prepare final tool list and confirmation configuration for registration."""
-    # Get tools based on mode settings
-    # When read_only_mode is True, KV write tools are not loaded
-    tools = get_tools(read_only_mode=read_only_mode)
-
-    # Parse and validate disabled tools from CLI/environment variable
-    loaded_tool_names = {tool.__name__ for tool in tools}
-    disabled_tool_names = parse_tool_names(disabled_tools, loaded_tool_names)
-
-    if disabled_tool_names:
-        logger.info(
-            f"Disabled {len(disabled_tool_names)} tool(s): {sorted(disabled_tool_names)}"
-        )
-
-    # Parse and validate confirmation-required tools
-    configured_confirmation_tool_names = parse_tool_names(
-        confirmation_required_tools, loaded_tool_names
-    )
-
-    if configured_confirmation_tool_names:
-        logger.info(
-            f"Confirmation required for {len(configured_confirmation_tool_names)} tool(s): "
-            f"{sorted(configured_confirmation_tool_names)}"
-        )
-
-    # Filter out disabled tools
-    enabled_tools = [tool for tool in tools if tool.__name__ not in disabled_tool_names]
-
-    # Apply confirmation to tools that are currently active.
-    active_tool_names = {tool.__name__ for tool in enabled_tools}
-    active_confirmation_tool_names = (
-        configured_confirmation_tool_names & active_tool_names
-    )
-
-    skipped_confirmation_tool_names = (
-        configured_confirmation_tool_names - active_tool_names
-    )
-    if skipped_confirmation_tool_names:
-        logger.info(
-            "Skipped confirmation for unavailable tool(s): "
-            f"{sorted(skipped_confirmation_tool_names)}"
-        )
-
-    final_tools = [
-        (
-            wrap_with_confirmation(tool)
-            if tool.__name__ in active_confirmation_tool_names
-            else tool
-        )
-        for tool in enabled_tools
-    ]
-
-    return final_tools, configured_confirmation_tool_names, disabled_tool_names
 
 
 @click.command()
@@ -255,7 +194,7 @@ def main(
             raise
         finally:
             if app_context.cluster_provider:
-                app_context.cluster_provider.close()
+                await app_context.cluster_provider.close()
             logger.info("Closing MCP server")
 
     # Map user-friendly transport names to SDK transport names
