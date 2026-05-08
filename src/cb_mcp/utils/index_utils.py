@@ -52,43 +52,242 @@ def clean_index_definition(definition: Any) -> str:
     return ""
 
 
-def process_index_data(
-    idx: dict[str, Any], include_raw_index_stats: bool
-) -> dict[str, Any] | None:
-    """Process raw index data into formatted index info.
+# Mapping from REST API /getIndexStatus status strings to SQL++ query service states.
+# Source: https://github.com/couchbase/indexing/blob/master/secondary/indexer/request_handler.go
+# The REST API produces these status strings from internal indexer states.
+# SQL++ system:all_indexes uses 7 canonical states:\n# online, deferred, building, pending, offline, abridged, scheduled for creation
+_REST_STATUS_TO_QUERY_STATE: dict[str, str] = {
+    "Ready": "online",
+    # "Created" can mean deferred (WITH {\"defer_build\":true}) or pending (waiting to build).
+    # Resolved at call-site by inspecting the definition field — see map_rest_status_to_query_state.
+    "Created": "pending",
+    "Building": "building",
+    "Moving": "building",
+    "Error": "offline",
+    "Paused": "offline",
+    "Warmup": "pending",
+    "Not Available": "offline",
+    "Retrying": "offline",
+    "Scheduled for Creation": "scheduled for creation",
+    "Training": "building",
+    "Graph Building": "building",
+    # "Scheduled for build" and "Training complete, scheduled for build" come from
+    # INDEX_STATE_READY (same as "Created"). Use defer_build check at call-site.
+    "Scheduled for build": "pending",
+    "Training complete, scheduled for build": "pending",
+}
+
+
+def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> str:
+    """Map a REST API index status string to its SQL++ query service equivalent.
+
+    The REST API /getIndexStatus endpoint returns status strings like
+    "Ready", "Created", "Building", etc. This function normalizes them
+    to the SQL++ system:all_indexes state values: online, deferred, building,
+    pending, offline, scheduled for creation.
+
+    For statuses with qualifiers (e.g. "Building (Upgrading)"), the prefix
+    before the parenthesis is used for lookup.
+
+    For "Created" status, the definition field is inspected: if it contains
+    ``defer_build`` the index is explicitly deferred; otherwise it is pending
+    (created normally but not yet built).
 
     Args:
-        idx: Raw index data from the API
-        include_raw_index_stats: Whether to include complete raw stats in the output
+        rest_status: Status string from the REST API.
+        definition: The raw CREATE INDEX definition string from the REST API.
+            Used to distinguish deferred from pending for "Created" indexes.
+
+    Returns:
+        Normalized SQL++ query service state string.
+    """
+    # Direct lookup first
+    if rest_status in _REST_STATUS_TO_QUERY_STATE:
+        # "Created", "Scheduled for build", and "Training complete, scheduled for build"
+        # all share INDEX_STATE_READY. Use defer_build in definition to distinguish
+        # deferred (explicit defer) from pending (waiting to build).
+        if rest_status in (
+            "Created",
+            "Scheduled for build",
+            "Training complete, scheduled for build",
+        ):
+            return "deferred" if "defer_build" in definition.lower() else "pending"
+        return _REST_STATUS_TO_QUERY_STATE[rest_status]
+
+    # Handle qualified statuses like "Building (Upgrading)", "Created (Downgrading)"
+    prefix = rest_status.split("(")[0].strip()
+    if prefix in _REST_STATUS_TO_QUERY_STATE:
+        if prefix in (
+            "Created",
+            "Scheduled for build",
+            "Training complete, scheduled for build",
+        ):
+            return "deferred" if "defer_build" in definition.lower() else "pending"
+        return _REST_STATUS_TO_QUERY_STATE[prefix]
+
+    # Unknown status — return as-is in lowercase
+    return rest_status.lower()
+
+
+def process_index_data_from_rest_api(
+    idx: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Process raw index data from the REST API into formatted index info.
+
+    Args:
+        idx: Raw index data from the /getIndexStatus API
 
     Returns:
         Formatted index info dictionary, or None if the index should be skipped (e.g., no name).
+    """
+    name = idx.get("indexName", "") or idx.get("name", "")
+    if not name:
+        return None
+
+    index_info: dict[str, Any] = {"name": name}
+
+    raw_definition = idx.get("definition", "")
+    index_info["definition"] = clean_index_definition(raw_definition)
+
+    # Map REST status to SQL++ query service state, passing definition to resolve Created → deferred/pending
+    raw_status = idx.get("status", "")
+    index_info["status"] = (
+        map_rest_status_to_query_state(raw_status, raw_definition) if raw_status else ""
+    )
+
+    index_info["isPrimary"] = bool(idx.get("isPrimary", False))
+
+    if "bucket" in idx:
+        index_info["bucket"] = idx["bucket"]
+    if "scope" in idx:
+        index_info["scope"] = idx["scope"]
+    if "collection" in idx:
+        index_info["collection"] = idx["collection"]
+
+    index_info["lastScanTime"] = idx.get("lastScanTime") or "NA"
+
+    return index_info
+
+
+def process_index_data_from_query(
+    idx: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Process a row from ``system:all_indexes`` into formatted index info.
+
+    Field mapping (system:all_indexes -> output):
+        - name              -> name
+        - metadata.definition -> definition
+        - state             -> status
+        - bucket_id         -> bucket
+        - scope_id          -> scope
+        - keyspace_id       -> collection
+        - is_primary        -> isPrimary
+        - metadata.last_scan_time -> lastScanTime
+
+    Args:
+        idx: A single index document from ``system:all_indexes``, returned
+            directly by ``SELECT RAW all_indexes`` (i.e. the outer wrapper is
+            already stripped by the ``RAW`` keyword).
+
+    Returns:
+        Formatted index info dictionary, or None if the row should be skipped
+        (no name).
     """
     name = idx.get("name", "")
     if not name:
         return None
 
-    # Start with name and optional definition
     index_info: dict[str, Any] = {"name": name}
 
-    clean_def = clean_index_definition(idx.get("definition", ""))
-    if clean_def:
-        index_info["definition"] = clean_def
+    metadata = idx.get("metadata") or {}
+    # No cleaning needed — query service returns verbatim SQL++
+    index_info["definition"] = metadata.get("definition", "")
 
-    # Copy standard fields from raw index data
-    standard_fields = ["status", "bucket", "scope", "collection"]
-    for field in standard_fields:
-        if field in idx:
-            index_info[field] = idx[field]
+    state = idx.get("state")
+    index_info["status"] = state if state else ""
 
-    # Always include isPrimary as a boolean
-    index_info["isPrimary"] = idx.get("isPrimary", False)
+    if "bucket_id" in idx:
+        index_info["bucket"] = idx["bucket_id"]
+    if "scope_id" in idx:
+        index_info["scope"] = idx["scope_id"]
+    if "keyspace_id" in idx:
+        index_info["collection"] = idx["keyspace_id"]
 
-    # Optionally include complete raw stats
-    if include_raw_index_stats:
-        index_info["raw_index_stats"] = idx
+    index_info["isPrimary"] = bool(idx.get("is_primary", False))
+
+    index_info["lastScanTime"] = metadata.get("last_scan_time", "NA") or "NA"
 
     return index_info
+
+
+def parse_major_version(version_str: str | None) -> int:
+    """Extract the integer major version from a Couchbase version string.
+
+    Examples:
+        - "8.0.0-1928-enterprise" -> 8
+        - "7.6.0"                 -> 7
+
+    Args:
+        version_str: Node ``version`` string returned by the cluster, such as a value from ``cluster_info().nodes``.
+
+    Returns:
+        Major version as int.
+
+    Raises:
+        ValueError: If *version_str* is empty, None, or cannot be parsed.
+    """
+    if not version_str:
+        raise ValueError("version_str is empty or None")
+    major_version = version_str.strip().split(".", 1)[0]
+    # Handle prefixes like "v8" defensively.
+    major_version = major_version.lstrip("vV")
+    try:
+        return int(major_version)
+    except ValueError:
+        raise ValueError(f"Cannot parse major version from {version_str!r}") from None
+
+
+async def resolve_cluster_major_version(cluster: Any) -> int:
+    """Detect the cluster's major version via the SDK.
+
+    Reads the per-node ``version`` field from ``cluster.cluster_info().nodes``
+    (Python SDK 4.1+) and returns the *minimum* major version across all nodes
+    so we only enable the 8.x+ query-service path when every node supports it.
+
+    The high-level helper properties (``server_version`` /
+    ``server_version_short`` / ``server_version_full``) are intentionally not
+    used: the SDK collapses them to ``None`` whenever the cluster reports
+    mixed node versions, which is exactly the case where we still need an
+    answer. Each node entry, in contrast, always carries a ``version`` string.
+
+    Args:
+        cluster: An already-connected Couchbase ``Cluster`` instance.
+
+    Raises if cluster_info() fails — callers should not silently degrade
+    when version detection is unavailable.
+    """
+    info = await cluster.cluster_info()
+
+    nodes = info.nodes or []
+    versions: list[str] = []
+    for node in nodes:
+        if isinstance(node, dict):
+            version = node.get("version")
+        else:
+            version = getattr(node, "version", None)
+        if version:
+            versions.append(str(version))
+
+    if not versions:
+        raise RuntimeError(
+            "cluster_info() reported no nodes — cannot determine cluster version"
+        )
+
+    majors = [parse_major_version(v) for v in versions]
+    min_major = min(majors)
+
+    logger.info(f"Detected cluster node versions={versions} (min major={min_major})")
+    return min_major
 
 
 def _get_capella_root_ca_path() -> str:
