@@ -209,10 +209,16 @@ def process_index_data_from_query(
 
     if "bucket_id" in idx:
         index_info["bucket"] = idx["bucket_id"]
-    if "scope_id" in idx:
-        index_info["scope"] = idx["scope_id"]
-    if "keyspace_id" in idx:
-        index_info["collection"] = idx["keyspace_id"]
+        if "scope_id" in idx:
+            index_info["scope"] = idx["scope_id"]
+        if "keyspace_id" in idx:
+            index_info["collection"] = idx["keyspace_id"]
+    elif "keyspace_id" in idx:
+        # Legacy bucket-level indexes don't have bucket_id/scope_id;
+        # keyspace_id is the bucket name in that case.
+        index_info["bucket"] = idx["keyspace_id"]
+        index_info["scope"] = "_default"
+        index_info["collection"] = "_default"
 
     index_info["isPrimary"] = bool(idx.get("is_primary", False))
 
