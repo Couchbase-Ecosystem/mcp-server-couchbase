@@ -3,7 +3,7 @@ Couchbase MCP Server
 """
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 import click
@@ -21,7 +21,7 @@ from catalog_manager import (
 )
 
 # Import tools
-from tools import get_tools
+from tools import TOOL_ANNOTATIONS, get_tools
 
 # Import utilities
 from utils import (
@@ -40,8 +40,13 @@ from utils import (
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
     get_settings,
+<<<<<<< HEAD
     parse_disabled_tools,
     set_settings,
+=======
+    parse_tool_names,
+    wrap_with_confirmation,
+>>>>>>> main
 )
 
 # Configure logging
@@ -82,6 +87,66 @@ class MCPServer(FastMCP):
         return await super().list_tools()
 
 
+def prepare_tools_for_registration(
+    read_only_mode: bool,
+    disabled_tools: str | None,
+    confirmation_required_tools: str | None,
+) -> tuple[list[Callable], set[str], set[str]]:
+    """Prepare final tool list and confirmation configuration for registration."""
+    # Get tools based on mode settings
+    # When read_only_mode is True, KV write tools are not loaded
+    tools = get_tools(read_only_mode=read_only_mode)
+
+    # Parse and validate disabled tools from CLI/environment variable
+    loaded_tool_names = {tool.__name__ for tool in tools}
+    disabled_tool_names = parse_tool_names(disabled_tools, loaded_tool_names)
+
+    if disabled_tool_names:
+        logger.info(
+            f"Disabled {len(disabled_tool_names)} tool(s): {sorted(disabled_tool_names)}"
+        )
+
+    # Parse and validate confirmation-required tools
+    configured_confirmation_tool_names = parse_tool_names(
+        confirmation_required_tools, loaded_tool_names
+    )
+
+    if configured_confirmation_tool_names:
+        logger.info(
+            f"Confirmation required for {len(configured_confirmation_tool_names)} tool(s): "
+            f"{sorted(configured_confirmation_tool_names)}"
+        )
+
+    # Filter out disabled tools
+    enabled_tools = [tool for tool in tools if tool.__name__ not in disabled_tool_names]
+
+    # Apply confirmation to tools that are currently active.
+    active_tool_names = {tool.__name__ for tool in enabled_tools}
+    active_confirmation_tool_names = (
+        configured_confirmation_tool_names & active_tool_names
+    )
+
+    skipped_confirmation_tool_names = (
+        configured_confirmation_tool_names - active_tool_names
+    )
+    if skipped_confirmation_tool_names:
+        logger.info(
+            "Skipped confirmation for unavailable tool(s): "
+            f"{sorted(skipped_confirmation_tool_names)}"
+        )
+
+    final_tools = [
+        (
+            wrap_with_confirmation(tool)
+            if tool.__name__ in active_confirmation_tool_names
+            else tool
+        )
+        for tool in enabled_tools
+    ]
+
+    return final_tools, configured_confirmation_tool_names, disabled_tool_names
+
+
 @asynccontextmanager
 async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Initialize the MCP server context and start the catalog background thread."""
@@ -99,7 +164,8 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     app_context = None
     try:
         app_context = AppContext(
-            read_only_mode=read_only_mode, read_only_query_mode=read_only_query_mode
+            read_only_mode=read_only_mode,
+            read_only_query_mode=read_only_query_mode,
         )
 
         logger.info("Starting catalog background thread")
@@ -147,19 +213,16 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 @click.option(
     "--ca-cert-path",
     envvar="CB_CA_CERT_PATH",
-    default=None,
     help="Path to the server trust store (CA certificate) file. The certificate at this path is used to verify the server certificate during the authentication process.",
 )
 @click.option(
     "--client-cert-path",
     envvar="CB_CLIENT_CERT_PATH",
-    default=None,
     help="Path to the client certificate file used for mTLS authentication.",
 )
 @click.option(
     "--client-key-path",
     envvar="CB_CLIENT_KEY_PATH",
-    default=None,
     help="Path to the client certificate key file used for mTLS authentication.",
 )
 @click.option(
@@ -210,6 +273,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     "or a file path containing one tool name per line.",
 )
 @click.option(
+<<<<<<< HEAD
     "--enable-query-generation",
     envvar="CB_MCP_ENABLE_QUERY_GENERATION",
     type=bool,
@@ -237,6 +301,14 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     type=int,
     default=DEFAULT_VERIFIER_SAMPLE_SIZE,
     help="Sample size used by relationship verifier tasks (sampling-only mode).",
+=======
+    "--confirmation-required-tools",
+    "confirmation_required_tools",
+    envvar="CB_MCP_CONFIRMATION_REQUIRED_TOOLS",
+    help="Comma-separated tool names that require user confirmation before execution. "
+    "Also accepts a file path containing one tool name per line. "
+    "Requires the MCP client to support elicitation.",
+>>>>>>> main
 )
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
@@ -254,13 +326,29 @@ def main(
     host,
     port,
     disabled_tools,
+<<<<<<< HEAD
     enable_query_generation,
     worker_bucket_concurrency,
     enrichment_bucket_concurrency,
     verifier_sample_size,
+=======
+    confirmation_required_tools,
+>>>>>>> main
 ):
     """Couchbase MCP Server"""
+
+    (
+        final_tools,
+        configured_confirmation_tool_names,
+        disabled_tool_names,
+    ) = prepare_tools_for_registration(
+        read_only_mode=read_only_mode,
+        disabled_tools=disabled_tools,
+        confirmation_required_tools=confirmation_required_tools,
+    )
+
     # Store configuration in context
+<<<<<<< HEAD
     set_settings(
         {
             "connection_string": connection_string,
@@ -299,6 +387,24 @@ def main(
     # Filter out disabled tools
     enabled_tools = [tool for tool in tools if tool.__name__ not in disabled_tool_names]
 
+=======
+    ctx.obj = {
+        "connection_string": connection_string,
+        "username": username,
+        "password": password,
+        "ca_cert_path": ca_cert_path,
+        "client_cert_path": client_cert_path,
+        "client_key_path": client_key_path,
+        "read_only_mode": read_only_mode,
+        "read_only_query_mode": read_only_query_mode,
+        "transport": transport,
+        "host": host,
+        "port": port,
+        "disabled_tools": disabled_tool_names,
+        "confirmation_required_tools": configured_confirmation_tool_names,
+    }
+
+>>>>>>> main
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
 
@@ -318,15 +424,16 @@ def main(
     mcp.set_transport(transport)
 
     logger.info(
-        f"Registering {len(enabled_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
+        f"Registering {len(final_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
         f"read_only_query_mode={read_only_query_mode})"
     )
 
-    # Register only enabled tools
-    for tool in enabled_tools:
-        mcp.add_tool(tool)
+    # Register tools with their annotations
+    for tool in final_tools:
+        annotations = TOOL_ANNOTATIONS.get(tool.__name__)
+        mcp.add_tool(tool, annotations=annotations)
 
-    logger.info(f"Registered {len(enabled_tools)} tool(s)")
+    logger.info(f"Registered {len(final_tools)} tool(s)")
 
     # Run the server
     mcp.run(transport=sdk_transport)  # type: ignore

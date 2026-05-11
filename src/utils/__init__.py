@@ -7,8 +7,12 @@ This module contains utility functions for configuration, connection, and contex
 # Configuration utilities
 from .config import (
     get_settings,
+<<<<<<< HEAD
     parse_disabled_tools,
     set_settings,
+=======
+    parse_tool_names,
+>>>>>>> main
 )
 
 # Connection utilities
@@ -40,6 +44,9 @@ from .context import (
     get_cluster_connection,
 )
 
+# Elicitation utilities
+from .elicitation import wrap_with_confirmation
+
 # Index utilities
 from .index_utils import (
     fetch_indexes_from_rest_api,
@@ -52,7 +59,7 @@ __all__ = [
     # Config
     "set_settings",
     "get_settings",
-    "parse_disabled_tools",
+    "parse_tool_names",
     # Connection
     "connect_to_couchbase_cluster",
     "connect_to_bucket",
@@ -75,4 +82,6 @@ __all__ = [
     "ALLOWED_TRANSPORTS",
     "NETWORK_TRANSPORTS",
     "NETWORK_TRANSPORTS_SDK_MAPPING",
+    # Elicitation
+    "wrap_with_confirmation",
 ]

@@ -17,7 +17,11 @@ Thank you for your interest in contributing to the Couchbase MCP Server! This gu
 # Clone the repository
 git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
 cd mcp-server-couchbase
+```
 
+**Note:** External contributors do not have commit permissions on the main repository. [Fork the repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/fork) to your own GitHub account and clone your fork instead of this repo.
+
+```bash
 # Install dependencies (including development tools)
 uv sync --extra dev
 ```
@@ -62,35 +66,80 @@ Our Ruff configuration includes:
 - **Code quality**: Detection of unused variables, simplification opportunities
 - **Modern Python**: Encourages modern Python patterns with `pyupgrade`
 
+## 📋 Adding New Features
+
+### Before You Start
+
+1. **Check existing issues** to see if someone is already working on it
+2. **Open an issue** to discuss larger changes
+3. **Review the codebase** to understand existing patterns
+
+### Implementation Guidelines
+
+1. **Follow existing patterns**: Look at similar tools for guidance
+2. **Use the utility modules**: Leverage existing connection and context management
+3. **Add proper logging**: Use the hierarchical logging system
+4. **Handle errors gracefully**: Provide helpful error messages
+5. **Consider read-only mode**: If your tool modifies data, respect `read_only_mode` settings
+6. **Update documentation**: Update README.md and DOCKER.md if adding user-facing features
+
 ## 🏗️ Project Structure
 
 ```
 mcp-server-couchbase/
 ├── src/
-│   ├── mcp_server.py              # MCP server entry point
-│   ├── certs/                     # SSL/TLS certificates
-│   │   ├── __init__.py            # Package marker
-│   │   └── capella_root_ca.pem    # Capella root CA certificate (for Capella connections)
-│   ├── tools/                     # MCP tool implementations
-│   │   ├── __init__.py            # Tool exports and ALL_TOOLS list
-│   │   ├── server.py              # Server status and connection tools
-│   │   ├── kv.py                  # Key-value operations (CRUD)
-│   │   ├── query.py               # SQL++ query operations
-│   │   └── index.py               # Index operations and recommendations
-│   └── utils/                     # Utility modules
-│       ├── __init__.py            # Utility exports
-│       ├── constants.py           # Project constants
-│       ├── config.py              # Configuration management
-│       ├── connection.py          # Couchbase connection handling
-│       ├── context.py             # Application context management
-│       └── index_utils.py         # Index-related helper functions
-├── scripts/                       # Development scripts
-│   ├── lint.sh                    # Manual linting script
-│   └── lint_fix.sh                # Auto-fix linting issues
-├── .pre-commit-config.yaml        # Pre-commit hook configuration
-├── pyproject.toml                 # Project dependencies and Ruff config
-├── CONTRIBUTING.md                # Contribution Guide
-└── README.md                      # Usage
+│   ├── mcp_server.py                              # MCP server entry point
+│   ├── certs/                                     # SSL/TLS certificates
+│   │   ├── __init__.py                            # Package marker
+│   │   └── capella_root_ca.pem                    # Capella root CA certificate (for Capella connections)
+│   ├── tools/                                     # MCP tool implementations
+│   │   ├── __init__.py                            # Tool exports and ALL_TOOLS list
+│   │   ├── server.py                              # Server status and connection tools
+│   │   ├── kv.py                                  # Key-value operations (CRUD)
+│   │   ├── query.py                               # SQL++ Query based tools
+│   │   └── index.py                               # Index operations and recommendations
+│   └── utils/                                     # Utility modules
+│       ├── __init__.py                            # Utility exports
+│       ├── constants.py                           # Project constants
+│       ├── config.py                              # Configuration management
+│       ├── connection.py                          # Couchbase connection handling
+│       ├── context.py                             # Application context management
+│       ├── elicitation.py                         # Confirmation/elicitation support
+│       ├── index_utils.py                         # Index-related helper functions
+│       └── query_utils.py                         # Query-related helper functions
+├── scripts/                                       # Development scripts
+│   ├── lint.sh                                    # Manual linting script
+│   ├── lint_fix.sh                                # Auto-fix linting issues
+│   ├── setup_test_data.py                         # Setup script for integration tests
+│   └── update_version.sh                          # Script to bump package version
+├── tests/                                         # Test suite
+│   ├── conftest.py                                # Shared test fixtures
+│   ├── test_confirmation_tools.py                 # Tests for confirmation/elicitation
+│   ├── test_index_tools.py                        # Tests for index tools
+│   ├── test_is_explain_statement.py               # Tests for EXPLAIN detection
+│   ├── test_kv_tools.py                           # Tests for KV operations
+│   ├── test_mcp_integration.py                    # MCP integration tests
+│   ├── test_parse_tool_names.py                   # Tests for tool name parsing
+│   ├── test_performance_tools.py                  # Tests for performance analysis tools
+│   ├── test_query_plan_evaluation.py              # Tests for query plan evaluation
+│   ├── test_query_tools.py                        # Tests for query tools
+│   ├── test_read_only_mode.py                     # Tests for read-only mode
+│   ├── test_server_configuration_status_tool.py   # Tests for server configuration status
+│   ├── test_server_tools.py                       # Tests for server tools
+│   ├── test_tool_registration.py                  # Tests for tool registration
+│   └── test_utils.py                              # Tests for utility functions
+├── .pre-commit-config.yaml                        # Pre-commit hook configuration
+├── build.sh                                       # Docker image build script
+├── Dockerfile                                     # Docker container definition
+├── DOCKER.md                                      # Docker usage documentation
+├── glama.json                                     # Glama MCP catalog metadata
+├── LICENSE                                        # Apache 2.0 license
+├── pyproject.toml                                 # Project dependencies and Ruff config
+├── RELEASE.md                                     # Release process documentation
+├── server.json                                    # MCP Registry configuration
+├── smithery.yaml                                  # Smithery.ai deployment config
+├── CONTRIBUTING.md                                # Contribution Guide
+└── README.md                                      # Usage
 ```
 
 ## 🛠️ Development Workflow
@@ -131,7 +180,8 @@ When adding new MCP tools:
 1. **Create the tool function** in the appropriate module (in `tools` directory)
 2. **Export the tool** in `tools/__init__.py`
 3. **Add to ALL_TOOLS** list in `tools/__init__.py`
-4. **Test the tool** with an MCP client
+4. **Write tests** for the new tool in the `tests/` directory
+5. **Test the tool** with an MCP client
 
 ### Code Style Guidelines
 
@@ -151,29 +201,51 @@ Currently, testing is done manually with MCP clients:
 2. **Run the server** with an MCP client like Claude Desktop
 3. **Test tool functionality** through the client interface
 
-### Future Testing Plans
+### Automated Tests
 
-We plan to add:
+Ensure all existing tests pass so your changes don't break anything. The project has a comprehensive test suite in the `tests/` directory:
 
-- Unit tests for utility functions
-- Integration tests
-- Automated testing in CI/CD
+```bash
+# Run all tests
+uv run pytest
 
-## 📋 Adding New Features
+# Run a specific test file
+uv run pytest tests/test_query_tools.py
 
-### Before You Start
+# Run tests with verbose output
+uv run pytest -v
+```
 
-1. **Check existing issues** to see if someone is already working on it
-2. **Open an issue** to discuss larger changes
-3. **Review the codebase** to understand existing patterns
+### Setting Up Test Data
 
-### Implementation Guidelines
+For integration tests that need a running Couchbase cluster:
 
-1. **Follow existing patterns**: Look at similar tools for guidance
-2. **Use the utility modules**: Leverage existing connection and context management
-3. **Add proper logging**: Use the hierarchical logging system
-4. **Handle errors gracefully**: Provide helpful error messages
-5. **Update documentation**: Update README.md if adding user-facing features
+```bash
+# Set required environment variables
+export CB_CONNECTION_STRING="couchbase://localhost"
+export CB_USERNAME="username"
+export CB_PASSWORD="password"
+export CB_MCP_TEST_BUCKET="travel-sample"
+
+# Run the setup script to create indexes and populate test data
+uv run scripts/setup_test_data.py
+```
+
+### Test Categories
+
+- **Unit tests**: Test individual functions and utilities (e.g., `test_utils.py`, `test_parse_tool_names.py`)
+- **Tool tests**: Test each tool category (e.g., `test_kv_tools.py`, `test_query_tools.py`, `test_index_tools.py`)
+- **Feature tests**: Test specific features like read-only mode (`test_read_only_mode.py`), confirmation tools (`test_confirmation_tools.py`), and query plan evaluation (`test_query_plan_evaluation.py`)
+- **Integration tests**: Test MCP server integration (`test_mcp_integration.py`)
+
+### Writing Tests
+
+When adding new features or tools, add corresponding tests:
+
+1. **Create a test file** in `tests/` following the `test_*.py` naming convention
+2. **Use shared fixtures** from `conftest.py`
+3. **Test both success and error paths**
+4. **Test read-only mode interactions** if your tool performs write operations
 
 ## 🤝 Submitting Changes
 
@@ -187,7 +259,9 @@ We plan to add:
    uv run pre-commit run --all-files
    ```
 
-2. **Push your branch** and create a pull request
+2. **Push your branch** and create a pull request (PR)
+
+   If you are working on a forked version of the repo, follow [these instructions](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork) to create the PR.
 
 3. **Describe your changes** in the PR description:
    - What does this change do?
@@ -205,11 +279,23 @@ uv add package-name
 # Install new dev dependencies
 uv add --dev package-name
 
-# Update dependencies
-uv sync
+# Update all package dependencies to the latest compatible versions
+uv sync --upgrade
+
+# Update specific package to the latest compatible version
+uv sync --upgrade-package package-name
 
 # Run the server for testing
-uv run src/mcp_server.py --connection-string "..." --username "..." --password "..." --bucket-name "..."
+uv run src/mcp_server.py --connection-string "..." --username "..." --password "..."
+
+# Run with write operations enabled
+uv run src/mcp_server.py --connection-string "..." --username "..." --password "..." --read-only-mode false
+
+# Run with confirmation required for specific tools
+uv run src/mcp_server.py --connection-string "..." --username "..." --password "..." --confirmation-required-tools "delete_document_by_id,replace_document_by_id"
+
+# Run with specific tools disabled
+uv run src/mcp_server.py --connection-string "..." --username "..." --password "..." --disabled-tools "upsert_document_by_id,delete_document_by_id"
 ```
 
 ### Debugging

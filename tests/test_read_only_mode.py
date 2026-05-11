@@ -44,9 +44,10 @@ READ_ONLY_TOOL_NAMES = {
     "get_cluster_health_and_services",
     # KV read tool (1)
     "get_document_by_id",
-    # Query tools (2)
+    # Query tools (3)
     "get_schema_for_collection",
     "run_sql_plus_plus_query",
+    "explain_sql_plus_plus_query",
     # Index tools (2)
     "get_index_advisor_recommendations",
     "list_indexes",
@@ -213,7 +214,11 @@ class TestToolCounts:
         """Verify correct number of tools when all options are enabled."""
         tools = get_tools(read_only_mode=False, enable_query_generation=True)
         assert len(tools) == len(ALL_TOOLS)
+<<<<<<< HEAD
         assert len(tools) == 25  # Expected total count (20 read-only + 4 KV write + 1 query generation)
+=======
+        assert len(tools) == 24  # Expected total count (20 read-only + 4 KV write)
+>>>>>>> main
 
     def test_kv_write_tools_count(self):
         """Verify exactly 4 KV write tools exist."""
@@ -277,6 +282,16 @@ class TestReadOnlyModeToolFiltering:
         tools_write = get_tools(read_only_mode=False)
         tool_names_write = {tool.__name__ for tool in tools_write}
         assert "run_sql_plus_plus_query" in tool_names_write
+
+    def test_explain_query_tool_always_available(self):
+        """Verify explain_sql_plus_plus_query is always available."""
+        tools_read_only = get_tools(read_only_mode=True)
+        tool_names_read_only = {tool.__name__ for tool in tools_read_only}
+        assert "explain_sql_plus_plus_query" in tool_names_read_only
+
+        tools_write = get_tools(read_only_mode=False)
+        tool_names_write = {tool.__name__ for tool in tools_write}
+        assert "explain_sql_plus_plus_query" in tool_names_write
 
 
 class TestQueryAnnotation:

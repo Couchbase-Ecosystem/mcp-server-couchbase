@@ -4,21 +4,26 @@ Pre-built images for the [Couchbase](https://www.couchbase.com/) MCP Server.
 
 A Model Context Protocol (MCP) server that allows AI agents to interact with Couchbase databases.
 
-Github Repo: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase
+GitHub Repo: <https://github.com/Couchbase-Ecosystem/mcp-server-couchbase>
 
-Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/Dockerfile
+Dockerfile: <https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/Dockerfile>
+
+Documentation: <https://mcp-server.couchbase.com>
 
 ## Features/Tools
+
 ### Cluster setup & health tools
+
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `get_server_configuration_status` | Get the status of the MCP server |
 | `test_cluster_connection` | Check the cluster credentials by connecting to the cluster |
 | `get_cluster_health_and_services` | Get cluster health status and list of all running services |
 
 ### Data model & schema discovery tools
+
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `get_buckets_in_cluster` | Get a list of all the buckets in the cluster |
 | `get_scopes_in_bucket` | Get a list of all the scopes in the specified bucket |
 | `get_collections_in_scope` | Get a list of all the collections in a specified scope and bucket. Note that this tool requires the cluster to have Query service. |
@@ -26,8 +31,9 @@ Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/mai
 | `get_schema_for_collection` | Get the structure for a collection |
 
 ### Document KV operations tools
+
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `get_document_by_id` | Get a document by ID from a specified scope and collection |
 | `upsert_document_by_id` | Upsert a document by ID to a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
 | `insert_document_by_id` | Insert a new document by ID (fails if document exists). **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
@@ -35,15 +41,18 @@ Dockerfile: https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/mai
 | `delete_document_by_id` | Delete a document by ID from a specified scope and collection. **Disabled by default when `CB_MCP_READ_ONLY_MODE=true`.** |
 
 ### Query and indexing tools
+
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering by bucket, scope, collection and index name. |
 | `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query to optimize query performance |
 | `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope.<br><br>Queries are automatically scoped to the specified bucket and scope, so use collection names directly (e.g., `SELECT * FROM users` instead of `SELECT * FROM bucket.scope.users`).<br><br>`CB_MCP_READ_ONLY_MODE` is `true` by default, which means that **all write operations (KV and Query)** are disabled. When enabled, KV write tools are not loaded and SQL++ queries that modify data are blocked. |
+| `explain_sql_plus_plus_query` | Generate and evaluate an EXPLAIN plan for a SQL++ query. Returns query metadata, extracted plan, and plan evaluation findings. |
 
 ### Query performance analysis tools
+
 | Tool Name | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | `get_longest_running_queries` | Get longest running queries by average service time |
 | `get_most_frequent_queries` | Get most frequently executed queries |
 | `get_queries_with_largest_response_sizes` | Get queries with the largest response sizes |
@@ -60,9 +69,11 @@ The Docker images can be used in the supported MCP clients such as Claude Deskto
 
 Add the configuration specified below to the MCP configuration in your MCP client.
 
-- Claude Desktop: https://modelcontextprotocol.io/quickstart/user
-- Cursor: https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers
-- Windsurf: https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin
+- Claude Desktop: <https://modelcontextprotocol.io/quickstart/user>
+- Cursor: <https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers>
+- Windsurf: <https://docs.windsurf.com/windsurf/cascade/mcp#adding-a-new-mcp-plugin>
+- VS Code: <https://code.visualstudio.com/docs/copilot/customization/mcp-servers>
+- JetBrains IDEs: <https://www.jetbrains.com/help/ai-assistant/model-context-protocol.html>
 
 ```json
 {
@@ -79,7 +90,7 @@ Add the configuration specified below to the MCP configuration in your MCP clien
         "CB_USERNAME=<database_username>",
         "-e",
         "CB_PASSWORD=<database_password>",
-        "couchbaseecosystem/mcp-server-couchbase:latest"
+        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
       ]
     }
   }
@@ -88,21 +99,22 @@ Add the configuration specified below to the MCP configuration in your MCP clien
 
 ### Environment Variables
 
-The detailed explanation for the environment variables can be found on the [Github Repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase?tab=readme-ov-file#additional-configuration-for-mcp-server).
+The detailed explanation for the environment variables can be found on the [GitHub Repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase?tab=readme-ov-file#additional-configuration-for-mcp-server).
 
-| Variable                      | Description                                                                                               | Default                                                        |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `CB_CONNECTION_STRING`        | Couchbase Connection string                                                                               | **Required**                                                   |
-| `CB_USERNAME`                 | Database username                                                                                         | **Required (or Client Certificate and Key needed for mTLS)**   |
-| `CB_PASSWORD`                 | Database password                                                                                         | **Required (or Client Certificate and Key needed for mTLS)**   |
-| `CB_CLIENT_CERT_PATH`         | Path to the client certificate file for mTLS authentication                                               | **Required if using mTLS (or Username and Password required)** |
-| `CB_CLIENT_KEY_PATH`          | Path to the client key file for mTLS authentication                                                       | **Required if using mTLS (or Username and Password required)** |
-| `CB_CA_CERT_PATH`             | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate. |                                                                |
-| `CB_MCP_READ_ONLY_MODE`       | Prevent all data modifications (KV and Query). When `true`, KV write tools are not loaded.                   | `true`                                                         |
-| `CB_MCP_TRANSPORT`            | Transport mode (stdio/http/sse)                                                                           | `stdio`                                                        |
-| `CB_MCP_HOST`                 | Server host (HTTP/SSE modes)                                                                              | `127.0.0.1`                                                    |
-| `CB_MCP_PORT`                 | Server port (HTTP/SSE modes)                                                                              | `8000`                                                         |
-| `CB_MCP_DISABLED_TOOLS`       | Tools to disable                                                                                          |                                                                |
+| Variable                             | Description                                                                                                                                              | Default                                                        |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `CB_CONNECTION_STRING`               | Couchbase Connection string                                                                                                                              | **Required**                                                   |
+| `CB_USERNAME`                        | Database username                                                                                                                                        | **Required (or Client Certificate and Key needed for mTLS)**   |
+| `CB_PASSWORD`                        | Database password                                                                                                                                        | **Required (or Client Certificate and Key needed for mTLS)**   |
+| `CB_CLIENT_CERT_PATH`                | Path to the client certificate file for mTLS authentication                                                                                              | **Required if using mTLS (or Username and Password required)** |
+| `CB_CLIENT_KEY_PATH`                 | Path to the client key file for mTLS authentication                                                                                                      | **Required if using mTLS (or Username and Password required)** |
+| `CB_CA_CERT_PATH`                    | Path to server root certificate for TLS if server is configured with a self-signed/untrusted certificate.                                                |                                                                |
+| `CB_MCP_READ_ONLY_MODE`              | Prevent all data modifications (KV and Query). When `true`, KV write tools are not loaded.                                                               | `true`                                                         |
+| `CB_MCP_TRANSPORT`                   | Transport mode (stdio/http/sse)                                                                                                                          | `stdio`                                                        |
+| `CB_MCP_HOST`                        | Server host (HTTP/SSE modes)                                                                                                                             | `127.0.0.1`                                                    |
+| `CB_MCP_PORT`                        | Server port (HTTP/SSE modes)                                                                                                                             | `8000`                                                         |
+| `CB_MCP_DISABLED_TOOLS`              | Tools to disable (see [Disabling Tools](#disabling-tools))                                                                                               | None                                                           |
+| `CB_MCP_CONFIRMATION_REQUIRED_TOOLS` | Tools that require explicit user confirmation before execution (see [Elicitation/Confirmation for Tool Calls](#elicitationconfirmation-for-tool-calls))  | None                                                           |
 
 ### Disabling Tools
 
@@ -151,14 +163,21 @@ Lines starting with `#` are treated as comments and ignored.
 {
   "mcpServers": {
     "couchbase": {
-      "command": "uvx",
-      "args": ["couchbase-mcp-server"],
-      "env": {
-        "CB_CONNECTION_STRING": "couchbases://connection-string",
-        "CB_USERNAME": "username",
-        "CB_PASSWORD": "password",
-        "CB_MCP_DISABLED_TOOLS": "upsert_document_by_id,delete_document_by_id"
-      }
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "CB_CONNECTION_STRING=couchbases://connection-string",
+        "-e",
+        "CB_USERNAME=username",
+        "-e",
+        "CB_PASSWORD=password",
+        "-e",
+        "CB_MCP_DISABLED_TOOLS=upsert_document_by_id,delete_document_by_id",
+        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+      ]
     }
   }
 }
@@ -170,14 +189,23 @@ Lines starting with `#` are treated as comments and ignored.
 {
   "mcpServers": {
     "couchbase": {
-      "command": "uvx",
-      "args": ["couchbase-mcp-server"],
-      "env": {
-        "CB_CONNECTION_STRING": "couchbases://connection-string",
-        "CB_USERNAME": "username",
-        "CB_PASSWORD": "password",
-        "CB_MCP_DISABLED_TOOLS": "/path/to/disabled_tools.txt"
-      }
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "/path/to/disabled_tools.txt:/app/disabled_tools.txt",
+        "-e",
+        "CB_CONNECTION_STRING=couchbases://connection-string",
+        "-e",
+        "CB_USERNAME=username",
+        "-e",
+        "CB_PASSWORD=password",
+        "-e",
+        "CB_MCP_DISABLED_TOOLS=/app/disabled_tools.txt",
+        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+      ]
     }
   }
 }
@@ -188,7 +216,69 @@ Lines starting with `#` are treated as comments and ignored.
 > **Warning:** Disabling tools alone does not guarantee that certain operations cannot be performed. The underlying database user's RBAC (Role-Based Access Control) permissions are the authoritative security control.
 >
 > For example, even if you disable `upsert_document_by_id` and `delete_document_by_id`, data modifications can still occur via the `run_sql_plus_plus_query` tool using SQL++ DML statements (INSERT, UPDATE, DELETE, MERGE) unless:
+>
 > - The `CB_MCP_READ_ONLY_MODE` is set to `true` (default), which disables all write operations (KV and Query), OR
 > - The database user lacks the necessary RBAC permissions for data modification
 >
 > **Best Practice:** Always configure appropriate RBAC permissions on your Couchbase user credentials as the primary security measure. Use `CB_MCP_READ_ONLY_MODE=true` (the default) for comprehensive write protection, and tool disabling as an additional layer to guide LLM behavior.
+
+### Elicitation/Confirmation for Tool Calls
+
+You can require explicit user confirmation for specific tools before execution (when the MCP client supports [elicitation](https://modelcontextprotocol.io/specification/2025-06-18/server/elicitation)).
+
+#### Configuration Formats
+
+**Comma-separated list:**
+
+```bash
+CB_MCP_CONFIRMATION_REQUIRED_TOOLS="delete_document_by_id,replace_document_by_id"
+```
+
+**File path (one tool name per line):**
+
+```bash
+CB_MCP_CONFIRMATION_REQUIRED_TOOLS=confirmation_tools.txt
+```
+
+**File format (e.g., `confirmation_tools.txt`):**
+
+```text
+# Destructive operations
+delete_document_by_id
+replace_document_by_id
+```
+
+Lines starting with `#` are treated as comments and ignored.
+
+#### Behavior
+
+When a listed tool is invoked:
+
+- If the client supports elicitation, the user is prompted to confirm before execution.
+- If the client does not support elicitation, the tool executes without confirmation for backward compatibility.
+
+#### MCP Client Configuration Example
+
+```json
+{
+  "mcpServers": {
+    "couchbase": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "CB_CONNECTION_STRING=couchbases://connection-string",
+        "-e",
+        "CB_USERNAME=username",
+        "-e",
+        "CB_PASSWORD=password",
+        "-e",
+        "CB_MCP_CONFIRMATION_REQUIRED_TOOLS=delete_document_by_id,replace_document_by_id",
+        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+      ]
+    }
+  }
+}
+```

@@ -31,6 +31,10 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
         "username": settings.get("username", "Not set"),
         "read_only_mode": settings.get("read_only_mode", True),
         "read_only_query_mode": settings.get("read_only_query_mode", True),
+        "disabled_tools": sorted(settings.get("disabled_tools", set())),
+        "confirmation_required_tools": sorted(
+            settings.get("confirmation_required_tools", set())
+        ),
         "password_configured": bool(settings.get("password")),
         "ca_cert_path_configured": bool(settings.get("ca_cert_path")),
         "client_cert_path_configured": bool(settings.get("client_cert_path")),
@@ -66,7 +70,7 @@ def test_cluster_connection(
 
         return {
             "status": "success",
-            "cluster_connected": cluster.connected,
+            "cluster_connected": cluster is not None,
             "bucket_connected": bucket is not None,
             "bucket_name": bucket_name,
             "message": "Successfully connected to Couchbase cluster",

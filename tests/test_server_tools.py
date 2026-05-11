@@ -40,6 +40,10 @@ async def test_get_server_configuration_status() -> None:
         config = payload.get("configuration", {})
         assert "connection_string" in config
         assert "username" in config
+        assert "disabled_tools" in config
+        assert "confirmation_required_tools" in config
+        assert isinstance(config["disabled_tools"], list)
+        assert isinstance(config["confirmation_required_tools"], list)
         assert "password_configured" in config
         assert "password" not in config  # password should NOT be exposed
 

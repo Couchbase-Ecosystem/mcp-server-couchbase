@@ -1,0 +1,8 @@
+{
+    // Disable line length rule to allow for long URLs and command examples without breaking them up.
+    "MD013": false,
+    // Allow inline HTML for better formatting of notes and warnings.
+    "MD033": false,
+    // Allow first line to not be a heading for import statements.
+    "MD041": false
+}

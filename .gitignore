@@ -11,8 +11,15 @@ wheels/
 # Environment variables
 .env
 
+<<<<<<< HEAD
 .vscode
 .DS_Store
 
 /tests/relationship_verifier
 /src/catalog/enrichment/relationship_verifier/logger/logs/*
+=======
+# Docusaurus
+website/node_modules/
+website/build/
+website/.docusaurus/
+>>>>>>> main
