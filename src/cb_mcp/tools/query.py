@@ -22,7 +22,7 @@ from ..utils.query_utils import (
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
 
 
-async def get_schema_for_collection(
+def get_schema_for_collection(
     ctx: Context, bucket_name: str, scope_name: str, collection_name: str
 ) -> dict[str, Any]:
     """Get the schema for a collection in the specified scope.
@@ -31,7 +31,7 @@ async def get_schema_for_collection(
     schema = {"collection_name": collection_name, "schema": []}
     try:
         query = f"INFER `{collection_name}`"
-        result = await run_sql_plus_plus_query(ctx, bucket_name, scope_name, query)
+        result = run_sql_plus_plus_query(ctx, bucket_name, scope_name, query)
         # Result is a list of list of schemas. We convert it to a list of schemas.
         if result:
             schema["schema"] = result[0]
@@ -52,7 +52,7 @@ def _is_explain_statement(query: str) -> bool:
     return re.match(r"^EXPLAIN\s", normalized) is not None
 
 
-async def run_sql_plus_plus_query(
+def run_sql_plus_plus_query(
     ctx: Context, bucket_name: str, scope_name: str, query: str
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects.
@@ -64,9 +64,9 @@ async def run_sql_plus_plus_query(
         query = "SELECT * FROM users WHERE age > 18"
         # Incorrect: "SELECT * FROM bucket.scope.users WHERE age > 18"
     """
-    cluster = await get_cluster_connection(ctx)
+    cluster = get_cluster_connection(ctx)
 
-    bucket = await connect_to_bucket(cluster, bucket_name)
+    bucket = connect_to_bucket(cluster, bucket_name)
 
     app_context = ctx.request_context.lifespan_context
     read_only_mode = app_context.read_only_mode
@@ -103,7 +103,7 @@ async def run_sql_plus_plus_query(
 
         # Run the query if it is not a data or structure modification query
         result = scope.query(query)
-        async for row in result:
+        for row in result:
             results.append(row)
         return results
     except Exception as e:
@@ -111,7 +111,7 @@ async def run_sql_plus_plus_query(
         raise
 
 
-async def explain_sql_plus_plus_query(
+def explain_sql_plus_plus_query(
     ctx: Context,
     bucket_name: str,
     scope_name: str,
@@ -132,7 +132,7 @@ async def explain_sql_plus_plus_query(
         else f"EXPLAIN {normalized_query}"
     )
 
-    explain_results = await run_sql_plus_plus_query(
+    explain_results = run_sql_plus_plus_query(
         ctx,
         bucket_name,
         scope_name,
@@ -151,17 +151,15 @@ async def explain_sql_plus_plus_query(
     }
 
 
-async def run_cluster_query(
-    ctx: Context, query: str, **kwargs: Any
-) -> list[dict[str, Any]]:
+def run_cluster_query(ctx: Context, query: str, **kwargs: Any) -> list[dict[str, Any]]:
     """Run a query on the cluster object and return the results as a list of JSON objects."""
 
-    cluster = await get_cluster_connection(ctx)
+    cluster = get_cluster_connection(ctx)
     results = []
 
     try:
         result = cluster.query(query, **kwargs)
-        async for row in result:
+        for row in result:
             results.append(row)
         return results
     except Exception as e:
@@ -169,7 +167,7 @@ async def run_cluster_query(
         raise
 
 
-async def _run_query_tool_with_empty_message(
+def _run_query_tool_with_empty_message(
     ctx: Context,
     query: str,
     *,
@@ -179,7 +177,7 @@ async def _run_query_tool_with_empty_message(
     **query_kwargs: Any,
 ) -> list[dict[str, Any]]:
     """Execute a cluster query with a consistent empty-result response."""
-    results = await run_cluster_query(ctx, query, limit=limit, **query_kwargs)
+    results = run_cluster_query(ctx, query, limit=limit, **query_kwargs)
 
     if results:
         return results
@@ -190,9 +188,7 @@ async def _run_query_tool_with_empty_message(
     return [payload]
 
 
-async def get_longest_running_queries(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
+def get_longest_running_queries(ctx: Context, limit: int = 10) -> list[dict[str, Any]]:
     """Get the N longest running queries from the system:completed_requests catalog.
 
     Args:
@@ -216,7 +212,7 @@ async def get_longest_running_queries(
     LIMIT $limit
     """
 
-    return await _run_query_tool_with_empty_message(
+    return _run_query_tool_with_empty_message(
         ctx,
         query,
         limit=limit,
@@ -226,9 +222,7 @@ async def get_longest_running_queries(
     )
 
 
-async def get_most_frequent_queries(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
+def get_most_frequent_queries(ctx: Context, limit: int = 10) -> list[dict[str, Any]]:
     """Get the N most frequent queries from the system:completed_requests catalog.
 
     Args:
@@ -253,7 +247,7 @@ async def get_most_frequent_queries(
     LIMIT $limit
     """
 
-    return await _run_query_tool_with_empty_message(
+    return _run_query_tool_with_empty_message(
         ctx,
         query,
         limit=limit,
@@ -263,7 +257,7 @@ async def get_most_frequent_queries(
     )
 
 
-async def get_queries_with_largest_response_sizes(
+def get_queries_with_largest_response_sizes(
     ctx: Context, limit: int = 10
 ) -> list[dict[str, Any]]:
     """Get queries with the largest response sizes from the system:completed_requests catalog.
@@ -291,7 +285,7 @@ async def get_queries_with_largest_response_sizes(
     LIMIT $limit
     """
 
-    return await _run_query_tool_with_empty_message(
+    return _run_query_tool_with_empty_message(
         ctx,
         query,
         limit=limit,
@@ -301,7 +295,7 @@ async def get_queries_with_largest_response_sizes(
     )
 
 
-async def get_queries_with_large_result_count(
+def get_queries_with_large_result_count(
     ctx: Context, limit: int = 10
 ) -> list[dict[str, Any]]:
     """Get queries with the largest result counts from the system:completed_requests catalog.
@@ -327,7 +321,7 @@ async def get_queries_with_large_result_count(
     LIMIT $limit
     """
 
-    return await _run_query_tool_with_empty_message(
+    return _run_query_tool_with_empty_message(
         ctx,
         query,
         limit=limit,
@@ -337,7 +331,7 @@ async def get_queries_with_large_result_count(
     )
 
 
-async def get_queries_using_primary_index(
+def get_queries_using_primary_index(
     ctx: Context, limit: int = 10
 ) -> list[dict[str, Any]]:
     """Get queries that use a primary index from the system:completed_requests catalog.
@@ -357,7 +351,7 @@ async def get_queries_using_primary_index(
     LIMIT $limit
     """
 
-    return await _run_query_tool_with_empty_message(
+    return _run_query_tool_with_empty_message(
         ctx,
         query,
         limit=limit,
@@ -367,7 +361,7 @@ async def get_queries_using_primary_index(
     )
 
 
-async def get_queries_not_using_covering_index(
+def get_queries_not_using_covering_index(
     ctx: Context, limit: int = 10
 ) -> list[dict[str, Any]]:
     """Get queries that don't use a covering index from the system:completed_requests catalog.
@@ -388,7 +382,7 @@ async def get_queries_not_using_covering_index(
     LIMIT $limit
     """
 
-    return await _run_query_tool_with_empty_message(
+    return _run_query_tool_with_empty_message(
         ctx,
         query,
         limit=limit,
@@ -399,9 +393,7 @@ async def get_queries_not_using_covering_index(
     )
 
 
-async def get_queries_not_selective(
-    ctx: Context, limit: int = 10
-) -> list[dict[str, Any]]:
+def get_queries_not_selective(ctx: Context, limit: int = 10) -> list[dict[str, Any]]:
     """Get queries that are not very selective from the system:completed_requests catalog.
 
     Args:
@@ -420,7 +412,7 @@ async def get_queries_not_selective(
     LIMIT $limit
     """
 
-    return await _run_query_tool_with_empty_message(
+    return _run_query_tool_with_empty_message(
         ctx,
         query,
         limit=limit,
