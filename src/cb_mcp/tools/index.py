@@ -143,6 +143,7 @@ async def list_indexes(
     scope_name: str | None = None,
     collection_name: str | None = None,
     index_name: str | None = None,
+    include_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
     """List all indexes in the cluster with optional filtering by bucket, scope, collection, and index name.
     Returns a list of indexes with their names and CREATE INDEX definitions.
@@ -160,9 +161,11 @@ async def list_indexes(
         scope_name: Optional scope name to filter indexes (requires bucket_name)
         collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
         index_name: Optional index name to filter indexes (requires bucket_name, scope_name, and collection_name)
+        include_raw_index_stats: If True, include raw index stats (as-is from API) in addition
+                              to cleaned-up version. Default is False.
 
     Returns:
-        List of dictionaries with keys:
+        List of dictionaries. For successfully processed rows, each entry has:
         - name (str): Index name
         - definition (str): CREATE INDEX statement
         - status (str): Current index state. SQL++ defines 7 canonical values:
@@ -173,6 +176,13 @@ async def list_indexes(
         - scope (str): Scope name where the index exists
         - collection (str): Collection name where the index exists
         - lastScanTime (str): Last time the index was scanned
+        - raw_index_stats (dict, optional): Complete raw index status object from the source
+                                           used to fetch the index (only if include_raw_index_stats=True)
+
+        If a row is missing a required field (i.e. there's a problem in
+        fetching the index information), the entry instead contains:
+        - error (str): Human-readable description of what could not be processed
+        - raw_index_stats (dict): The unprocessed raw row from the source
     """
     try:
         # Validate parameters
@@ -200,9 +210,8 @@ async def list_indexes(
                 index_name=index_name,
             )
             indexes = [
-                processed
+                process_index_data_from_query(idx, include_raw_index_stats)
                 for idx in raw_indexes
-                if (processed := process_index_data_from_query(idx)) is not None
             ]
             logger.info(f"Found {len(indexes)} indexes via query service")
             return indexes
@@ -226,9 +235,8 @@ async def list_indexes(
 
         # Process and format the results
         indexes = [
-            processed
+            process_index_data_from_rest_api(idx, include_raw_index_stats)
             for idx in raw_indexes
-            if (processed := process_index_data_from_rest_api(idx)) is not None
         ]
 
         logger.info(f"Found {len(indexes)} indexes from REST API")

@@ -11,6 +11,7 @@ Tests for:
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -169,6 +170,7 @@ class TestIndexUtilsFunctions:
         """Process index data includes lastScanTime."""
         idx = {
             "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
             "status": "Ready",
             "bucket": "bucket",
             "scope": "scope",
@@ -182,16 +184,74 @@ class TestIndexUtilsFunctions:
         assert result["lastScanTime"] == "Thu Feb 26 13:12:55 IST 2026"
         assert "extra_field" not in result
 
-    def test_process_index_data_no_name(self) -> None:
-        """Index without name should return None."""
+    def test_process_index_data_with_raw_stats(self) -> None:
+        """Process index data with raw stats included."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+            "scope": "scope",
+            "collection": "collection",
+            "extra_field": "some_value",
+        }
+        result = process_index_data_from_rest_api(idx, include_raw_index_stats=True)
+
+        assert result is not None
+        assert "raw_index_stats" in result
+        assert result["raw_index_stats"] == idx
+
+    def test_process_index_data_without_raw_stats(self) -> None:
+        """Process index data without raw stats by default."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+        }
+        result = process_index_data_from_rest_api(idx)
+
+        assert result is not None
+        assert "raw_index_stats" not in result
+
+    def test_process_index_data_no_name_returns_raw_fallback(self) -> None:
+        """Missing 'name' field should return raw fallback with error message."""
         idx = {"status": "Ready", "bucket": "bucket"}
         result = process_index_data_from_rest_api(idx)
-        assert result is None
+        assert result == {
+            "error": result["error"],
+            "raw_index_stats": idx,
+        }
+        assert "name" in result["error"]
+        # Raw stats must be the unmodified original input
+        assert result["raw_index_stats"] is idx
+
+    def test_process_index_data_missing_definition_returns_raw_fallback(self) -> None:
+        """Missing 'definition' field should return raw fallback with error message."""
+        idx = {"name": "idx_test", "status": "Ready", "bucket": "bucket"}
+        result = process_index_data_from_rest_api(idx)
+        assert "error" in result
+        assert "definition" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_process_index_data_missing_status_returns_raw_fallback(self) -> None:
+        """Missing 'status' field should return raw fallback with error message."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "bucket": "bucket",
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert "error" in result
+        assert "status" in result["error"]
+        assert result["raw_index_stats"] is idx
 
     def test_process_index_data_primary_index(self) -> None:
         """Process primary index data."""
         idx = {
             "name": "#primary",
+            "definition": "CREATE PRIMARY INDEX `#primary` ON `bucket`",
+            "status": "Ready",
             "isPrimary": True,
             "bucket": "bucket",
         }
@@ -371,13 +431,46 @@ class TestIndexUtilsFunctions:
         assert result is not None
         assert result["lastScanTime"] == "2026-02-26T13:12:56.581+05:30"
 
-    def test_process_index_data_from_query_no_name(self) -> None:
-        """Rows without a name should be filtered out."""
-        idx = {"bucket_id": "b"}
-        assert process_index_data_from_query(idx) is None
+    def test_process_index_data_from_query_with_raw_stats(self) -> None:
+        """Raw stats should be included when requested."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "state": "online",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx, include_raw_index_stats=True)
+        assert result is not None
+        assert result["raw_index_stats"] == idx
 
-    def test_process_index_data_from_query_no_metadata(self) -> None:
-        """Missing metadata should not crash and should return empty definition."""
+    def test_process_index_data_from_query_without_raw_stats(self) -> None:
+        """Raw stats should not be included by default."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "state": "online",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert result is not None
+        assert "raw_index_stats" not in result
+
+    def test_process_index_data_from_query_no_name_returns_raw_fallback(self) -> None:
+        """Rows without a name should return raw fallback with error message."""
+        idx = {"bucket_id": "b"}
+        result = process_index_data_from_query(idx)
+        assert "error" in result
+        assert "name" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_process_index_data_from_query_no_metadata_returns_raw_fallback(
+        self,
+    ) -> None:
+        """Missing metadata.definition should return raw fallback, not empty string."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
@@ -386,9 +479,247 @@ class TestIndexUtilsFunctions:
             "state": "online",
         }
         result = process_index_data_from_query(idx)
-        assert result is not None
-        assert result["definition"] == ""
+        assert "error" in result
+        assert "metadata.definition" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_process_index_data_from_query_no_state_returns_raw_fallback(self) -> None:
+        """Missing 'state' field should return raw fallback with error message."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" in result
+        assert "state" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    # ------------------------------------------------------------------
+    # Failure-mode tests requested: missing status, missing lastScanTime,
+    # missing key ids (bucket_id / scope_id / keyspace_id).
+    # ------------------------------------------------------------------
+
+    def test_rest_missing_status_falls_back_to_raw(self) -> None:
+        """REST path: missing 'status' must NOT default to empty string —
+        the row should fall back to raw with an error message."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "bucket": "bucket",
+            "scope": "scope",
+            "collection": "collection",
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert result.get("status") is None
+        assert "error" in result
+        assert "status" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_state_falls_back_to_raw(self) -> None:
+        """Query path: missing 'state' must NOT default to empty string —
+        the row should fall back to raw with an error message."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert result.get("status") is None
+        assert "error" in result
+        assert "state" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_rest_missing_last_scan_time_defaults_to_NA(self) -> None:
+        """REST path: missing 'lastScanTime' is semantically valid
+        (never-scanned index) and should default to the 'NA' sentinel
+        without triggering a fallback."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+            "scope": "scope",
+            "collection": "collection",
+            # no lastScanTime
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert "error" not in result
         assert result["lastScanTime"] == "NA"
+
+    def test_rest_null_last_scan_time_defaults_to_NA(self) -> None:
+        """REST path: explicit null lastScanTime should also default to 'NA'."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+            "lastScanTime": None,
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert "error" not in result
+        assert result["lastScanTime"] == "NA"
+
+    def test_query_missing_last_scan_time_defaults_to_NA(self) -> None:
+        """Query path: missing metadata.last_scan_time is semantically valid
+        and should default to 'NA' without triggering a fallback."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "state": "online",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" not in result
+        assert result["lastScanTime"] == "NA"
+
+    def test_query_null_last_scan_time_defaults_to_NA(self) -> None:
+        """Query path: explicit null last_scan_time should also default to 'NA'."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "state": "online",
+            "metadata": {
+                "definition": "CREATE INDEX idx ON b.s.c(x)",
+                "last_scan_time": None,
+            },
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" not in result
+        assert result["lastScanTime"] == "NA"
+
+    def test_query_all_key_ids_missing_falls_back_to_raw(self) -> None:
+        """Query path: when all of bucket_id/scope_id/keyspace_id are absent,
+        we cannot identify the index's location — fall back to raw."""
+        idx = {
+            "name": "idx",
+            "state": "online",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" in result
+        assert "location" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_scope_id_falls_back_to_raw(self) -> None:
+        """Query path: bucket_id present but scope_id missing — incomplete
+        modern-index location — must fall back to raw."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "keyspace_id": "c",
+            "state": "online",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" in result
+        assert "scope_id" in result["error"] or "location" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_keyspace_id_falls_back_to_raw(self) -> None:
+        """Query path: bucket_id+scope_id present but keyspace_id missing —
+        incomplete modern-index location — must fall back to raw."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "state": "online",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" in result
+        assert "keyspace_id" in result["error"] or "location" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_legacy_keyspace_id_only_works(self) -> None:
+        """Query path: legacy bucket-level indexes have only keyspace_id —
+        this is a valid shape and must NOT trigger a fallback."""
+        idx = {
+            "name": "legacy_idx",
+            "keyspace_id": "my-bucket",
+            "state": "online",
+            "metadata": {"definition": "CREATE INDEX legacy_idx ON `my-bucket`(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" not in result
+        assert result["bucket"] == "my-bucket"
+        assert result["scope"] == "_default"
+        assert result["collection"] == "_default"
+
+    # ------------------------------------------------------------------
+    # Unknown REST status: must log a warning and still return lowercase
+    # (so the caller doesn't break on a new/unexpected backend value).
+    # ------------------------------------------------------------------
+
+    def test_unknown_rest_status_logs_warning_and_returns_lowercase(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """An unrecognised REST status should produce a warning log AND be
+        returned in lowercase form, exactly as the current contract states."""
+        with caplog.at_level(
+            logging.WARNING, logger=f"{MCP_SERVER_NAME}.utils.index_utils"
+        ):
+            result = map_rest_status_to_query_state("BrandNewStatus")
+
+        assert result == "brandnewstatus"
+        # Must log a warning so operators can report it.
+        assert any(
+            record.levelno == logging.WARNING
+            and "BrandNewStatus" in record.getMessage()
+            for record in caplog.records
+        ), "Expected a WARNING log mentioning the unknown status string"
+        assert any(
+            "report" in record.getMessage().lower() for record in caplog.records
+        ), "Warning should ask the user to report the issue"
+
+    # ------------------------------------------------------------------
+    # Raw passthrough: when include_raw_index_stats=True, the value under
+    # the raw_index_stats key must be the unmodified input (no processing).
+    # ------------------------------------------------------------------
+
+    def test_rest_raw_index_stats_is_unmodified_passthrough(self) -> None:
+        """REST path: raw_index_stats must be the exact input idx — same
+        object identity, no copies, no field rewrites."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+            "lastScanTime": "Thu Feb 26 13:12:55 IST 2026",
+            "extra_field": "untouched",
+        }
+        result = process_index_data_from_rest_api(idx, include_raw_index_stats=True)
+        # Same object — no copy, no field stripping.
+        assert result["raw_index_stats"] is idx
+        # Untouched extra field still present in raw stats.
+        assert result["raw_index_stats"]["extra_field"] == "untouched"
+
+    def test_query_raw_index_stats_is_unmodified_passthrough(self) -> None:
+        """Query path: raw_index_stats must be the exact input idx — same
+        object identity, no copies, no field rewrites."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "state": "online",
+            "metadata": {
+                "definition": "CREATE INDEX idx ON b.s.c(x)",
+                "last_scan_time": "2026-02-26T13:12:56.581+05:30",
+                "extra_meta": "untouched",
+            },
+        }
+        result = process_index_data_from_query(idx, include_raw_index_stats=True)
+        assert result["raw_index_stats"] is idx
+        assert result["raw_index_stats"]["metadata"]["extra_meta"] == "untouched"
 
     def test_map_rest_status_to_query_state(self) -> None:
         """REST API status strings should map to SQL++ query service equivalents."""

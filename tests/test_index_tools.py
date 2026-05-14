@@ -160,6 +160,31 @@ async def test_list_indexes_has_last_scan_time() -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_indexes_with_raw_stats() -> None:
+    """Verify list_indexes can include raw index stats."""
+    skip_reason = None
+
+    async with create_mcp_session() as session:
+        response = await session.call_tool(
+            "list_indexes", arguments={"include_raw_index_stats": True}
+        )
+        payload = extract_payload(response)
+
+        # Skip if no indexes exist
+        if payload is None or (isinstance(payload, list) and len(payload) == 0):
+            skip_reason = "No indexes found to test raw stats"
+        else:
+            assert isinstance(payload, list), f"Expected list, got {type(payload)}"
+            first_index = payload[0]
+            assert "raw_index_stats" in first_index, (
+                "Expected raw_index_stats when include_raw_index_stats=True"
+            )
+
+    if skip_reason:
+        pytest.skip(skip_reason)
+
+
+@pytest.mark.asyncio
 async def test_get_index_advisor_recommendations() -> None:
     """Verify get_index_advisor_recommendations returns recommendations."""
     bucket = require_test_bucket()

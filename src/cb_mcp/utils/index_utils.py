@@ -126,37 +126,78 @@ def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> st
             return "deferred" if "defer_build" in definition.lower() else "pending"
         return _REST_STATUS_TO_QUERY_STATE[prefix]
 
-    # Unknown status — return as-is in lowercase
+    # Unknown status — there's a problem in fetching the status (the value
+    # returned isn't one we recognize). Log a warning so it can be reported,
+    # but still return a usable value (lowercased) so the caller doesn't break.
+    logger.warning(
+        "Encountered unexpected REST API index status %r. There's a problem "
+        "in fetching the status. Please report this issue. Returning the "
+        "status lowercased.",
+        rest_status,
+    )
     return rest_status.lower()
+
+
+def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
+    """Build a fallback response when an index row cannot be fully processed.
+
+    Returns the raw index data as-is (no processing) under ``raw_index_stats``
+    and an ``error`` field explaining what went wrong. Also logs a warning so
+    the issue is surfaced server-side.
+    """
+    logger.warning(
+        "Failed to process index data (%s). There's a problem in fetching the "
+        "index information. Please report this issue. Returning raw index data "
+        "as-is.",
+        reason,
+    )
+    return {
+        "error": (
+            f"Failed to process index data: {reason}. There's a problem in "
+            "fetching the index information. Please report this issue. The raw "
+            "response from the source is included under 'raw_index_stats' "
+            "without any processing."
+        ),
+        "raw_index_stats": idx,
+    }
 
 
 def process_index_data_from_rest_api(
     idx: dict[str, Any],
-) -> dict[str, Any] | None:
+    include_raw_index_stats: bool = False,
+) -> dict[str, Any]:
     """Process raw index data from the REST API into formatted index info.
 
     Args:
         idx: Raw index data from the /getIndexStatus API
+        include_raw_index_stats: If True, include the complete raw index status
+            object from the API under the ``raw_index_stats`` key.
 
     Returns:
-        Formatted index info dictionary, or None if the index should be skipped (e.g., no name).
+        Formatted index info dictionary. If a required field (name, definition,
+        or status) is missing or invalid, returns a fallback dict containing
+        ``error`` and the unprocessed raw row under ``raw_index_stats``.
     """
-    name = idx.get("indexName", "") or idx.get("name", "")
+    name = idx.get("indexName") or idx.get("name")
     if not name:
-        return None
+        return _raw_fallback(idx, "missing 'indexName'/'name' field")
 
-    index_info: dict[str, Any] = {"name": name}
+    raw_definition = idx.get("definition")
+    if not raw_definition or not isinstance(raw_definition, str):
+        return _raw_fallback(idx, "missing or invalid 'definition' field")
 
-    raw_definition = idx.get("definition", "")
-    index_info["definition"] = clean_index_definition(raw_definition)
+    raw_status = idx.get("status")
+    if not raw_status:
+        return _raw_fallback(idx, "missing 'status' field")
 
-    # Map REST status to SQL++ query service state, passing definition to resolve Created → deferred/pending
-    raw_status = idx.get("status", "")
-    index_info["status"] = (
-        map_rest_status_to_query_state(raw_status, raw_definition) if raw_status else ""
-    )
-
-    index_info["isPrimary"] = bool(idx.get("isPrimary", False))
+    index_info: dict[str, Any] = {
+        "name": name,
+        "definition": clean_index_definition(raw_definition),
+        # Map REST status to SQL++ query service state, passing definition to
+        # resolve Created → deferred/pending.
+        "status": map_rest_status_to_query_state(raw_status, raw_definition),
+        "isPrimary": bool(idx.get("isPrimary", False)),
+    }
 
     if "bucket" in idx:
         index_info["bucket"] = idx["bucket"]
@@ -167,12 +208,16 @@ def process_index_data_from_rest_api(
 
     index_info["lastScanTime"] = idx.get("lastScanTime") or "NA"
 
+    if include_raw_index_stats:
+        index_info["raw_index_stats"] = idx
+
     return index_info
 
 
 def process_index_data_from_query(
     idx: dict[str, Any],
-) -> dict[str, Any] | None:
+    include_raw_index_stats: bool = False,
+) -> dict[str, Any]:
     """Process a row from ``system:all_indexes`` into formatted index info.
 
     Field mapping (system:all_indexes -> output):
@@ -189,40 +234,63 @@ def process_index_data_from_query(
         idx: A single index document from ``system:all_indexes``, returned
             directly by ``SELECT RAW all_indexes`` (i.e. the outer wrapper is
             already stripped by the ``RAW`` keyword).
+        include_raw_index_stats: If True, include the complete raw row in
+            the output under ``raw_index_stats``.
 
     Returns:
-        Formatted index info dictionary, or None if the row should be skipped
-        (no name).
+        Formatted index info dictionary. If a required field (name,
+        metadata.definition, or state) is missing or invalid, returns a
+        fallback dict containing ``error`` and the unprocessed raw row under
+        ``raw_index_stats``.
     """
-    name = idx.get("name", "")
+    name = idx.get("name")
     if not name:
-        return None
+        return _raw_fallback(idx, "missing 'name' field")
 
-    index_info: dict[str, Any] = {"name": name}
-
-    metadata = idx.get("metadata") or {}
-    # No cleaning needed — query service returns verbatim SQL++
-    index_info["definition"] = metadata.get("definition", "")
+    metadata = idx.get("metadata")
+    if not isinstance(metadata, dict) or not metadata.get("definition"):
+        return _raw_fallback(idx, "missing or invalid 'metadata.definition' field")
 
     state = idx.get("state")
-    index_info["status"] = state if state else ""
+    if not state:
+        return _raw_fallback(idx, "missing 'state' field")
+
+    index_info: dict[str, Any] = {
+        "name": name,
+        # No cleaning needed — query service returns verbatim SQL++
+        "definition": metadata["definition"],
+        "status": state,
+    }
 
     if "bucket_id" in idx:
+        # Modern (v8.x) index — all three location fields must be present.
+        if "scope_id" not in idx or "keyspace_id" not in idx:
+            return _raw_fallback(
+                idx,
+                "incomplete location fields (bucket_id present but "
+                "scope_id/keyspace_id missing)",
+            )
         index_info["bucket"] = idx["bucket_id"]
-        if "scope_id" in idx:
-            index_info["scope"] = idx["scope_id"]
-        if "keyspace_id" in idx:
-            index_info["collection"] = idx["keyspace_id"]
+        index_info["scope"] = idx["scope_id"]
+        index_info["collection"] = idx["keyspace_id"]
     elif "keyspace_id" in idx:
         # Legacy bucket-level indexes don't have bucket_id/scope_id;
         # keyspace_id is the bucket name in that case.
         index_info["bucket"] = idx["keyspace_id"]
         index_info["scope"] = "_default"
         index_info["collection"] = "_default"
+    else:
+        return _raw_fallback(
+            idx,
+            "missing location fields (none of bucket_id/scope_id/keyspace_id present)",
+        )
 
     index_info["isPrimary"] = bool(idx.get("is_primary", False))
 
     index_info["lastScanTime"] = metadata.get("last_scan_time", "NA") or "NA"
+
+    if include_raw_index_stats:
+        index_info["raw_index_stats"] = idx
 
     return index_info
 
