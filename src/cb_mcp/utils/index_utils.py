@@ -138,6 +138,39 @@ def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> st
     return rest_status.lower()
 
 
+def _resolve_bucket_scope_collection(idx: dict[str, Any]) -> dict[str, str]:
+    """Resolve bucket / scope / collection for a ``system:all_indexes`` row.
+
+    Modern (v8.x) indexes carry ``bucket_id`` + ``scope_id`` + ``keyspace_id``.
+    Legacy bucket-level indexes carry only ``keyspace_id`` (which holds the
+    bucket name).
+
+    Raises ``ValueError`` with a descriptive message if the row matches
+    neither pattern.
+    """
+    if "bucket_id" in idx:
+        if "scope_id" not in idx or "keyspace_id" not in idx:
+            raise ValueError(
+                "incomplete bucket/scope/collection fields (bucket_id present "
+                "but scope_id/keyspace_id missing)"
+            )
+        return {
+            "bucket": idx["bucket_id"],
+            "scope": idx["scope_id"],
+            "collection": idx["keyspace_id"],
+        }
+    if "keyspace_id" in idx:
+        return {
+            "bucket": idx["keyspace_id"],
+            "scope": "_default",
+            "collection": "_default",
+        }
+    raise ValueError(
+        "missing bucket/scope/collection fields "
+        "(none of bucket_id/scope_id/keyspace_id present)"
+    )
+
+
 def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
     """Build a fallback response when an index row cannot be fully processed.
 
@@ -170,14 +203,18 @@ def process_index_data_from_rest_api(
 
     Args:
         idx: Raw index data from the /getIndexStatus API
-        include_raw_index_stats: If True, include the complete raw index status
-            object from the API under the ``raw_index_stats`` key.
+        include_raw_index_stats: If True, return the unprocessed index row.
 
     Returns:
-        Formatted index info dictionary. If a required field (name, definition,
-        or status) is missing or invalid, returns a fallback dict containing
-        ``error`` and the unprocessed raw row under ``raw_index_stats``.
+        Formatted index info dictionary, or the unprocessed input row when
+        ``include_raw_index_stats`` is True. If a required field (name,
+        definition, or status) is missing or invalid, returns a fallback dict
+        containing ``error`` and the unprocessed raw row under
+        ``raw_index_stats``.
     """
+    if include_raw_index_stats:
+        return idx
+
     name = idx.get("indexName") or idx.get("name")
     if not name:
         return _raw_fallback(idx, "missing 'indexName'/'name' field")
@@ -190,6 +227,10 @@ def process_index_data_from_rest_api(
     if not raw_status:
         return _raw_fallback(idx, "missing 'status' field")
 
+    bucket = idx.get("bucket")
+    if not bucket:
+        return _raw_fallback(idx, "missing 'bucket' field")
+
     index_info: dict[str, Any] = {
         "name": name,
         "definition": clean_index_definition(raw_definition),
@@ -197,19 +238,15 @@ def process_index_data_from_rest_api(
         # resolve Created → deferred/pending.
         "status": map_rest_status_to_query_state(raw_status, raw_definition),
         "isPrimary": bool(idx.get("isPrimary", False)),
+        "bucket": bucket,
     }
 
-    if "bucket" in idx:
-        index_info["bucket"] = idx["bucket"]
     if "scope" in idx:
         index_info["scope"] = idx["scope"]
     if "collection" in idx:
         index_info["collection"] = idx["collection"]
 
     index_info["lastScanTime"] = idx.get("lastScanTime") or "NA"
-
-    if include_raw_index_stats:
-        index_info["raw_index_stats"] = idx
 
     return index_info
 
@@ -234,15 +271,18 @@ def process_index_data_from_query(
         idx: A single index document from ``system:all_indexes``, returned
             directly by ``SELECT RAW all_indexes`` (i.e. the outer wrapper is
             already stripped by the ``RAW`` keyword).
-        include_raw_index_stats: If True, include the complete raw row in
-            the output under ``raw_index_stats``.
+        include_raw_index_stats: If True, return the unprocessed index row.
 
     Returns:
-        Formatted index info dictionary. If a required field (name,
+        Formatted index info dictionary, or the unprocessed input row when
+        ``include_raw_index_stats`` is True. If a required field (name,
         metadata.definition, or state) is missing or invalid, returns a
         fallback dict containing ``error`` and the unprocessed raw row under
         ``raw_index_stats``.
     """
+    if include_raw_index_stats:
+        return idx
+
     name = idx.get("name")
     if not name:
         return _raw_fallback(idx, "missing 'name' field")
@@ -262,35 +302,13 @@ def process_index_data_from_query(
         "status": state,
     }
 
-    if "bucket_id" in idx:
-        # Modern (v8.x) index — all three location fields must be present.
-        if "scope_id" not in idx or "keyspace_id" not in idx:
-            return _raw_fallback(
-                idx,
-                "incomplete location fields (bucket_id present but "
-                "scope_id/keyspace_id missing)",
-            )
-        index_info["bucket"] = idx["bucket_id"]
-        index_info["scope"] = idx["scope_id"]
-        index_info["collection"] = idx["keyspace_id"]
-    elif "keyspace_id" in idx:
-        # Legacy bucket-level indexes don't have bucket_id/scope_id;
-        # keyspace_id is the bucket name in that case.
-        index_info["bucket"] = idx["keyspace_id"]
-        index_info["scope"] = "_default"
-        index_info["collection"] = "_default"
-    else:
-        return _raw_fallback(
-            idx,
-            "missing location fields (none of bucket_id/scope_id/keyspace_id present)",
-        )
+    try:
+        index_info.update(_resolve_bucket_scope_collection(idx))
+    except ValueError as e:
+        return _raw_fallback(idx, str(e))
 
     index_info["isPrimary"] = bool(idx.get("is_primary", False))
-
     index_info["lastScanTime"] = metadata.get("last_scan_time", "NA") or "NA"
-
-    if include_raw_index_stats:
-        index_info["raw_index_stats"] = idx
 
     return index_info
 

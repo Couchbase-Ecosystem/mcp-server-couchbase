@@ -161,7 +161,7 @@ async def test_list_indexes_has_last_scan_time() -> None:
 
 @pytest.mark.asyncio
 async def test_list_indexes_with_raw_stats() -> None:
-    """Verify list_indexes can include raw index stats."""
+    """Verify list_indexes returns unprocessed source rows when raw stats requested."""
     skip_reason = None
 
     async with create_mcp_session() as session:
@@ -176,8 +176,27 @@ async def test_list_indexes_with_raw_stats() -> None:
         else:
             assert isinstance(payload, list), f"Expected list, got {type(payload)}"
             first_index = payload[0]
-            assert "raw_index_stats" in first_index, (
-                "Expected raw_index_stats when include_raw_index_stats=True"
+            # Each entry should be the raw source row, not the processed shape.
+            # The query-service path returns rows with `state` / `bucket_id` /
+            # `keyspace_id` / `metadata`; the REST path returns rows with
+            # `defnId` / `indexName` / `indexType` etc. — either way, the
+            # entry should contain at least one field that the processed
+            # shape does not.
+            raw_only_keys = {
+                # query service raw fields
+                "state",
+                "bucket_id",
+                "keyspace_id",
+                "metadata",
+                # REST raw fields
+                "defnId",
+                "instId",
+                "indexName",
+                "indexType",
+            }
+            assert raw_only_keys & set(first_index.keys()), (
+                "Expected raw source row when include_raw_index_stats=True; "
+                f"got keys: {sorted(first_index.keys())}"
             )
 
     if skip_reason:

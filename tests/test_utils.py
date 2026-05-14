@@ -185,7 +185,7 @@ class TestIndexUtilsFunctions:
         assert "extra_field" not in result
 
     def test_process_index_data_with_raw_stats(self) -> None:
-        """Process index data with raw stats included."""
+        """include_raw_index_stats=True should return the raw row unprocessed."""
         idx = {
             "name": "idx_test",
             "definition": "CREATE INDEX idx_test ON bucket(field)",
@@ -197,9 +197,11 @@ class TestIndexUtilsFunctions:
         }
         result = process_index_data_from_rest_api(idx, include_raw_index_stats=True)
 
-        assert result is not None
-        assert "raw_index_stats" in result
-        assert result["raw_index_stats"] == idx
+        # Returned value IS the input row — no copy, no field rewrites.
+        assert result is idx
+        # Raw fields are still present (e.g. unmodified status casing).
+        assert result["status"] == "Ready"
+        assert result["extra_field"] == "some_value"
 
     def test_process_index_data_without_raw_stats(self) -> None:
         """Process index data without raw stats by default."""
@@ -432,7 +434,7 @@ class TestIndexUtilsFunctions:
         assert result["lastScanTime"] == "2026-02-26T13:12:56.581+05:30"
 
     def test_process_index_data_from_query_with_raw_stats(self) -> None:
-        """Raw stats should be included when requested."""
+        """include_raw_index_stats=True should return the raw row unprocessed."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
@@ -442,8 +444,12 @@ class TestIndexUtilsFunctions:
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
         result = process_index_data_from_query(idx, include_raw_index_stats=True)
-        assert result is not None
-        assert result["raw_index_stats"] == idx
+        # Returned value IS the input row — no field renaming, no defaults applied.
+        assert result is idx
+        # Raw shape preserved (state, not status; bucket_id, not bucket).
+        assert result["state"] == "online"
+        assert result["bucket_id"] == "b"
+        assert "bucket" not in result
 
     def test_process_index_data_from_query_without_raw_stats(self) -> None:
         """Raw stats should not be included by default."""
@@ -598,7 +604,7 @@ class TestIndexUtilsFunctions:
 
     def test_query_all_key_ids_missing_falls_back_to_raw(self) -> None:
         """Query path: when all of bucket_id/scope_id/keyspace_id are absent,
-        we cannot identify the index's location — fall back to raw."""
+        we cannot identify the index's bucket/scope/collection — fall back to raw."""
         idx = {
             "name": "idx",
             "state": "online",
@@ -606,12 +612,12 @@ class TestIndexUtilsFunctions:
         }
         result = process_index_data_from_query(idx)
         assert "error" in result
-        assert "location" in result["error"]
+        assert "bucket/scope/collection" in result["error"]
         assert result["raw_index_stats"] is idx
 
     def test_query_missing_scope_id_falls_back_to_raw(self) -> None:
         """Query path: bucket_id present but scope_id missing — incomplete
-        modern-index location — must fall back to raw."""
+        modern-index shape — must fall back to raw."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
@@ -621,12 +627,12 @@ class TestIndexUtilsFunctions:
         }
         result = process_index_data_from_query(idx)
         assert "error" in result
-        assert "scope_id" in result["error"] or "location" in result["error"]
+        assert "scope_id" in result["error"]
         assert result["raw_index_stats"] is idx
 
     def test_query_missing_keyspace_id_falls_back_to_raw(self) -> None:
         """Query path: bucket_id+scope_id present but keyspace_id missing —
-        incomplete modern-index location — must fall back to raw."""
+        incomplete modern-index shape — must fall back to raw."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
@@ -636,7 +642,7 @@ class TestIndexUtilsFunctions:
         }
         result = process_index_data_from_query(idx)
         assert "error" in result
-        assert "keyspace_id" in result["error"] or "location" in result["error"]
+        assert "keyspace_id" in result["error"]
         assert result["raw_index_stats"] is idx
 
     def test_query_legacy_keyspace_id_only_works(self) -> None:
@@ -681,13 +687,13 @@ class TestIndexUtilsFunctions:
         ), "Warning should ask the user to report the issue"
 
     # ------------------------------------------------------------------
-    # Raw passthrough: when include_raw_index_stats=True, the value under
-    # the raw_index_stats key must be the unmodified input (no processing).
+    # Raw passthrough: when include_raw_index_stats=True, the returned
+    # value is the unmodified input row itself (no processing applied).
     # ------------------------------------------------------------------
 
     def test_rest_raw_index_stats_is_unmodified_passthrough(self) -> None:
-        """REST path: raw_index_stats must be the exact input idx — same
-        object identity, no copies, no field rewrites."""
+        """REST path: returned object IS the input idx — same identity,
+        no copies, no field rewrites, no status normalisation."""
         idx = {
             "name": "idx_test",
             "definition": "CREATE INDEX idx_test ON bucket(field)",
@@ -697,14 +703,16 @@ class TestIndexUtilsFunctions:
             "extra_field": "untouched",
         }
         result = process_index_data_from_rest_api(idx, include_raw_index_stats=True)
-        # Same object — no copy, no field stripping.
-        assert result["raw_index_stats"] is idx
-        # Untouched extra field still present in raw stats.
-        assert result["raw_index_stats"]["extra_field"] == "untouched"
+        # Same object — no copy, no field stripping, no processing.
+        assert result is idx
+        # Status is NOT mapped to query-service casing.
+        assert result["status"] == "Ready"
+        # Untouched extra field still present.
+        assert result["extra_field"] == "untouched"
 
     def test_query_raw_index_stats_is_unmodified_passthrough(self) -> None:
-        """Query path: raw_index_stats must be the exact input idx — same
-        object identity, no copies, no field rewrites."""
+        """Query path: returned object IS the input idx — same identity,
+        no copies, no field renaming (state stays 'state', bucket_id stays)."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
@@ -718,8 +726,11 @@ class TestIndexUtilsFunctions:
             },
         }
         result = process_index_data_from_query(idx, include_raw_index_stats=True)
-        assert result["raw_index_stats"] is idx
-        assert result["raw_index_stats"]["metadata"]["extra_meta"] == "untouched"
+        assert result is idx
+        # Raw query-service field names preserved (no rename to bucket/status).
+        assert "bucket_id" in result and "bucket" not in result
+        assert "state" in result and "status" not in result
+        assert result["metadata"]["extra_meta"] == "untouched"
 
     def test_map_rest_status_to_query_state(self) -> None:
         """REST API status strings should map to SQL++ query service equivalents."""

@@ -161,11 +161,15 @@ async def list_indexes(
         scope_name: Optional scope name to filter indexes (requires bucket_name)
         collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
         index_name: Optional index name to filter indexes (requires bucket_name, scope_name, and collection_name)
-        include_raw_index_stats: If True, include raw index stats (as-is from API) in addition
-                              to cleaned-up version. Default is False.
+        include_raw_index_stats: If True, return the unprocessed source row
+            for each index instead of the processed shape. Default is False.
 
     Returns:
-        List of dictionaries. For successfully processed rows, each entry has:
+        List of dictionaries. When ``include_raw_index_stats`` is True, each
+        entry is the raw source row as returned by the data source (shape
+        depends on whether the query service or REST endpoint was used).
+
+        Otherwise, for successfully processed rows, each entry has:
         - name (str): Index name
         - definition (str): CREATE INDEX statement
         - status (str): Current index state. SQL++ defines 7 canonical values:
@@ -176,8 +180,6 @@ async def list_indexes(
         - scope (str): Scope name where the index exists
         - collection (str): Collection name where the index exists
         - lastScanTime (str): Last time the index was scanned
-        - raw_index_stats (dict, optional): Complete raw index status object from the source
-                                           used to fetch the index (only if include_raw_index_stats=True)
 
         If a row is missing a required field (i.e. there's a problem in
         fetching the index information), the entry instead contains:
