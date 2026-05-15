@@ -185,7 +185,7 @@ class TestIndexUtilsFunctions:
         assert "extra_field" not in result
 
     def test_process_index_data_with_raw_stats(self) -> None:
-        """include_raw_index_stats=True should return the raw row unprocessed."""
+        """return_raw_index_stats=True should return the raw row unprocessed."""
         idx = {
             "name": "idx_test",
             "definition": "CREATE INDEX idx_test ON bucket(field)",
@@ -195,7 +195,7 @@ class TestIndexUtilsFunctions:
             "collection": "collection",
             "extra_field": "some_value",
         }
-        result = process_index_data_from_rest_api(idx, include_raw_index_stats=True)
+        result = process_index_data_from_rest_api(idx, return_raw_index_stats=True)
 
         # Returned value IS the input row — no copy, no field rewrites.
         assert result is idx
@@ -441,7 +441,7 @@ class TestIndexUtilsFunctions:
         assert result["lastScanTime"] == "2026-02-26T13:12:56.581+05:30"
 
     def test_process_index_data_from_query_with_raw_stats(self) -> None:
-        """include_raw_index_stats=True should return the raw row unprocessed."""
+        """return_raw_index_stats=True should return the raw row unprocessed."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
@@ -450,7 +450,7 @@ class TestIndexUtilsFunctions:
             "state": "online",
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
-        result = process_index_data_from_query(idx, include_raw_index_stats=True)
+        result = process_index_data_from_query(idx, return_raw_index_stats=True)
         # Returned value IS the input row — no field renaming, no defaults applied.
         assert result is idx
         # Raw shape preserved (state, not status; bucket_id, not bucket).
@@ -696,7 +696,7 @@ class TestIndexUtilsFunctions:
         ), "Warning should ask the user to report the issue"
 
     # ------------------------------------------------------------------
-    # Raw passthrough: when include_raw_index_stats=True, the returned
+    # Raw passthrough: when return_raw_index_stats=True, the returned
     # value is the unmodified input row itself (no processing applied).
     # ------------------------------------------------------------------
 
@@ -711,7 +711,7 @@ class TestIndexUtilsFunctions:
             "lastScanTime": "Thu Feb 26 13:12:55 IST 2026",
             "extra_field": "untouched",
         }
-        result = process_index_data_from_rest_api(idx, include_raw_index_stats=True)
+        result = process_index_data_from_rest_api(idx, return_raw_index_stats=True)
         # Same object — no copy, no field stripping, no processing.
         assert result is idx
         # Status is NOT mapped to query-service casing.
@@ -734,7 +734,7 @@ class TestIndexUtilsFunctions:
                 "extra_meta": "untouched",
             },
         }
-        result = process_index_data_from_query(idx, include_raw_index_stats=True)
+        result = process_index_data_from_query(idx, return_raw_index_stats=True)
         assert result is idx
         # Raw query-service field names preserved (no rename to bucket/status).
         assert "bucket_id" in result and "bucket" not in result
@@ -1123,7 +1123,7 @@ class TestFetchIndexesViaQueryService:
 
     @pytest.mark.asyncio
     async def test_raw_mode_selects_raw_source_rows(self) -> None:
-        """include_raw_index_stats=True must SELECT RAW s — no injected
+        """return_raw_index_stats=True must SELECT RAW s — no injected
         bucket/scope/collection on the result rows."""
         mock_ctx = MagicMock()
         expected_query = (
@@ -1137,7 +1137,7 @@ class TestFetchIndexesViaQueryService:
             return_value=[{"name": "idx1"}],
         ) as mock_query:
             await fetch_indexes_via_query_service(
-                mock_ctx, None, None, None, None, include_raw_index_stats=True
+                mock_ctx, None, None, None, None, return_raw_index_stats=True
             )
 
         mock_query.assert_called_once_with(

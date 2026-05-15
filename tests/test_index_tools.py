@@ -256,7 +256,7 @@ async def test_list_indexes_with_raw_stats() -> None:
 
     async with create_mcp_session() as session:
         response = await session.call_tool(
-            "list_indexes", arguments={"include_raw_index_stats": True}
+            "list_indexes", arguments={"return_raw_index_stats": True}
         )
         payload = extract_payload(response)
 
@@ -285,7 +285,7 @@ async def test_list_indexes_with_raw_stats() -> None:
                 "indexType",
             }
             assert raw_only_keys & set(first_index.keys()), (
-                "Expected raw source row when include_raw_index_stats=True; "
+                "Expected raw source row when return_raw_index_stats=True; "
                 f"got keys: {sorted(first_index.keys())}"
             )
 
@@ -322,7 +322,7 @@ async def test_list_indexes_raw_rows_have_expected_keys() -> None:
     """
     async with create_mcp_session() as session:
         response = await session.call_tool(
-            "list_indexes", arguments={"include_raw_index_stats": True}
+            "list_indexes", arguments={"return_raw_index_stats": True}
         )
         payload = extract_payload(response)
 
@@ -390,7 +390,7 @@ async def test_list_indexes_raw_status_values_are_known() -> None:
     """
     async with create_mcp_session() as session:
         response = await session.call_tool(
-            "list_indexes", arguments={"include_raw_index_stats": True}
+            "list_indexes", arguments={"return_raw_index_stats": True}
         )
         payload = extract_payload(response)
 
@@ -437,7 +437,7 @@ async def test_list_indexes_primary_index_flag_consistency() -> None:
     """
     async with create_mcp_session() as session:
         response = await session.call_tool(
-            "list_indexes", arguments={"include_raw_index_stats": True}
+            "list_indexes", arguments={"return_raw_index_stats": True}
         )
         payload = extract_payload(response)
 

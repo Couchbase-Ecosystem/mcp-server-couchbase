@@ -107,7 +107,7 @@ async def fetch_indexes_via_query_service(
     scope_name: str | None,
     collection_name: str | None,
     index_name: str | None,
-    include_raw_index_stats: bool = False,
+    return_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
     """Fetch indexes from ``system:indexes`` via the query service.
 
@@ -120,7 +120,7 @@ async def fetch_indexes_via_query_service(
     one does.
 
     Args:
-        include_raw_index_stats: When True, return raw ``s`` rows (no
+        return_raw_index_stats: When True, return raw ``s`` rows (no
             injected bucket/scope/collection). When False (default), each
             row is enriched with normalized ``bucket`` / ``scope`` /
             ``collection`` keys.
@@ -151,7 +151,7 @@ async def fetch_indexes_via_query_service(
         "sid = IFMISSING(s.scope_id, '_default'), "
         "kid = NVL2(s.bucket_id, s.keyspace_id, '_default')"
     )
-    if include_raw_index_stats:
+    if return_raw_index_stats:
         select_clause = "SELECT RAW s"
     else:
         select_clause = (
@@ -174,7 +174,7 @@ async def list_indexes(
     scope_name: str | None = None,
     collection_name: str | None = None,
     index_name: str | None = None,
-    include_raw_index_stats: bool = False,
+    return_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
     """List all indexes in the cluster with optional filtering by bucket, scope, collection, and index name.
     Returns a list of indexes with their names and CREATE INDEX definitions.
@@ -194,11 +194,11 @@ async def list_indexes(
         scope_name: Optional scope name to filter indexes (requires bucket_name)
         collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
         index_name: Optional index name to filter indexes (requires bucket_name, scope_name, and collection_name)
-        include_raw_index_stats: If True, return the unprocessed source row
+        return_raw_index_stats: If True, return the unprocessed source row
             for each index instead of the processed shape. Default is False.
 
     Returns:
-        List of dictionaries. When ``include_raw_index_stats`` is True, each
+        List of dictionaries. When ``return_raw_index_stats`` is True, each
         entry is the raw source row as returned by the data source (shape
         depends on whether the query service or REST endpoint was used).
 
@@ -243,10 +243,10 @@ async def list_indexes(
                 scope_name=scope_name,
                 collection_name=collection_name,
                 index_name=index_name,
-                include_raw_index_stats=include_raw_index_stats,
+                return_raw_index_stats=return_raw_index_stats,
             )
             indexes = [
-                process_index_data_from_query(idx, include_raw_index_stats)
+                process_index_data_from_query(idx, return_raw_index_stats)
                 for idx in raw_indexes
             ]
             logger.info(f"Found {len(indexes)} indexes via query service")
@@ -271,7 +271,7 @@ async def list_indexes(
 
         # Process and format the results
         indexes = [
-            process_index_data_from_rest_api(idx, include_raw_index_stats)
+            process_index_data_from_rest_api(idx, return_raw_index_stats)
             for idx in raw_indexes
         ]
 

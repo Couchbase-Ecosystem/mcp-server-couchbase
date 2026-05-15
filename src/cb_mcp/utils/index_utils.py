@@ -162,22 +162,22 @@ def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
 
 def process_index_data_from_rest_api(
     idx: dict[str, Any],
-    include_raw_index_stats: bool = False,
+    return_raw_index_stats: bool = False,
 ) -> dict[str, Any]:
     """Process raw index data from the REST API into formatted index info.
 
     Args:
         idx: Raw index data from the /getIndexStatus API
-        include_raw_index_stats: If True, return the unprocessed index row.
+        return_raw_index_stats: If True, return the unprocessed index row.
 
     Returns:
         Formatted index info dictionary, or the unprocessed input row when
-        ``include_raw_index_stats`` is True. If a required field (name,
+        ``return_raw_index_stats`` is True. If a required field (name,
         definition, or status) is missing or invalid, returns a fallback dict
         containing ``error`` and the unprocessed raw row under
         ``raw_index_stats``.
     """
-    if include_raw_index_stats:
+    if return_raw_index_stats:
         return idx
 
     name = idx.get("indexName") or idx.get("name")
@@ -218,7 +218,7 @@ def process_index_data_from_rest_api(
 
 def process_index_data_from_query(
     idx: dict[str, Any],
-    include_raw_index_stats: bool = False,
+    return_raw_index_stats: bool = False,
 ) -> dict[str, Any]:
     """Process a row from ``system:indexes`` into formatted index info.
 
@@ -242,16 +242,16 @@ def process_index_data_from_query(
         idx: A single index row from ``system:indexes`` with ``bucket`` /
             ``scope`` / ``collection`` already injected by the LET clause
             in the fetch query.
-        include_raw_index_stats: If True, return the unprocessed index row.
+        return_raw_index_stats: If True, return the unprocessed index row.
 
     Returns:
         Formatted index info dictionary, or the unprocessed input row when
-        ``include_raw_index_stats`` is True. If a required field (name,
+        ``return_raw_index_stats`` is True. If a required field (name,
         metadata.definition, or state) is missing or invalid, returns a
         fallback dict containing ``error`` and the unprocessed raw row under
         ``raw_index_stats``.
     """
-    if include_raw_index_stats:
+    if return_raw_index_stats:
         return idx
 
     name = idx.get("name")

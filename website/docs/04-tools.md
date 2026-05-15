@@ -52,7 +52,7 @@ Tools for running SQL++ queries, listing indexes, and getting index recommendati
 | ---- | ----------- |
 | `run_sql_plus_plus_query` | Run a [SQL++ query](https://www.couchbase.com/sqlplusplus/) on a specified scope |
 | `explain_sql_plus_plus_query` | Provides information about the execution plan for the statement. This includes operators such as scans, joins, and filters; it aids in performance tuning by showing index usage, cost estimates, and data access paths |
-| `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering. Set `include_raw_index_stats=true` to return the unprocessed index information. |
+| `list_indexes` | List all indexes in the cluster with their definitions, with optional filtering. Set `return_raw_index_stats=true` to return the unprocessed index information. |
 | `get_index_advisor_recommendations` | Get index recommendations from Couchbase Index Advisor for a given SQL++ query |
 
 ## Query Performance Analysis
