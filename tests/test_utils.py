@@ -216,7 +216,7 @@ class TestIndexUtilsFunctions:
         assert result is not None
         assert "raw_index_stats" not in result
 
-    def test_process_index_data_no_name_returns_raw_fallback(self) -> None:
+    def test_rest_missing_name_falls_back_to_raw(self) -> None:
         """Missing 'name' field should return raw fallback with error message."""
         idx = {"status": "Ready", "bucket": "bucket"}
         result = process_index_data_from_rest_api(idx)
@@ -225,10 +225,10 @@ class TestIndexUtilsFunctions:
             "raw_index_stats": idx,
         }
         assert "name" in result["error"]
-        # Raw stats must be the unmodified original input
+        # Raw stats must be the unmodified original input.
         assert result["raw_index_stats"] is idx
 
-    def test_process_index_data_missing_definition_returns_raw_fallback(self) -> None:
+    def test_rest_missing_definition_falls_back_to_raw(self) -> None:
         """Missing 'definition' field should return raw fallback with error message."""
         idx = {"name": "idx_test", "status": "Ready", "bucket": "bucket"}
         result = process_index_data_from_rest_api(idx)
@@ -236,19 +236,7 @@ class TestIndexUtilsFunctions:
         assert "definition" in result["error"]
         assert result["raw_index_stats"] is idx
 
-    def test_process_index_data_missing_status_returns_raw_fallback(self) -> None:
-        """Missing 'status' field should return raw fallback with error message."""
-        idx = {
-            "name": "idx_test",
-            "definition": "CREATE INDEX idx_test ON bucket(field)",
-            "bucket": "bucket",
-        }
-        result = process_index_data_from_rest_api(idx)
-        assert "error" in result
-        assert "status" in result["error"]
-        assert result["raw_index_stats"] is idx
-
-    def test_process_index_data_missing_bucket_returns_raw_fallback(self) -> None:
+    def test_rest_missing_bucket_falls_back_to_raw(self) -> None:
         """Missing 'bucket' field should return raw fallback. REST always
         emits bucket today, so its absence indicates a problem in fetching
         the index information."""
@@ -384,23 +372,19 @@ class TestIndexUtilsFunctions:
             parse_major_version("abc.def")
 
     def test_process_index_data_from_query_basic(self) -> None:
-        """Map a typical enriched system:indexes row to the standard schema.
+        """Map a typical post-LET system:indexes row to the standard schema.
 
-        Note: bucket/scope/collection arrive pre-normalized via the SQL LET
-        clause in fetch_indexes_via_query_service, so the processor reads
-        them directly without any branching.
+        The processor reads bucket/scope/collection (LET-injected by
+        fetch_indexes_via_query_service) and ignores the raw bucket_id /
+        scope_id / keyspace_id fields, so the fixture only needs the
+        injected shape.
         """
         idx = {
             "name": "def_inventory_airport_city",
-            "bucket_id": "travel-sample",
-            "scope_id": "inventory",
-            "keyspace_id": "airport",
-            # Injected by the LET clause in the fetch SQL.
             "bucket": "travel-sample",
             "scope": "inventory",
             "collection": "airport",
             "state": "online",
-            "using": "gsi",
             "metadata": {
                 "definition": (
                     "CREATE INDEX `def_inventory_airport_city` ON "
@@ -426,9 +410,6 @@ class TestIndexUtilsFunctions:
         """Primary index rows should set isPrimary=True."""
         idx = {
             "name": "def_inventory_airport_primary",
-            "bucket_id": "travel-sample",
-            "scope_id": "inventory",
-            "keyspace_id": "airport",
             "bucket": "travel-sample",
             "scope": "inventory",
             "collection": "airport",
@@ -446,9 +427,6 @@ class TestIndexUtilsFunctions:
         """lastScanTime should be included from metadata."""
         idx = {
             "name": "idx",
-            "bucket_id": "b",
-            "scope_id": "s",
-            "keyspace_id": "c",
             "bucket": "b",
             "scope": "s",
             "collection": "c",
@@ -502,7 +480,7 @@ class TestIndexUtilsFunctions:
         assert "keyspace_id" not in result
         assert "state" not in result  # processed shape uses 'status'
 
-    def test_process_index_data_from_query_no_name_returns_raw_fallback(self) -> None:
+    def test_query_missing_name_falls_back_to_raw(self) -> None:
         """Rows without a name should return raw fallback with error message."""
         idx = {"bucket_id": "b"}
         result = process_index_data_from_query(idx)
@@ -510,9 +488,7 @@ class TestIndexUtilsFunctions:
         assert "name" in result["error"]
         assert result["raw_index_stats"] is idx
 
-    def test_process_index_data_from_query_no_metadata_returns_raw_fallback(
-        self,
-    ) -> None:
+    def test_query_missing_metadata_falls_back_to_raw(self) -> None:
         """Missing metadata.definition should return raw fallback, not empty string."""
         idx = {
             "name": "idx",
@@ -526,23 +502,54 @@ class TestIndexUtilsFunctions:
         assert "metadata.definition" in result["error"]
         assert result["raw_index_stats"] is idx
 
-    def test_process_index_data_from_query_no_state_returns_raw_fallback(self) -> None:
-        """Missing 'state' field should return raw fallback with error message."""
+    def test_query_missing_let_bucket_falls_back_to_raw(self) -> None:
+        """Query path: bucket is injected by the SQL LET clause. Its absence
+        means the row didn't come from our SQL or the LET semantics have
+        changed — must fail loud."""
         idx = {
             "name": "idx",
-            "bucket_id": "b",
-            "scope_id": "s",
-            "keyspace_id": "c",
+            "state": "online",
+            "scope": "s",
+            "collection": "c",
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
         result = process_index_data_from_query(idx)
         assert "error" in result
-        assert "state" in result["error"]
+        assert "bucket" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_let_scope_falls_back_to_raw(self) -> None:
+        """Query path: scope is injected by the SQL LET clause — same fail-
+        loud contract as bucket."""
+        idx = {
+            "name": "idx",
+            "state": "online",
+            "bucket": "b",
+            "collection": "c",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" in result
+        assert "scope" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_let_collection_falls_back_to_raw(self) -> None:
+        """Query path: collection is injected by the SQL LET clause — same
+        fail-loud contract as bucket."""
+        idx = {
+            "name": "idx",
+            "state": "online",
+            "bucket": "b",
+            "scope": "s",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" in result
+        assert "collection" in result["error"]
         assert result["raw_index_stats"] is idx
 
     # ------------------------------------------------------------------
-    # Failure-mode tests requested: missing status, missing lastScanTime,
-    # missing key ids (bucket_id / scope_id / keyspace_id).
+    # Failure-mode tests: missing status, missing lastScanTime, etc.
     # ------------------------------------------------------------------
 
     def test_rest_missing_status_falls_back_to_raw(self) -> None:
@@ -612,9 +619,9 @@ class TestIndexUtilsFunctions:
         and should default to 'NA' without triggering a fallback."""
         idx = {
             "name": "idx",
-            "bucket_id": "b",
-            "scope_id": "s",
-            "keyspace_id": "c",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
             "state": "online",
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
@@ -626,9 +633,9 @@ class TestIndexUtilsFunctions:
         """Query path: explicit null last_scan_time should also default to 'NA'."""
         idx = {
             "name": "idx",
-            "bucket_id": "b",
-            "scope_id": "s",
-            "keyspace_id": "c",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
             "state": "online",
             "metadata": {
                 "definition": "CREATE INDEX idx ON b.s.c(x)",

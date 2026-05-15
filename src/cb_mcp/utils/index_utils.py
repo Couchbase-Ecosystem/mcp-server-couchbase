@@ -153,10 +153,8 @@ def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
     )
     return {
         "error": (
-            f"Failed to process index data: {reason}. There's a problem in "
-            "fetching the index information. Please report this issue. The raw "
-            "response from the source is included under 'raw_index_stats' "
-            "without any processing."
+            f"Failed to process index data: {reason}. Returning raw row "
+            "under 'raw_index_stats' — please report this issue."
         ),
         "raw_index_stats": idx,
     }
@@ -268,13 +266,23 @@ def process_index_data_from_query(
     if not state:
         return _raw_fallback(idx, "missing 'state' field")
 
+    # bucket/scope/collection are injected by the LET clause in
+    # fetch_indexes_via_query_service. If any are absent, the row didn't
+    # come from our SQL or the LET semantics have changed — either way
+    # we'd rather fail loud than emit a row with None location fields.
+    for field in ("bucket", "scope", "collection"):
+        if not idx.get(field):
+            return _raw_fallback(
+                idx, f"missing {field!r} field (LET clause may not have run)"
+            )
+
     return {
         "name": name,
         "definition": metadata["definition"],
         "status": state,
-        "bucket": idx.get("bucket"),
-        "scope": idx.get("scope"),
-        "collection": idx.get("collection"),
+        "bucket": idx["bucket"],
+        "scope": idx["scope"],
+        "collection": idx["collection"],
         "isPrimary": bool(idx.get("is_primary", False)),
         "lastScanTime": metadata.get("last_scan_time", "NA") or "NA",
     }
