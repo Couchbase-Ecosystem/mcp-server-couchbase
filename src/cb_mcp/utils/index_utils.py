@@ -222,16 +222,6 @@ def process_index_data_from_query(
 ) -> dict[str, Any]:
     """Process a row from ``system:indexes`` into formatted index info.
 
-    Field mapping (system:indexes -> output):
-        - name              -> name
-        - metadata.definition -> definition
-        - state             -> status
-        - bucket            -> bucket   (injected by SQL LET clause)
-        - scope             -> scope    (injected by SQL LET clause)
-        - collection        -> collection (injected by SQL LET clause)
-        - is_primary        -> isPrimary
-        - metadata.last_scan_time -> lastScanTime
-
     Bucket / scope / collection are normalized in SQL++ by
     ``fetch_indexes_via_query_service`` via a LET clause, so legacy
     bucket-level indexes (only ``keyspace_id`` present) and modern scoped
