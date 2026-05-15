@@ -107,29 +107,60 @@ async def fetch_indexes_via_query_service(
     scope_name: str | None,
     collection_name: str | None,
     index_name: str | None,
+    include_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
-    """Fetch indexes by querying ``system:all_indexes`` via the query service.
+    """Fetch indexes from ``system:indexes`` via the query service.
+
+    Bucket / scope / collection are normalized in SQL++ via a LET clause so
+    legacy bucket-level indexes (which carry only ``keyspace_id``) and modern
+    scoped indexes (which carry ``bucket_id`` + ``scope_id`` + ``keyspace_id``)
+    both produce the same enriched row shape. User-supplied filters are
+    applied against the normalized aliases so they match symmetrically — a
+    legacy index in bucket X matches ``bucket_name=X`` just like a modern
+    one does.
+
+    Args:
+        include_raw_index_stats: When True, return raw ``s`` rows (no
+            injected bucket/scope/collection). When False (default), each
+            row is enriched with normalized ``bucket`` / ``scope`` /
+            ``collection`` keys.
+
     Returns:
-        List of unwrapped raw index rows from ``system:all_indexes``.
+        List of dict rows from ``system:indexes``.
     """
-    clauses: list[str] = ["`using` = 'gsi'"]
+    # Always present — guards future Couchbase pool/namespace additions and
+    # restricts to GSI indexes.
+    clauses: list[str] = ["s.namespace_id = 'default'", "s.`using` = 'gsi'"]
     params: dict[str, Any] = {}
 
     if bucket_name:
-        clauses.append("bucket_id = $bucket_id")
+        clauses.append("bid = $bucket_id")
         params["bucket_id"] = bucket_name
     if scope_name:
-        clauses.append("scope_id = $scope_id")
+        clauses.append("sid = $scope_id")
         params["scope_id"] = scope_name
     if collection_name:
-        clauses.append("keyspace_id = $keyspace_id")
+        clauses.append("kid = $keyspace_id")
         params["keyspace_id"] = collection_name
     if index_name:
-        clauses.append("name = $index_name")
+        clauses.append("s.name = $index_name")
         params["index_name"] = index_name
 
-    query = "SELECT RAW all_indexes FROM system:all_indexes WHERE " + " AND ".join(
-        clauses
+    let_clause = (
+        "LET bid = IFMISSING(s.bucket_id, s.keyspace_id), "
+        "sid = IFMISSING(s.scope_id, '_default'), "
+        "kid = NVL2(s.bucket_id, s.keyspace_id, '_default')"
+    )
+    if include_raw_index_stats:
+        select_clause = "SELECT RAW s"
+    else:
+        select_clause = (
+            "SELECT s.*, bid AS `bucket`, sid AS `scope`, kid AS `collection`"
+        )
+
+    query = (
+        f"{select_clause} FROM system:indexes AS s {let_clause} "
+        f"WHERE {' AND '.join(clauses)}"
     )
     logger.info(f"Running list_indexes query: {query}")
 
@@ -149,9 +180,11 @@ async def list_indexes(
     Returns a list of indexes with their names and CREATE INDEX definitions.
 
     The data source depends on the Couchbase Server version:
-    - Cluster version >= 8.x: query ``system:all_indexes`` via the query
+    - Cluster version >= 8.x: query ``system:indexes`` via the query
       service, which exposes the original CREATE INDEX statement directly in
-      ``metadata.definition``.
+      ``metadata.definition``. Bucket / scope / collection are normalized in
+      SQL++ via a LET clause so legacy bucket-level indexes and modern
+      scoped indexes share one output shape.
     - Cluster version < 8.x: fall back to the
       Index Service REST API ``/getIndexStatus`` endpoint.
 
@@ -200,7 +233,7 @@ async def list_indexes(
 
         if major_version >= QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION:
             logger.info(
-                f"Fetching indexes via query service (system:all_indexes) for "
+                f"Fetching indexes via query service (system:indexes) for "
                 f"bucket={bucket_name}, scope={scope_name}, "
                 f"collection={collection_name}, index={index_name}"
             )
@@ -210,6 +243,7 @@ async def list_indexes(
                 scope_name=scope_name,
                 collection_name=collection_name,
                 index_name=index_name,
+                include_raw_index_stats=include_raw_index_stats,
             )
             indexes = [
                 process_index_data_from_query(idx, include_raw_index_stats)

@@ -248,6 +248,20 @@ class TestIndexUtilsFunctions:
         assert "status" in result["error"]
         assert result["raw_index_stats"] is idx
 
+    def test_process_index_data_missing_bucket_returns_raw_fallback(self) -> None:
+        """Missing 'bucket' field should return raw fallback. REST always
+        emits bucket today, so its absence indicates a problem in fetching
+        the index information."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert "error" in result
+        assert "bucket" in result["error"]
+        assert result["raw_index_stats"] is idx
+
     def test_process_index_data_primary_index(self) -> None:
         """Process primary index data."""
         idx = {
@@ -370,12 +384,21 @@ class TestIndexUtilsFunctions:
             parse_major_version("abc.def")
 
     def test_process_index_data_from_query_basic(self) -> None:
-        """Map a typical system:all_indexes row to the standard schema."""
+        """Map a typical enriched system:indexes row to the standard schema.
+
+        Note: bucket/scope/collection arrive pre-normalized via the SQL LET
+        clause in fetch_indexes_via_query_service, so the processor reads
+        them directly without any branching.
+        """
         idx = {
             "name": "def_inventory_airport_city",
             "bucket_id": "travel-sample",
             "scope_id": "inventory",
             "keyspace_id": "airport",
+            # Injected by the LET clause in the fetch SQL.
+            "bucket": "travel-sample",
+            "scope": "inventory",
+            "collection": "airport",
             "state": "online",
             "using": "gsi",
             "metadata": {
@@ -406,6 +429,9 @@ class TestIndexUtilsFunctions:
             "bucket_id": "travel-sample",
             "scope_id": "inventory",
             "keyspace_id": "airport",
+            "bucket": "travel-sample",
+            "scope": "inventory",
+            "collection": "airport",
             "is_primary": True,
             "state": "online",
             "metadata": {"definition": "CREATE PRIMARY INDEX ..."},
@@ -423,6 +449,9 @@ class TestIndexUtilsFunctions:
             "bucket_id": "b",
             "scope_id": "s",
             "keyspace_id": "c",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
             "state": "online",
             "metadata": {
                 "definition": "CREATE INDEX idx ON b.s.c(x)",
@@ -452,18 +481,26 @@ class TestIndexUtilsFunctions:
         assert "bucket" not in result
 
     def test_process_index_data_from_query_without_raw_stats(self) -> None:
-        """Raw stats should not be included by default."""
+        """Default (processed) shape should not carry raw-row keys."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
             "scope_id": "s",
             "keyspace_id": "c",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
             "state": "online",
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
         result = process_index_data_from_query(idx)
         assert result is not None
+        # Raw-shape keys should not leak into the processed output.
         assert "raw_index_stats" not in result
+        assert "bucket_id" not in result
+        assert "scope_id" not in result
+        assert "keyspace_id" not in result
+        assert "state" not in result  # processed shape uses 'status'
 
     def test_process_index_data_from_query_no_name_returns_raw_fallback(self) -> None:
         """Rows without a name should return raw fallback with error message."""
@@ -602,55 +639,20 @@ class TestIndexUtilsFunctions:
         assert "error" not in result
         assert result["lastScanTime"] == "NA"
 
-    def test_query_all_key_ids_missing_falls_back_to_raw(self) -> None:
-        """Query path: when all of bucket_id/scope_id/keyspace_id are absent,
-        we cannot identify the index's bucket/scope/collection — fall back to raw."""
-        idx = {
-            "name": "idx",
-            "state": "online",
-            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
-        }
-        result = process_index_data_from_query(idx)
-        assert "error" in result
-        assert "bucket/scope/collection" in result["error"]
-        assert result["raw_index_stats"] is idx
-
-    def test_query_missing_scope_id_falls_back_to_raw(self) -> None:
-        """Query path: bucket_id present but scope_id missing — incomplete
-        modern-index shape — must fall back to raw."""
-        idx = {
-            "name": "idx",
-            "bucket_id": "b",
-            "keyspace_id": "c",
-            "state": "online",
-            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
-        }
-        result = process_index_data_from_query(idx)
-        assert "error" in result
-        assert "scope_id" in result["error"]
-        assert result["raw_index_stats"] is idx
-
-    def test_query_missing_keyspace_id_falls_back_to_raw(self) -> None:
-        """Query path: bucket_id+scope_id present but keyspace_id missing —
-        incomplete modern-index shape — must fall back to raw."""
-        idx = {
-            "name": "idx",
-            "bucket_id": "b",
-            "scope_id": "s",
-            "state": "online",
-            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
-        }
-        result = process_index_data_from_query(idx)
-        assert "error" in result
-        assert "keyspace_id" in result["error"]
-        assert result["raw_index_stats"] is idx
-
     def test_query_legacy_keyspace_id_only_works(self) -> None:
-        """Query path: legacy bucket-level indexes have only keyspace_id —
-        this is a valid shape and must NOT trigger a fallback."""
+        """Query path: legacy bucket-level indexes are normalised in SQL via
+        the LET clause in fetch_indexes_via_query_service, so by the time the
+        processor sees the row, bucket/scope/collection are already populated.
+        """
+        # Simulated post-LET shape for a legacy bucket-level index:
+        # the SQL coerces scope="_default", collection="_default" when
+        # bucket_id is absent.
         idx = {
             "name": "legacy_idx",
             "keyspace_id": "my-bucket",
+            "bucket": "my-bucket",
+            "scope": "_default",
+            "collection": "_default",
             "state": "online",
             "metadata": {"definition": "CREATE INDEX legacy_idx ON `my-bucket`(x)"},
         }
@@ -1080,12 +1082,22 @@ class TestContextModule:
 class TestFetchIndexesViaQueryService:
     """Unit tests for fetch_indexes_via_query_service."""
 
+    _LET_CLAUSE = (
+        "LET bid = IFMISSING(s.bucket_id, s.keyspace_id), "
+        "sid = IFMISSING(s.scope_id, '_default'), "
+        "kid = NVL2(s.bucket_id, s.keyspace_id, '_default')"
+    )
+    _BASE_WHERE = "s.namespace_id = 'default' AND s.`using` = 'gsi'"
+
     @pytest.mark.asyncio
     async def test_no_filters(self) -> None:
-        """With no filters, query should only have the GSI clause."""
+        """With no filters, query should carry the namespace + GSI guards
+        and the LET-based bucket/scope/collection normalization."""
         mock_ctx = MagicMock()
         expected_query = (
-            "SELECT RAW all_indexes FROM system:all_indexes WHERE `using` = 'gsi'"
+            "SELECT s.*, bid AS `bucket`, sid AS `scope`, kid AS `collection` "
+            f"FROM system:indexes AS s {self._LET_CLAUSE} "
+            f"WHERE {self._BASE_WHERE}"
         )
 
         with patch(
@@ -1103,8 +1115,32 @@ class TestFetchIndexesViaQueryService:
         assert len(result) == 2
 
     @pytest.mark.asyncio
+    async def test_raw_mode_selects_raw_source_rows(self) -> None:
+        """include_raw_index_stats=True must SELECT RAW s — no injected
+        bucket/scope/collection on the result rows."""
+        mock_ctx = MagicMock()
+        expected_query = (
+            f"SELECT RAW s FROM system:indexes AS s {self._LET_CLAUSE} "
+            f"WHERE {self._BASE_WHERE}"
+        )
+
+        with patch(
+            "cb_mcp.tools.index.run_cluster_query",
+            new_callable=AsyncMock,
+            return_value=[{"name": "idx1"}],
+        ) as mock_query:
+            await fetch_indexes_via_query_service(
+                mock_ctx, None, None, None, None, include_raw_index_stats=True
+            )
+
+        mock_query.assert_called_once_with(
+            mock_ctx, expected_query, named_parameters={}
+        )
+
+    @pytest.mark.asyncio
     async def test_all_filters(self) -> None:
-        """All filters should produce named_parameters with the right keys."""
+        """All filters should apply against the normalized LET aliases so
+        legacy indexes match by bucket symmetrically with modern ones."""
         mock_ctx = MagicMock()
 
         with patch(
@@ -1116,14 +1152,20 @@ class TestFetchIndexesViaQueryService:
                 mock_ctx, "bucket", "scope", "collection", "idx1"
             )
 
-        _, kwargs = mock_query.call_args
-        params = kwargs["named_parameters"]
+        sent_query = mock_query.call_args[0][1]
+        params = mock_query.call_args[1]["named_parameters"]
         assert params == {
             "bucket_id": "bucket",
             "scope_id": "scope",
             "keyspace_id": "collection",
             "index_name": "idx1",
         }
+        # Verify filters are applied against LET aliases (not raw fields)
+        # so legacy and modern indexes both match.
+        assert "bid = $bucket_id" in sent_query
+        assert "sid = $scope_id" in sent_query
+        assert "kid = $keyspace_id" in sent_query
+        assert "s.name = $index_name" in sent_query
         assert len(result) == 1
 
     @pytest.mark.asyncio
@@ -1246,6 +1288,12 @@ class TestListIndexesVersionRouting:
                         "bucket_id": "b",
                         "scope_id": "s",
                         "keyspace_id": "c",
+                        # bucket/scope/collection are injected by the LET
+                        # clause in the production SQL; the mock simulates
+                        # what the query service actually returns.
+                        "bucket": "b",
+                        "scope": "s",
+                        "collection": "c",
                         "state": "online",
                         "metadata": {"definition": "CREATE INDEX idx1 ON b.s.c(x)"},
                     }

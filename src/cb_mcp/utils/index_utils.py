@@ -138,39 +138,6 @@ def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> st
     return rest_status.lower()
 
 
-def _resolve_bucket_scope_collection(idx: dict[str, Any]) -> dict[str, str]:
-    """Resolve bucket / scope / collection for a ``system:all_indexes`` row.
-
-    Modern (v8.x) indexes carry ``bucket_id`` + ``scope_id`` + ``keyspace_id``.
-    Legacy bucket-level indexes carry only ``keyspace_id`` (which holds the
-    bucket name).
-
-    Raises ``ValueError`` with a descriptive message if the row matches
-    neither pattern.
-    """
-    if "bucket_id" in idx:
-        if "scope_id" not in idx or "keyspace_id" not in idx:
-            raise ValueError(
-                "incomplete bucket/scope/collection fields (bucket_id present "
-                "but scope_id/keyspace_id missing)"
-            )
-        return {
-            "bucket": idx["bucket_id"],
-            "scope": idx["scope_id"],
-            "collection": idx["keyspace_id"],
-        }
-    if "keyspace_id" in idx:
-        return {
-            "bucket": idx["keyspace_id"],
-            "scope": "_default",
-            "collection": "_default",
-        }
-    raise ValueError(
-        "missing bucket/scope/collection fields "
-        "(none of bucket_id/scope_id/keyspace_id present)"
-    )
-
-
 def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
     """Build a fallback response when an index row cannot be fully processed.
 
@@ -255,22 +222,28 @@ def process_index_data_from_query(
     idx: dict[str, Any],
     include_raw_index_stats: bool = False,
 ) -> dict[str, Any]:
-    """Process a row from ``system:all_indexes`` into formatted index info.
+    """Process a row from ``system:indexes`` into formatted index info.
 
-    Field mapping (system:all_indexes -> output):
+    Field mapping (system:indexes -> output):
         - name              -> name
         - metadata.definition -> definition
         - state             -> status
-        - bucket_id         -> bucket
-        - scope_id          -> scope
-        - keyspace_id       -> collection
+        - bucket            -> bucket   (injected by SQL LET clause)
+        - scope             -> scope    (injected by SQL LET clause)
+        - collection        -> collection (injected by SQL LET clause)
         - is_primary        -> isPrimary
         - metadata.last_scan_time -> lastScanTime
 
+    Bucket / scope / collection are normalized in SQL++ by
+    ``fetch_indexes_via_query_service`` via a LET clause, so legacy
+    bucket-level indexes (only ``keyspace_id`` present) and modern scoped
+    indexes (``bucket_id`` + ``scope_id`` + ``keyspace_id``) both arrive
+    here with the same enriched shape — no branching needed here.
+
     Args:
-        idx: A single index document from ``system:all_indexes``, returned
-            directly by ``SELECT RAW all_indexes`` (i.e. the outer wrapper is
-            already stripped by the ``RAW`` keyword).
+        idx: A single index row from ``system:indexes`` with ``bucket`` /
+            ``scope`` / ``collection`` already injected by the LET clause
+            in the fetch query.
         include_raw_index_stats: If True, return the unprocessed index row.
 
     Returns:
@@ -295,22 +268,16 @@ def process_index_data_from_query(
     if not state:
         return _raw_fallback(idx, "missing 'state' field")
 
-    index_info: dict[str, Any] = {
+    return {
         "name": name,
-        # No cleaning needed — query service returns verbatim SQL++
         "definition": metadata["definition"],
         "status": state,
+        "bucket": idx.get("bucket"),
+        "scope": idx.get("scope"),
+        "collection": idx.get("collection"),
+        "isPrimary": bool(idx.get("is_primary", False)),
+        "lastScanTime": metadata.get("last_scan_time", "NA") or "NA",
     }
-
-    try:
-        index_info.update(_resolve_bucket_scope_collection(idx))
-    except ValueError as e:
-        return _raw_fallback(idx, str(e))
-
-    index_info["isPrimary"] = bool(idx.get("is_primary", False))
-    index_info["lastScanTime"] = metadata.get("last_scan_time", "NA") or "NA"
-
-    return index_info
 
 
 def parse_major_version(version_str: str | None) -> int:
