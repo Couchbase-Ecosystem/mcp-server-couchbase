@@ -12,7 +12,7 @@ interface.
 from collections.abc import Mapping
 from typing import Any, Protocol, runtime_checkable
 
-from acouchbase.cluster import Cluster
+from couchbase.cluster import Cluster
 from fastmcp import Context
 
 
@@ -26,15 +26,15 @@ class ClusterProvider(Protocol):
 
     """
 
-    async def get_cluster(self, ctx: Context) -> Cluster:
+    def get_cluster(self, ctx: Context) -> Cluster:
         """Return (or begin returning) a cluster for this request."""
         ...
 
-    async def close(self) -> None:
+    def close(self) -> None:
         """Release any clusters held by this provider and perform cleanup."""
         ...
 
-    async def get_configuration(self, ctx: Context) -> Mapping[str, Any]:
+    def get_configuration(self, ctx: Context) -> Mapping[str, Any]:
         """Provider-specific configuration suitable for status reporting.
 
         Must not include secrets — return ``_configured`` booleans instead.
@@ -48,7 +48,7 @@ class ClusterProvider(Protocol):
         """
         ...
 
-    async def is_connected(self, ctx: Context) -> bool:
+    def is_connected(self, ctx: Context) -> bool:
         """True if a cluster is currently open for this caller.
 
         Implementations may use ``ctx`` to check per-caller connection state

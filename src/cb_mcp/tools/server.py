@@ -19,16 +19,14 @@ from .query import run_cluster_query
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.server")
 
 
-async def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
+def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     """Get the server status and configuration without establishing connection.
     This tool can be used to verify if the server is running and check the configuration.
     """
     settings = get_settings(ctx)
     provider = get_cluster_provider(ctx)
 
-    provider_config = (
-        await provider.get_configuration(ctx) if provider is not None else {}
-    )
+    provider_config = provider.get_configuration(ctx) if provider is not None else {}
 
     # Server-level keys are spread last so they always reflect what the server
     # actually enforces, even if a provider returns overlapping keys.
@@ -44,7 +42,7 @@ async def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
 
     connection_status = {
         "cluster_connected": (
-            await provider.is_connected(ctx) if provider is not None else False
+            provider.is_connected(ctx) if provider is not None else False
         ),
     }
 
@@ -56,7 +54,7 @@ async def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     }
 
 
-async def test_cluster_connection(
+def test_cluster_connection(
     ctx: Context, bucket_name: str | None = None
 ) -> dict[str, Any]:
     """Test the connection to Couchbase cluster and optionally to a bucket.
@@ -65,10 +63,10 @@ async def test_cluster_connection(
     Returns connection status and basic cluster information.
     """
     try:
-        cluster = await get_cluster_connection(ctx)
+        cluster = get_cluster_connection(ctx)
         bucket = None
         if bucket_name:
-            bucket = await connect_to_bucket(cluster, bucket_name)
+            bucket = connect_to_bucket(cluster, bucket_name)
 
         return {
             "status": "success",
@@ -88,18 +86,18 @@ async def test_cluster_connection(
         }
 
 
-async def get_scopes_and_collections_in_bucket(
+def get_scopes_and_collections_in_bucket(
     ctx: Context, bucket_name: str
 ) -> dict[str, list[str]]:
     """Get the names of all scopes and collections in the bucket.
     Returns a dictionary with scope names as keys and lists of collection names as values.
     """
-    cluster = await get_cluster_connection(ctx)
-    bucket = await connect_to_bucket(cluster, bucket_name)
+    cluster = get_cluster_connection(ctx)
+    bucket = connect_to_bucket(cluster, bucket_name)
     try:
         scopes_collections = {}
         collection_manager = bucket.collections()
-        scopes = await collection_manager.get_all_scopes()
+        scopes = collection_manager.get_all_scopes()
         for scope in scopes:
             collection_names = [c.name for c in scope.collections]
             scopes_collections[scope.name] = collection_names
@@ -109,11 +107,11 @@ async def get_scopes_and_collections_in_bucket(
         raise
 
 
-async def get_buckets_in_cluster(ctx: Context) -> list[str]:
+def get_buckets_in_cluster(ctx: Context) -> list[str]:
     """Get the names of all the accessible buckets in the cluster."""
-    cluster = await get_cluster_connection(ctx)
+    cluster = get_cluster_connection(ctx)
     bucket_manager = cluster.buckets()
-    buckets_with_settings = await bucket_manager.get_all_buckets()
+    buckets_with_settings = bucket_manager.get_all_buckets()
 
     buckets = []
     for bucket in buckets_with_settings:
@@ -122,32 +120,32 @@ async def get_buckets_in_cluster(ctx: Context) -> list[str]:
     return buckets
 
 
-async def get_scopes_in_bucket(ctx: Context, bucket_name: str) -> list[str]:
+def get_scopes_in_bucket(ctx: Context, bucket_name: str) -> list[str]:
     """Get the names of all scopes in the given bucket."""
-    cluster = await get_cluster_connection(ctx)
-    bucket = await connect_to_bucket(cluster, bucket_name)
+    cluster = get_cluster_connection(ctx)
+    bucket = connect_to_bucket(cluster, bucket_name)
     try:
-        scopes = await bucket.collections().get_all_scopes()
+        scopes = bucket.collections().get_all_scopes()
         return [scope.name for scope in scopes]
     except Exception as e:
         logger.error(f"Error getting scopes in the bucket {bucket_name}: {e}")
         raise
 
 
-async def get_collections_in_scope(
+def get_collections_in_scope(
     ctx: Context, bucket_name: str, scope_name: str
 ) -> list[str]:
     """Get the names of all collections in the given scope and bucket."""
 
     # Get the collections in the scope using system:all_keyspaces collection
     query = "SELECT DISTINCT(name) as collection_name FROM system:all_keyspaces where `bucket`=$bucket_name and `scope`=$scope_name"
-    results = await run_cluster_query(
+    results = run_cluster_query(
         ctx, query, bucket_name=bucket_name, scope_name=scope_name
     )
     return [result["collection_name"] for result in results]
 
 
-async def get_cluster_health_and_services(
+def get_cluster_health_and_services(
     ctx: Context, bucket_name: str | None = None
 ) -> dict[str, Any]:
     """Get cluster health status and list of all running services.
@@ -164,16 +162,16 @@ async def get_cluster_health_and_services(
     - Cluster health status with service-level connection details and latency measurements
     """
     try:
-        cluster = await get_cluster_connection(ctx)
+        cluster = get_cluster_connection(ctx)
 
         if bucket_name:
             # Ping services from the perspective of the bucket
-            bucket = await connect_to_bucket(cluster, bucket_name)
-            ping_result = await bucket.ping()
+            bucket = connect_to_bucket(cluster, bucket_name)
+            ping_result = bucket.ping()
             result = ping_result.as_json()
         else:
             # Ping services from the perspective of the cluster
-            ping_result = await cluster.ping()
+            ping_result = cluster.ping()
             result = ping_result.as_json()
 
         return {
