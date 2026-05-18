@@ -493,9 +493,6 @@ def _extract_query_from_agent_answer(raw_answer: str) -> str:
 
 def _is_hitl_response(resp_body: dict[str, Any], raw_answer: str) -> bool:
     """Detect non-final HITL responses from iQ and avoid treating them as SQL++."""
-    if resp_body.get("is_final_response") is False:
-        return True
-
     metadata = resp_body.get("metadata")
     if isinstance(metadata, dict) and (
         metadata.get("hitl_required") or metadata.get("hitl_pending")

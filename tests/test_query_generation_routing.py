@@ -169,3 +169,33 @@ def test_generate_query_returns_error_for_hitl_response(monkeypatch) -> None:
 
     assert result["query"] == ""
     assert "non-final hitl response" in str(result["message"]).lower()
+
+
+def test_generate_query_does_not_treat_non_final_flag_alone_as_hitl(
+    monkeypatch,
+) -> None:
+    """Allow extraction when response is non-final but not a HITL tool interrupt."""
+    monkeypatch.setattr(
+        query_tools,
+        "_get_bucket_catalog_prompt_states",
+        lambda _ctx: {"b1": {"prompt": "catalog prompt"}},
+    )
+    monkeypatch.setattr(
+        query_tools,
+        "call_agent",
+        lambda **_kwargs: {
+            "content": "WITH t AS (SELECT 1 AS x) SELECT x FROM t;",
+            "is_final_response": False,
+            "metadata": {},
+            "tool_args": {},
+        },
+    )
+    monkeypatch.setattr(
+        query_tools, "extract_answer", lambda resp_body: str(resp_body["content"])
+    )
+
+    result = query_tools.generate_or_modify_sql_plus_plus_query(
+        None, "count users", "b1"  # type: ignore[arg-type]
+    )
+
+    assert result["query"].startswith("WITH t AS")
