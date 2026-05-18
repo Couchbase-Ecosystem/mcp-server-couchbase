@@ -9,6 +9,7 @@ This module tests:
 
 import sys
 from pathlib import Path
+from typing import Annotated, get_origin
 
 from utils.constants import DEFAULT_READ_ONLY_MODE
 from utils.context import AppContext
@@ -92,11 +93,15 @@ class TestToolCategories:
 
     def test_all_tools_is_union(self):
         """Verify ALL_TOOLS is the union of READ_ONLY_TOOLS, KV_WRITE_TOOLS, and QUERY_GENERATION_TOOLS."""
-        expected_count = len(READ_ONLY_TOOLS) + len(KV_WRITE_TOOLS) + len(QUERY_GENERATION_TOOLS)
+        expected_count = (
+            len(READ_ONLY_TOOLS) + len(KV_WRITE_TOOLS) + len(QUERY_GENERATION_TOOLS)
+        )
         assert len(ALL_TOOLS) == expected_count
 
         all_tool_names = {tool.__name__ for tool in ALL_TOOLS}
-        expected_names = READ_ONLY_TOOL_NAMES | KV_WRITE_TOOL_NAMES | QUERY_GENERATION_TOOL_NAMES
+        expected_names = (
+            READ_ONLY_TOOL_NAMES | KV_WRITE_TOOL_NAMES | QUERY_GENERATION_TOOL_NAMES
+        )
         assert all_tool_names == expected_names
 
     def test_no_overlap_between_categories(self):
@@ -168,7 +173,9 @@ class TestGetToolsTruthTable:
         tools = get_tools(read_only_mode=False, enable_query_generation=True)
         tool_names = {tool.__name__ for tool in tools}
 
-        expected_names = READ_ONLY_TOOL_NAMES | KV_WRITE_TOOL_NAMES | QUERY_GENERATION_TOOL_NAMES
+        expected_names = (
+            READ_ONLY_TOOL_NAMES | KV_WRITE_TOOL_NAMES | QUERY_GENERATION_TOOL_NAMES
+        )
         assert tool_names == expected_names
 
 
@@ -208,17 +215,15 @@ class TestToolCounts:
         """Verify correct number of tools in read-only mode."""
         tools = get_tools(read_only_mode=True)
         assert len(tools) == len(READ_ONLY_TOOLS)
-        assert len(tools) == 20  # Expected count of read-only tools
+        assert len(tools) == 21  # Expected count of read-only tools
 
     def test_all_tools_mode_tool_count(self):
         """Verify correct number of tools when all options are enabled."""
         tools = get_tools(read_only_mode=False, enable_query_generation=True)
         assert len(tools) == len(ALL_TOOLS)
-<<<<<<< HEAD
-        assert len(tools) == 25  # Expected total count (20 read-only + 4 KV write + 1 query generation)
-=======
-        assert len(tools) == 24  # Expected total count (20 read-only + 4 KV write)
->>>>>>> main
+        assert (
+            len(tools) == 26
+        )  # Expected total count (21 read-only + 4 KV write + 1 query generation)
 
     def test_kv_write_tools_count(self):
         """Verify exactly 4 KV write tools exist."""
@@ -299,32 +304,28 @@ class TestQueryAnnotation:
 
     def test_query_annotation_str_when_generation_disabled(self):
         """Verify that query parameter annotation is simple str when generation is disabled."""
-        from typing import Annotated, get_origin
         from tools.query import run_sql_plus_plus_query
 
         # Call get_tools with enable_query_generation=False (default)
-        tools = get_tools(read_only_mode=True, enable_query_generation=False)
+        get_tools(read_only_mode=True, enable_query_generation=False)
 
         # Check that the query annotation is just str, not Annotated
-        query_annotation = run_sql_plus_plus_query.__annotations__.get('query')
+        query_annotation = run_sql_plus_plus_query.__annotations__.get("query")
         assert query_annotation is str
         assert get_origin(query_annotation) is not Annotated
 
     def test_query_annotation_annotated_when_generation_enabled(self):
         """Verify that query parameter annotation is Annotated with description when generation is enabled."""
-        from typing import Annotated, get_origin
-        from pydantic import Field
         from tools.query import run_sql_plus_plus_query
 
         # Call get_tools with enable_query_generation=True
-        tools = get_tools(read_only_mode=True, enable_query_generation=True)
+        get_tools(read_only_mode=True, enable_query_generation=True)
 
         # Check that the query annotation is Annotated[str, Field(...)]
-        query_annotation = run_sql_plus_plus_query.__annotations__.get('query')
+        query_annotation = run_sql_plus_plus_query.__annotations__.get("query")
         assert get_origin(query_annotation) is Annotated
 
         # Verify the Field has a description
-        annotated_args = get_origin(query_annotation).__args__(query_annotation)
         field_description = query_annotation.__metadata__[0].description
         assert "generate_or_modify_sql_plus_plus_query" in field_description
 

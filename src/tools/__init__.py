@@ -10,12 +10,9 @@ Tool Categories:
 
 from collections.abc import Callable
 
-<<<<<<< HEAD
 # Docs / API reference tools
 from .docs import ask_couchbase_docs
-=======
 from mcp.types import ToolAnnotations
->>>>>>> main
 
 # Index tools
 from .index import get_index_advisor_recommendations, list_indexes
@@ -31,11 +28,8 @@ from .kv import (
 
 # Query tools
 from .query import (
-<<<<<<< HEAD
     generate_or_modify_sql_plus_plus_query,
-=======
     explain_sql_plus_plus_query,
->>>>>>> main
     get_longest_running_queries,
     get_most_frequent_queries,
     get_queries_not_selective,
@@ -197,12 +191,9 @@ __all__ = [
     # Tool categories
     "READ_ONLY_TOOLS",
     "KV_WRITE_TOOLS",
-<<<<<<< HEAD
     "QUERY_GENERATION_TOOLS",
-=======
     # Tool annotations
     "TOOL_ANNOTATIONS",
->>>>>>> main
     # Convenience
     "ALL_TOOLS",
     "get_tools",

@@ -9,8 +9,6 @@ Tests for:
 
 from __future__ import annotations
 
-import re
-
 import pytest
 from conftest import (
     create_mcp_session,
@@ -159,47 +157,6 @@ async def test_run_sql_plus_plus_query_meta() -> None:
         pytest.skip(skip_reason)
 
 
-<<<<<<< HEAD
-
-@pytest.mark.asyncio
-async def test_generate_or_modify_sql_plus_plus_query() -> None:
-    """Verify run_sql_plus_plus_query can retrieve document metadata."""
-    bucket = require_test_bucket()
-    scope = get_test_scope()
-    collection = get_test_collection()
-    async with create_mcp_session() as session:
-        response = await session.call_tool(
-            "generate_or_modify_sql_plus_plus_query",
-            arguments={
-                "bucket_name": bucket,
-                "scope_name": scope,
-                "collection_names": [collection],
-                "message": "Generate a query to get the count of documents in the collection",
-            },
-        )
-        m = re.search(r"```(?:sql)?\s*\n(.*?)\n```", extract_payload(response), flags=re.IGNORECASE | re.DOTALL)
-        assert m, "Could not extract SQL query from agent response"
-        sql = m.group(1).strip()
-
-        actual_result = await session.call_tool(
-            "run_sql_plus_plus_query",
-            arguments={
-                "bucket_name": bucket,
-                "scope_name": scope,
-                "query": sql,
-            },
-        )
-
-        expected_result = await session.call_tool(
-            "run_sql_plus_plus_query",
-            arguments={
-                "bucket_name": bucket,
-                "scope_name": scope,
-                "query": f"SELECT COUNT(*) as doc_count FROM `{collection}`",
-            },
-        )
-        assert extract_payload(actual_result) == extract_payload(expected_result)
-=======
 @pytest.mark.asyncio
 async def test_explain_sql_plus_plus_query_with_query() -> None:
     """Verify explain_sql_plus_plus_query returns plan and evaluation for a query."""
@@ -234,4 +191,3 @@ async def test_explain_sql_plus_plus_query_with_query() -> None:
         query_context = payload.get("query_context", {})
         assert query_context.get("bucket_name") == bucket
         assert query_context.get("scope_name") == scope
->>>>>>> main

@@ -257,11 +257,8 @@ dependencies = [
     { name = "couchbase" },
     { name = "lark-sqlpp" },
     { name = "mcp", extra = ["cli"] },
-<<<<<<< HEAD
     { name = "requests" },
     { name = "urllib3" },
-=======
->>>>>>> main
 ]
 
 [package.optional-dependencies]
