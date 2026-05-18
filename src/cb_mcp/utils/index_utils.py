@@ -160,6 +160,39 @@ def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
     }
 
 
+def _validate_rest_row(idx: dict[str, Any]) -> str | None:
+    """Return an error reason if *idx* from the REST API is missing required fields."""
+    if not (idx.get("indexName") or idx.get("name")):
+        return "missing 'indexName'/'name' field"
+    definition = idx.get("definition")
+    if not definition or not isinstance(definition, str):
+        return "missing or invalid 'definition' field"
+    if not idx.get("status"):
+        return "missing 'status' field"
+    if not idx.get("bucket"):
+        return "missing 'bucket' field"
+    if "lastScanTime" not in idx:
+        return "missing 'lastScanTime' field"
+    return None
+
+
+def _validate_query_row(idx: dict[str, Any]) -> str | None:
+    """Return an error reason if *idx* from system:indexes is missing required fields."""
+    if not idx.get("name"):
+        return "missing 'name' field"
+    metadata = idx.get("metadata")
+    if not isinstance(metadata, dict) or not metadata.get("definition"):
+        return "missing or invalid 'metadata.definition' field"
+    if not idx.get("state"):
+        return "missing 'state' field"
+    for field in ("bucket", "scope", "collection"):
+        if not idx.get(field):
+            return f"missing {field!r} field (LET clause may not have run)"
+    if "last_scan_time" not in metadata:
+        return "missing 'metadata.last_scan_time' field"
+    return None
+
+
 def process_index_data_from_rest_api(
     idx: dict[str, Any],
     return_raw_index_stats: bool = False,
@@ -180,30 +213,20 @@ def process_index_data_from_rest_api(
     if return_raw_index_stats:
         return idx
 
+    error = _validate_rest_row(idx)
+    if error:
+        return _raw_fallback(idx, error)
+
     name = idx.get("indexName") or idx.get("name")
-    if not name:
-        return _raw_fallback(idx, "missing 'indexName'/'name' field")
-
-    raw_definition = idx.get("definition")
-    if not raw_definition or not isinstance(raw_definition, str):
-        return _raw_fallback(idx, "missing or invalid 'definition' field")
-
-    raw_status = idx.get("status")
-    if not raw_status:
-        return _raw_fallback(idx, "missing 'status' field")
-
-    bucket = idx.get("bucket")
-    if not bucket:
-        return _raw_fallback(idx, "missing 'bucket' field")
+    raw_definition = idx["definition"]
+    raw_status = idx["status"]
 
     index_info: dict[str, Any] = {
         "name": name,
         "definition": clean_index_definition(raw_definition),
-        # Map REST status to SQL++ query service state, passing definition to
-        # resolve Created → deferred/pending.
         "status": map_rest_status_to_query_state(raw_status, raw_definition),
         "isPrimary": bool(idx.get("isPrimary", False)),
-        "bucket": bucket,
+        "bucket": idx["bucket"],
     }
 
     if "scope" in idx:
@@ -211,7 +234,7 @@ def process_index_data_from_rest_api(
     if "collection" in idx:
         index_info["collection"] = idx["collection"]
 
-    index_info["lastScanTime"] = idx.get("lastScanTime") or "NA"
+    index_info["lastScanTime"] = idx["lastScanTime"] or "NA"
 
     return index_info
 
@@ -244,37 +267,21 @@ def process_index_data_from_query(
     if return_raw_index_stats:
         return idx
 
-    name = idx.get("name")
-    if not name:
-        return _raw_fallback(idx, "missing 'name' field")
+    error = _validate_query_row(idx)
+    if error:
+        return _raw_fallback(idx, error)
 
-    metadata = idx.get("metadata")
-    if not isinstance(metadata, dict) or not metadata.get("definition"):
-        return _raw_fallback(idx, "missing or invalid 'metadata.definition' field")
-
-    state = idx.get("state")
-    if not state:
-        return _raw_fallback(idx, "missing 'state' field")
-
-    # bucket/scope/collection are injected by the LET clause in
-    # fetch_indexes_via_query_service. If any are absent, the row didn't
-    # come from our SQL or the LET semantics have changed — either way
-    # we'd rather fail loud than emit a row with None location fields.
-    for field in ("bucket", "scope", "collection"):
-        if not idx.get(field):
-            return _raw_fallback(
-                idx, f"missing {field!r} field (LET clause may not have run)"
-            )
+    metadata = idx["metadata"]
 
     return {
-        "name": name,
+        "name": idx["name"],
         "definition": metadata["definition"],
-        "status": state,
+        "status": idx["state"],
         "bucket": idx["bucket"],
         "scope": idx["scope"],
         "collection": idx["collection"],
         "isPrimary": bool(idx.get("is_primary", False)),
-        "lastScanTime": metadata.get("last_scan_time", "NA") or "NA",
+        "lastScanTime": metadata["last_scan_time"],
     }
 
 

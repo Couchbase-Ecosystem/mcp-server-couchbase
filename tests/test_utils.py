@@ -156,6 +156,7 @@ class TestIndexUtilsFunctions:
             "bucket": "travel-sample",
             "scope": "_default",
             "collection": "_default",
+            "lastScanTime": "NA",
         }
         result = process_index_data_from_rest_api(idx)
 
@@ -210,6 +211,7 @@ class TestIndexUtilsFunctions:
             "definition": "CREATE INDEX idx_test ON bucket(field)",
             "status": "Ready",
             "bucket": "bucket",
+            "lastScanTime": "NA",
         }
         result = process_index_data_from_rest_api(idx)
 
@@ -258,6 +260,7 @@ class TestIndexUtilsFunctions:
             "status": "Ready",
             "isPrimary": True,
             "bucket": "bucket",
+            "lastScanTime": "NA",
         }
         result = process_index_data_from_rest_api(idx)
 
@@ -415,7 +418,10 @@ class TestIndexUtilsFunctions:
             "collection": "airport",
             "is_primary": True,
             "state": "online",
-            "metadata": {"definition": "CREATE PRIMARY INDEX ..."},
+            "metadata": {
+                "definition": "CREATE PRIMARY INDEX ...",
+                "last_scan_time": None,
+            },
         }
 
         result = process_index_data_from_query(idx)
@@ -469,7 +475,10 @@ class TestIndexUtilsFunctions:
             "scope": "s",
             "collection": "c",
             "state": "online",
-            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+            "metadata": {
+                "definition": "CREATE INDEX idx ON b.s.c(x)",
+                "last_scan_time": None,
+            },
         }
         result = process_index_data_from_query(idx)
         assert result is not None
@@ -584,10 +593,11 @@ class TestIndexUtilsFunctions:
         assert "state" in result["error"]
         assert result["raw_index_stats"] is idx
 
-    def test_rest_missing_last_scan_time_defaults_to_NA(self) -> None:
-        """REST path: missing 'lastScanTime' is semantically valid
-        (never-scanned index) and should default to the 'NA' sentinel
-        without triggering a fallback."""
+    def test_rest_missing_last_scan_time_key_falls_back_to_raw(self) -> None:
+        """REST path: REST always emits the 'lastScanTime' key today (with
+        literal 'NA' for never-scanned). Its absence indicates a schema
+        change upstream and must fall back to raw.
+        """
         idx = {
             "name": "idx_test",
             "definition": "CREATE INDEX idx_test ON bucket(field)",
@@ -595,14 +605,30 @@ class TestIndexUtilsFunctions:
             "bucket": "bucket",
             "scope": "scope",
             "collection": "collection",
-            # no lastScanTime
+            # no lastScanTime — simulate a schema change
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert "error" in result
+        assert "lastScanTime" in result["error"]
+        assert result["raw_index_stats"] is idx
+
+    def test_rest_literal_NA_last_scan_time_passes_through(self) -> None:
+        """REST path: never-scanned indexes carry the literal 'NA' string —
+        this is the normal case and must NOT trigger a fallback."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+            "lastScanTime": "NA",
         }
         result = process_index_data_from_rest_api(idx)
         assert "error" not in result
         assert result["lastScanTime"] == "NA"
 
     def test_rest_null_last_scan_time_defaults_to_NA(self) -> None:
-        """REST path: explicit null lastScanTime should also default to 'NA'."""
+        """REST path: explicit null lastScanTime (defensive — REST doesn't
+        emit null today but we coerce it to 'NA' if it ever does)."""
         idx = {
             "name": "idx_test",
             "definition": "CREATE INDEX idx_test ON bucket(field)",
@@ -614,23 +640,29 @@ class TestIndexUtilsFunctions:
         assert "error" not in result
         assert result["lastScanTime"] == "NA"
 
-    def test_query_missing_last_scan_time_defaults_to_NA(self) -> None:
-        """Query path: missing metadata.last_scan_time is semantically valid
-        and should default to 'NA' without triggering a fallback."""
+    def test_query_missing_last_scan_time_key_falls_back_to_raw(self) -> None:
+        """Query path: system:indexes always emits 'metadata.last_scan_time'
+        today (with value null for never-scanned). Its absence indicates a
+        schema change upstream and must fall back to raw.
+        """
         idx = {
             "name": "idx",
             "bucket": "b",
             "scope": "s",
             "collection": "c",
             "state": "online",
+            # metadata is present but the last_scan_time key is missing —
+            # this is the schema-drift case we want to detect.
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
         result = process_index_data_from_query(idx)
-        assert "error" not in result
-        assert result["lastScanTime"] == "NA"
+        assert "error" in result
+        assert "last_scan_time" in result["error"]
+        assert result["raw_index_stats"] is idx
 
-    def test_query_null_last_scan_time_defaults_to_NA(self) -> None:
-        """Query path: explicit null last_scan_time should also default to 'NA'."""
+    def test_query_null_last_scan_time_passes_through(self) -> None:
+        """Query path: null last_scan_time (never-scanned) is honored verbatim
+        — we don't substitute 'NA' or any other sentinel."""
         idx = {
             "name": "idx",
             "bucket": "b",
@@ -644,7 +676,25 @@ class TestIndexUtilsFunctions:
         }
         result = process_index_data_from_query(idx)
         assert "error" not in result
-        assert result["lastScanTime"] == "NA"
+        assert result["lastScanTime"] is None
+
+    def test_query_timestamp_last_scan_time_passes_through(self) -> None:
+        """Query path: timestamp last_scan_time is passed through verbatim."""
+        ts = "2026-02-26T13:12:56.581+05:30"
+        idx = {
+            "name": "idx",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
+            "state": "online",
+            "metadata": {
+                "definition": "CREATE INDEX idx ON b.s.c(x)",
+                "last_scan_time": ts,
+            },
+        }
+        result = process_index_data_from_query(idx)
+        assert "error" not in result
+        assert result["lastScanTime"] == ts
 
     def test_query_legacy_keyspace_id_only_works(self) -> None:
         """Query path: legacy bucket-level indexes are normalised in SQL via
@@ -661,7 +711,10 @@ class TestIndexUtilsFunctions:
             "scope": "_default",
             "collection": "_default",
             "state": "online",
-            "metadata": {"definition": "CREATE INDEX legacy_idx ON `my-bucket`(x)"},
+            "metadata": {
+                "definition": "CREATE INDEX legacy_idx ON `my-bucket`(x)",
+                "last_scan_time": None,
+            },
         }
         result = process_index_data_from_query(idx)
         assert "error" not in result
@@ -1302,7 +1355,10 @@ class TestListIndexesVersionRouting:
                         "scope": "s",
                         "collection": "c",
                         "state": "online",
-                        "metadata": {"definition": "CREATE INDEX idx1 ON b.s.c(x)"},
+                        "metadata": {
+                            "definition": "CREATE INDEX idx1 ON b.s.c(x)",
+                            "last_scan_time": None,
+                        },
                     }
                 ],
             ) as mock_query,
@@ -1355,6 +1411,7 @@ class TestListIndexesVersionRouting:
                         "scope": "s",
                         "collection": "c",
                         "isPrimary": False,
+                        "lastScanTime": "NA",
                     }
                 ],
             ) as mock_rest,
