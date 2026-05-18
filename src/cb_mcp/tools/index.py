@@ -111,19 +111,9 @@ async def fetch_indexes_via_query_service(
 ) -> list[dict[str, Any]]:
     """Fetch indexes from ``system:indexes`` via the query service.
 
-    Bucket / scope / collection are normalized in SQL++ via a LET clause so
-    legacy bucket-level indexes (which carry only ``keyspace_id``) and modern
-    scoped indexes (which carry ``bucket_id`` + ``scope_id`` + ``keyspace_id``)
-    both produce the same enriched row shape. User-supplied filters are
-    applied against the normalized aliases so they match symmetrically — a
-    legacy index in bucket X matches ``bucket_name=X`` just like a modern
-    one does.
-
-    Args:
-        return_raw_index_stats: When True, return raw ``s`` rows (no
-            injected bucket/scope/collection). When False (default), each
-            row is enriched with normalized ``bucket`` / ``scope`` /
-            ``collection`` keys.
+    Uses a LET clause to normalize legacy and modern index shapes so filters
+    apply symmetrically. When ``return_raw_index_stats`` is True, returns raw
+    rows with no injected bucket/scope/collection fields.
 
     Returns:
         List of dict rows from ``system:indexes``.
@@ -176,48 +166,13 @@ async def list_indexes(
     index_name: str | None = None,
     return_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
-    """List all indexes in the cluster with optional filtering by bucket, scope, collection, and index name.
-    Returns a list of indexes with their names and CREATE INDEX definitions.
+    """List indexes in the cluster with optional filtering by bucket, scope, collection, and index name.
 
-    The data source depends on the Couchbase Server version:
-    - Cluster version >= 8.x: query ``system:indexes`` via the query
-      service, which exposes the original CREATE INDEX statement directly in
-      ``metadata.definition``. Bucket / scope / collection are normalized in
-      SQL++ via a LET clause so legacy bucket-level indexes and modern
-      scoped indexes share one output shape.
-    - Cluster version < 8.x: fall back to the
-      Index Service REST API ``/getIndexStatus`` endpoint.
+    Filters must be provided hierarchically: scope requires bucket, collection requires both, index requires all three.
+    Set ``return_raw_index_stats=True`` to get the unprocessed source row for each index.
 
-    Args:
-        ctx: MCP context for cluster connection
-        bucket_name: Optional bucket name to filter indexes
-        scope_name: Optional scope name to filter indexes (requires bucket_name)
-        collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
-        index_name: Optional index name to filter indexes (requires bucket_name, scope_name, and collection_name)
-        return_raw_index_stats: If True, return the unprocessed source row
-            for each index instead of the processed shape. Default is False.
-
-    Returns:
-        List of dictionaries. When ``return_raw_index_stats`` is True, each
-        entry is the raw source row as returned by the data source (shape
-        depends on whether the query service or REST endpoint was used).
-
-        Otherwise, for successfully processed rows, each entry has:
-        - name (str): Index name
-        - definition (str): CREATE INDEX statement
-        - status (str): Current index state. SQL++ defines 7 canonical values:
-          online, deferred, building, pending, offline, abridged, scheduled for creation.
-          On the REST path, unknown/future statuses are returned lowercased for forward-compat.
-        - isPrimary (bool): Whether this is a primary index
-        - bucket (str): Bucket name where the index exists
-        - scope (str): Scope name where the index exists
-        - collection (str): Collection name where the index exists
-        - lastScanTime (str): Last time the index was scanned
-
-        If a row is missing a required field (i.e. there's a problem in
-        fetching the index information), the entry instead contains:
-        - error (str): Human-readable description of what could not be processed
-        - raw_index_stats (dict): The unprocessed raw row from the source
+    Each result contains: name, definition (CREATE INDEX statement), status, isPrimary, bucket, scope, collection, lastScanTime.
+    If a required field is missing, the entry contains error and raw_index_stats instead.
     """
     try:
         # Validate parameters
@@ -245,10 +200,9 @@ async def list_indexes(
                 index_name=index_name,
                 return_raw_index_stats=return_raw_index_stats,
             )
-            indexes = [
-                process_index_data_from_query(idx, return_raw_index_stats)
-                for idx in raw_indexes
-            ]
+            if return_raw_index_stats:
+                return raw_indexes
+            indexes = [process_index_data_from_query(idx) for idx in raw_indexes]
             logger.info(f"Found {len(indexes)} indexes via query service")
             return indexes
 
@@ -270,10 +224,9 @@ async def list_indexes(
         )
 
         # Process and format the results
-        indexes = [
-            process_index_data_from_rest_api(idx, return_raw_index_stats)
-            for idx in raw_indexes
-        ]
+        if return_raw_index_stats:
+            return raw_indexes
+        indexes = [process_index_data_from_rest_api(idx) for idx in raw_indexes]
 
         logger.info(f"Found {len(indexes)} indexes from REST API")
         return indexes

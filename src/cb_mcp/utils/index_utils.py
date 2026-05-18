@@ -82,18 +82,6 @@ _REST_STATUS_TO_QUERY_STATE: dict[str, str] = {
 def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> str:
     """Map a REST API index status string to its SQL++ query service equivalent.
 
-    The REST API /getIndexStatus endpoint returns status strings like
-    "Ready", "Created", "Building", etc. This function normalizes them
-    to the SQL++ system:all_indexes state values: online, deferred, building,
-    pending, offline, scheduled for creation.
-
-    For statuses with qualifiers (e.g. "Building (Upgrading)"), the prefix
-    before the parenthesis is used for lookup.
-
-    For "Created" status, the definition field is inspected: if it contains
-    ``defer_build`` the index is explicitly deferred; otherwise it is pending
-    (created normally but not yet built).
-
     Args:
         rest_status: Status string from the REST API.
         definition: The raw CREATE INDEX definition string from the REST API.
@@ -141,9 +129,8 @@ def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> st
 def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
     """Build a fallback response when an index row cannot be fully processed.
 
-    Returns the raw index data as-is (no processing) under ``raw_index_stats``
-    and an ``error`` field explaining what went wrong. Also logs a warning so
-    the issue is surfaced server-side.
+    Returns the raw index data as-is under ``raw_index_stats`` and an
+    ``error`` field explaining what went wrong.
     """
     logger.warning(
         "Failed to process index data (%s). There's a problem in fetching the "
@@ -195,24 +182,17 @@ def _validate_query_row(idx: dict[str, Any]) -> str | None:
 
 def process_index_data_from_rest_api(
     idx: dict[str, Any],
-    return_raw_index_stats: bool = False,
 ) -> dict[str, Any]:
     """Process raw index data from the REST API into formatted index info.
 
     Args:
         idx: Raw index data from the /getIndexStatus API
-        return_raw_index_stats: If True, return the unprocessed index row.
 
     Returns:
-        Formatted index info dictionary, or the unprocessed input row when
-        ``return_raw_index_stats`` is True. If a required field (name,
-        definition, or status) is missing or invalid, returns a fallback dict
-        containing ``error`` and the unprocessed raw row under
-        ``raw_index_stats``.
+        Formatted index info dictionary. If a required field is missing or
+        invalid, returns a fallback dict containing ``error`` and the
+        unprocessed raw row under ``raw_index_stats``.
     """
-    if return_raw_index_stats:
-        return idx
-
     error = _validate_rest_row(idx)
     if error:
         return _raw_fallback(idx, error)
@@ -241,7 +221,6 @@ def process_index_data_from_rest_api(
 
 def process_index_data_from_query(
     idx: dict[str, Any],
-    return_raw_index_stats: bool = False,
 ) -> dict[str, Any]:
     """Process a row from ``system:indexes`` into formatted index info.
 
@@ -255,18 +234,12 @@ def process_index_data_from_query(
         idx: A single index row from ``system:indexes`` with ``bucket`` /
             ``scope`` / ``collection`` already injected by the LET clause
             in the fetch query.
-        return_raw_index_stats: If True, return the unprocessed index row.
 
     Returns:
-        Formatted index info dictionary, or the unprocessed input row when
-        ``return_raw_index_stats`` is True. If a required field (name,
-        metadata.definition, or state) is missing or invalid, returns a
-        fallback dict containing ``error`` and the unprocessed raw row under
-        ``raw_index_stats``.
+        Formatted index info dictionary. If a required field is missing or
+        invalid, returns a fallback dict containing ``error`` and the
+        unprocessed raw row under ``raw_index_stats``.
     """
-    if return_raw_index_stats:
-        return idx
-
     error = _validate_query_row(idx)
     if error:
         return _raw_fallback(idx, error)

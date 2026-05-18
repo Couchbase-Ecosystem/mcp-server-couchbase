@@ -185,25 +185,6 @@ class TestIndexUtilsFunctions:
         assert result["lastScanTime"] == "Thu Feb 26 13:12:55 IST 2026"
         assert "extra_field" not in result
 
-    def test_process_index_data_with_raw_stats(self) -> None:
-        """return_raw_index_stats=True should return the raw row unprocessed."""
-        idx = {
-            "name": "idx_test",
-            "definition": "CREATE INDEX idx_test ON bucket(field)",
-            "status": "Ready",
-            "bucket": "bucket",
-            "scope": "scope",
-            "collection": "collection",
-            "extra_field": "some_value",
-        }
-        result = process_index_data_from_rest_api(idx, return_raw_index_stats=True)
-
-        # Returned value IS the input row — no copy, no field rewrites.
-        assert result is idx
-        # Raw fields are still present (e.g. unmodified status casing).
-        assert result["status"] == "Ready"
-        assert result["extra_field"] == "some_value"
-
     def test_process_index_data_without_raw_stats(self) -> None:
         """Process index data without raw stats by default."""
         idx = {
@@ -445,24 +426,6 @@ class TestIndexUtilsFunctions:
         result = process_index_data_from_query(idx)
         assert result is not None
         assert result["lastScanTime"] == "2026-02-26T13:12:56.581+05:30"
-
-    def test_process_index_data_from_query_with_raw_stats(self) -> None:
-        """return_raw_index_stats=True should return the raw row unprocessed."""
-        idx = {
-            "name": "idx",
-            "bucket_id": "b",
-            "scope_id": "s",
-            "keyspace_id": "c",
-            "state": "online",
-            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
-        }
-        result = process_index_data_from_query(idx, return_raw_index_stats=True)
-        # Returned value IS the input row — no field renaming, no defaults applied.
-        assert result is idx
-        # Raw shape preserved (state, not status; bucket_id, not bucket).
-        assert result["state"] == "online"
-        assert result["bucket_id"] == "b"
-        assert "bucket" not in result
 
     def test_process_index_data_from_query_without_raw_stats(self) -> None:
         """Default (processed) shape should not carry raw-row keys."""
@@ -747,52 +710,6 @@ class TestIndexUtilsFunctions:
         assert any(
             "report" in record.getMessage().lower() for record in caplog.records
         ), "Warning should ask the user to report the issue"
-
-    # ------------------------------------------------------------------
-    # Raw passthrough: when return_raw_index_stats=True, the returned
-    # value is the unmodified input row itself (no processing applied).
-    # ------------------------------------------------------------------
-
-    def test_rest_raw_index_stats_is_unmodified_passthrough(self) -> None:
-        """REST path: returned object IS the input idx — same identity,
-        no copies, no field rewrites, no status normalisation."""
-        idx = {
-            "name": "idx_test",
-            "definition": "CREATE INDEX idx_test ON bucket(field)",
-            "status": "Ready",
-            "bucket": "bucket",
-            "lastScanTime": "Thu Feb 26 13:12:55 IST 2026",
-            "extra_field": "untouched",
-        }
-        result = process_index_data_from_rest_api(idx, return_raw_index_stats=True)
-        # Same object — no copy, no field stripping, no processing.
-        assert result is idx
-        # Status is NOT mapped to query-service casing.
-        assert result["status"] == "Ready"
-        # Untouched extra field still present.
-        assert result["extra_field"] == "untouched"
-
-    def test_query_raw_index_stats_is_unmodified_passthrough(self) -> None:
-        """Query path: returned object IS the input idx — same identity,
-        no copies, no field renaming (state stays 'state', bucket_id stays)."""
-        idx = {
-            "name": "idx",
-            "bucket_id": "b",
-            "scope_id": "s",
-            "keyspace_id": "c",
-            "state": "online",
-            "metadata": {
-                "definition": "CREATE INDEX idx ON b.s.c(x)",
-                "last_scan_time": "2026-02-26T13:12:56.581+05:30",
-                "extra_meta": "untouched",
-            },
-        }
-        result = process_index_data_from_query(idx, return_raw_index_stats=True)
-        assert result is idx
-        # Raw query-service field names preserved (no rename to bucket/status).
-        assert "bucket_id" in result and "bucket" not in result
-        assert "state" in result and "status" not in result
-        assert result["metadata"]["extra_meta"] == "untouched"
 
     def test_map_rest_status_to_query_state(self) -> None:
         """REST API status strings should map to SQL++ query service equivalents."""
