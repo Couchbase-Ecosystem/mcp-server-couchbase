@@ -24,6 +24,14 @@ from utils.query_utils import (
 )
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.query")
+_SQL_BLOCK_RE = re.compile(
+    r"```(?:sql\+\+|sqlpp|n1ql|sql)?\s*(.*?)```",
+    flags=re.IGNORECASE | re.DOTALL,
+)
+_SQL_START_RE = re.compile(
+    r"\b(SELECT|WITH|INSERT|UPSERT|UPDATE|DELETE|MERGE|CREATE|DROP|ALTER|EXPLAIN)\b",
+    flags=re.IGNORECASE,
+)
 
 
 def get_schema_for_collection(
@@ -454,7 +462,54 @@ def _get_bucket_catalog_prompt_states(ctx: Context) -> dict[str, dict[str, Any]]
     return states
 
 
-def generate_or_modify_sql_plus_plus_query(
+def _extract_query_from_agent_answer(raw_answer: str) -> str:
+    """Extract SQL++ text from model output that may include prose or JSON."""
+    answer = (raw_answer or "").strip()
+    if not answer:
+        return ""
+
+    try:
+        payload = json.loads(answer)
+        if isinstance(payload, dict):
+            for key in ("query_generated", "query"):
+                value = payload.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+    except Exception:
+        pass
+
+    for block in _SQL_BLOCK_RE.findall(answer):
+        candidate = block.strip()
+        if candidate:
+            return candidate
+
+    start_match = _SQL_START_RE.search(answer)
+    if start_match:
+        return answer[start_match.start() :].strip()
+
+    return answer
+
+
+def _is_hitl_response(resp_body: dict[str, Any], raw_answer: str) -> bool:
+    """Detect non-final HITL prompts to avoid returning them as SQL++."""
+    metadata = resp_body.get("metadata")
+    if isinstance(metadata, dict) and (
+        metadata.get("hitl_required") or metadata.get("hitl_pending")
+    ):
+        return True
+
+    tool_args = resp_body.get("tool_args")
+    if isinstance(tool_args, dict) and tool_args.get("tool_name") in {
+        "get_schema",
+        "request_query_context",
+    }:
+        return True
+
+    content = str(resp_body.get("content", "") or raw_answer or "").lower()
+    return "please provide the collection schema as json" in content and "infer " in content
+
+
+def generate_or_modify_sql_plus_plus_query(  # noqa: PLR0911, PLR0912
     ctx: Context,
     message: Annotated[
         str,
@@ -567,28 +622,61 @@ def generate_or_modify_sql_plus_plus_query(
         )
 
     try:
-        resp_body = call_agent(content=message, extra_data={"catalog": catalog_prompt})
+        resp_body = call_agent(
+            content=message,
+            extra_payload={
+                "catalog": catalog_prompt,
+                "has_schema_access": False,
+            },
+        )
         raw_answer = extract_answer(resp_body)
-        try:
-            parsed = json.loads(raw_answer)
-            if isinstance(parsed, dict):
-                response: dict[str, Any] = {
-                    "query": str(parsed.get("query", "")).strip(),
-                    "bucket_name": selected_bucket_name,
-                    "scope_name": str(parsed.get("scope_name", "")).strip(),
-                }
-            else:
-                response = {
-                    "query": raw_answer.strip(),
-                    "bucket_name": selected_bucket_name,
-                    "scope_name": "",
-                }
-        except Exception:
-            response = {
-                "query": raw_answer.strip(),
+
+        if isinstance(resp_body, dict) and _is_hitl_response(resp_body, raw_answer):
+            return {
+                "query": "",
                 "bucket_name": selected_bucket_name,
                 "scope_name": "",
+                "message": (
+                    "Error: Agent returned a non-final HITL response (schema/context request) "
+                    "instead of a SQL++ query."
+                ),
             }
+
+        response_scope_name = (
+            str(resp_body.get("scope_name", "")).strip()
+            if isinstance(resp_body, dict)
+            else ""
+        )
+        if not response_scope_name and raw_answer:
+            try:
+                payload = json.loads(raw_answer)
+                if isinstance(payload, dict):
+                    response_scope_name = str(payload.get("scope_name", "")).strip()
+            except Exception:
+                pass
+
+        query_text = ""
+        if isinstance(resp_body, dict):
+            direct_query = resp_body.get("query_generated")
+            if isinstance(direct_query, str) and direct_query.strip():
+                query_text = direct_query.strip()
+
+        if not query_text:
+            query_text = _extract_query_from_agent_answer(raw_answer)
+
+        if not query_text:
+            return {
+                "query": "",
+                "bucket_name": selected_bucket_name,
+                "scope_name": response_scope_name,
+                "message": "Error: Agent returned an empty SQL++ query.",
+            }
+
+        response: dict[str, Any] = {
+            "query": query_text,
+            "bucket_name": selected_bucket_name,
+            "scope_name": response_scope_name,
+        }
         if warning_message:
             response["message"] = warning_message
         return response

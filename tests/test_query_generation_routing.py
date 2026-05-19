@@ -136,4 +136,36 @@ def test_generate_query_uses_selected_bucket_on_success(monkeypatch) -> None:
     assert result["bucket_name"] == "b1"
     assert result["scope_name"] == "_default"
     assert captured_call["content"] == "count users"
-    assert captured_call["extra_data"] == {"catalog": "catalog prompt"}
+    assert captured_call["extra_payload"] == {
+        "catalog": "catalog prompt",
+        "has_schema_access": False,
+    }
+
+
+def test_generate_query_returns_error_for_hitl_response(monkeypatch) -> None:
+    """Do not treat HITL get_schema instructions as final SQL++ output."""
+    monkeypatch.setattr(
+        query_tools,
+        "_get_bucket_catalog_prompt_states",
+        lambda _ctx: {"b1": {"prompt": "catalog prompt"}},
+    )
+    monkeypatch.setattr(
+        query_tools,
+        "call_agent",
+        lambda **_kwargs: {
+            "content": "Please provide schema.\n```sql\ninfer toy_sales;\n```",
+            "is_final_response": False,
+            "tool_args": {"tool_name": "get_schema", "collections": ["b1.s1.c1"]},
+            "metadata": {"hitl_required": True},
+        },
+    )
+    monkeypatch.setattr(
+        query_tools, "extract_answer", lambda resp_body: str(resp_body["content"])
+    )
+
+    result = query_tools.generate_or_modify_sql_plus_plus_query(
+        None, "count users", "b1"  # type: ignore[arg-type]
+    )
+
+    assert result["query"] == ""
+    assert "non-final hitl response" in str(result["message"]).lower()
