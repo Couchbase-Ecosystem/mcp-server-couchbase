@@ -28,7 +28,7 @@ from .query import run_cluster_query, run_sql_plus_plus_query
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.index")
 
 
-async def get_index_advisor_recommendations(
+def get_index_advisor_recommendations(
     ctx: Context, bucket_name: str, scope_name: str, query: str
 ) -> dict[str, Any]:
     """Get index recommendations from Couchbase Index Advisor for a given SQL++ query.
@@ -53,7 +53,7 @@ async def get_index_advisor_recommendations(
         logger.info("Running Index Advisor for the provided query")
 
         # Execute the ADVISOR function at cluster level using run_sql_plus_plus_query
-        advisor_results = await run_sql_plus_plus_query(
+        advisor_results = run_sql_plus_plus_query(
             ctx, bucket_name, scope_name, advisor_query
         )
 
@@ -101,7 +101,7 @@ async def get_index_advisor_recommendations(
         raise
 
 
-async def fetch_indexes_via_query_service(
+def fetch_indexes_via_query_service(
     ctx: Context,
     bucket_name: str | None,
     scope_name: str | None,
@@ -154,11 +154,11 @@ async def fetch_indexes_via_query_service(
     )
     logger.info(f"Running list_indexes query: {query}")
 
-    rows = await run_cluster_query(ctx, query, named_parameters=params)
+    rows = run_cluster_query(ctx, query, named_parameters=params)
     return [row for row in rows if isinstance(row, dict)]
 
 
-async def list_indexes(
+def list_indexes(
     ctx: Context,
     bucket_name: str | None = None,
     scope_name: str | None = None,
@@ -183,8 +183,8 @@ async def list_indexes(
         validate_connection_settings(settings)
 
         # Decide which path to use based on cluster version (via SDK).
-        cluster = await get_cluster_connection(ctx)
-        major_version = await resolve_cluster_major_version(cluster)
+        cluster = get_cluster_connection(ctx)
+        major_version = resolve_cluster_major_version(cluster)
 
         if major_version >= QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION:
             logger.info(
@@ -192,7 +192,7 @@ async def list_indexes(
                 f"bucket={bucket_name}, scope={scope_name}, "
                 f"collection={collection_name}, index={index_name}"
             )
-            raw_indexes = await fetch_indexes_via_query_service(
+            raw_indexes = fetch_indexes_via_query_service(
                 ctx,
                 bucket_name=bucket_name,
                 scope_name=scope_name,
@@ -212,7 +212,7 @@ async def list_indexes(
             f"bucket={bucket_name}, scope={scope_name}, "
             f"collection={collection_name}, index={index_name}"
         )
-        raw_indexes = await fetch_indexes_from_rest_api(
+        raw_indexes = fetch_indexes_from_rest_api(
             settings["connection_string"],
             settings["username"],
             settings["password"],

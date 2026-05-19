@@ -285,7 +285,7 @@ def parse_major_version(version_str: str | None) -> int:
         raise ValueError(f"Cannot parse major version from {version_str!r}") from None
 
 
-async def resolve_cluster_major_version(cluster: Any) -> int:
+def resolve_cluster_major_version(cluster: Any) -> int:
     """Detect the cluster's major version via the SDK.
 
     Reads the per-node ``version`` field from ``cluster.cluster_info().nodes``
@@ -304,7 +304,7 @@ async def resolve_cluster_major_version(cluster: Any) -> int:
     Raises if cluster_info() fails — callers should not silently degrade
     when version detection is unavailable.
     """
-    info = await cluster.cluster_info()
+    info = cluster.cluster_info()
 
     nodes = info.nodes or []
     versions: list[str] = []
@@ -459,7 +459,7 @@ def _build_query_params(
     return params
 
 
-async def fetch_indexes_from_rest_api(
+def fetch_indexes_from_rest_api(
     connection_string: str,
     username: str,
     password: str,
@@ -509,7 +509,7 @@ async def fetch_indexes_from_rest_api(
 
     # Try each host one by one until we get a successful response
     last_error = None
-    async with httpx.AsyncClient(verify=verify_ssl, timeout=timeout) as client:
+    with httpx.Client(verify=verify_ssl, timeout=timeout) as client:
         for host in hosts:
             try:
                 url = f"{protocol}://{host}:{port}/getIndexStatus"
@@ -517,7 +517,7 @@ async def fetch_indexes_from_rest_api(
                     f"Attempting to fetch indexes from: {url} with params: {params}"
                 )
 
-                response = await client.get(
+                response = client.get(
                     url,
                     params=params,
                     auth=(username, password),
