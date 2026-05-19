@@ -7,12 +7,8 @@ This module contains utility functions for configuration, connection, and contex
 # Configuration utilities
 from .config import (
     get_settings,
-<<<<<<< HEAD
-    parse_disabled_tools,
-    set_settings,
-=======
     parse_tool_names,
->>>>>>> main
+    set_settings,
 )
 
 # Connection utilities

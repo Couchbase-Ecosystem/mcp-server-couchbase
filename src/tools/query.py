@@ -6,12 +6,8 @@ This module contains tools for getting the schema for a collection and running S
 
 import json
 import logging
-<<<<<<< HEAD
-from typing import Annotated, Any
-=======
 import re
-from typing import Any
->>>>>>> main
+from typing import Annotated, Any
 
 from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
 from mcp.server.fastmcp import Context
