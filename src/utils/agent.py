@@ -32,7 +32,7 @@ logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.agent")
 # ---------------------------------------------------------------------------
 _DEFAULT_AGENT_BASE_URL = "https://iq-fastapi.prod.cbdevx.com"
 _CHAT_ENDPOINT = "/chat"
-_REQUEST_TIMEOUT_SECONDS = 120  # generous timeout for LLM-backed agents
+_REQUEST_TIMEOUT_SECONDS = 300  # generous timeout for LLM-backed agents
 
 
 def get_agent_base_url() -> str:
