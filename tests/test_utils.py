@@ -12,7 +12,7 @@ Tests for:
 from __future__ import annotations
 
 import logging
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -1050,8 +1050,7 @@ class TestFetchIndexesViaQueryService:
     )
     _BASE_WHERE = "s.namespace_id = 'default' AND s.`using` = 'gsi'"
 
-    @pytest.mark.asyncio
-    async def test_no_filters(self) -> None:
+    def test_no_filters(self) -> None:
         """With no filters, query should carry the namespace + GSI guards
         and the LET-based bucket/scope/collection normalization."""
         mock_ctx = MagicMock()
@@ -1073,7 +1072,6 @@ class TestFetchIndexesViaQueryService:
         )
         assert len(result) == 2
 
-    @pytest.mark.asyncio
     def test_raw_mode_selects_raw_source_rows(self) -> None:
         """return_raw_index_stats=True must SELECT RAW s — no injected
         bucket/scope/collection on the result rows."""
@@ -1085,7 +1083,7 @@ class TestFetchIndexesViaQueryService:
 
         with patch(
             "cb_mcp.tools.index.run_cluster_query",
-            new_callable=AsyncMock,
+            new_callable=MagicMock,
             return_value=[{"name": "idx1"}],
         ) as mock_query:
             fetch_indexes_via_query_service(
@@ -1096,7 +1094,6 @@ class TestFetchIndexesViaQueryService:
             mock_ctx, expected_query, named_parameters={}
         )
 
-    @pytest.mark.asyncio
     def test_all_filters(self) -> None:
         """All filters should apply against the normalized LET aliases so
         legacy indexes match by bucket symmetrically with modern ones."""
