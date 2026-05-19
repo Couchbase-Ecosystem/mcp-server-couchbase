@@ -239,7 +239,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         "READ_ONLY_QUERY_MODE",  # Deprecated
     ],
     type=bool,
-    deprecated=True,
     default=DEFAULT_READ_ONLY_MODE,
     help="[DEPRECATED: Use --read-only-mode instead] Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
 )
