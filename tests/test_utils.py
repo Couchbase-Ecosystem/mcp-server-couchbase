@@ -198,23 +198,23 @@ class TestIndexUtilsFunctions:
         assert "raw_index_stats" not in result
 
     def test_rest_missing_name_falls_back_to_raw(self) -> None:
-        """Missing 'name' field should return raw fallback with error message."""
+        """Missing 'name' field should return raw fallback with warning message."""
         idx = {"status": "Ready", "bucket": "bucket"}
         result = process_index_data_from_rest_api(idx)
         assert result == {
-            "error": result["error"],
+            "warning": result["warning"],
             "raw_index_stats": idx,
         }
-        assert "name" in result["error"]
+        assert "name" in result["warning"]
         # Raw stats must be the unmodified original input.
         assert result["raw_index_stats"] is idx
 
     def test_rest_missing_definition_falls_back_to_raw(self) -> None:
-        """Missing 'definition' field should return raw fallback with error message."""
+        """Missing 'definition' field should return raw fallback with warning message."""
         idx = {"name": "idx_test", "status": "Ready", "bucket": "bucket"}
         result = process_index_data_from_rest_api(idx)
-        assert "error" in result
-        assert "definition" in result["error"]
+        assert "warning" in result
+        assert "definition" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_rest_missing_bucket_falls_back_to_raw(self) -> None:
@@ -227,8 +227,8 @@ class TestIndexUtilsFunctions:
             "status": "Ready",
         }
         result = process_index_data_from_rest_api(idx)
-        assert "error" in result
-        assert "bucket" in result["error"]
+        assert "warning" in result
+        assert "bucket" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_process_index_data_primary_index(self) -> None:
@@ -451,11 +451,11 @@ class TestIndexUtilsFunctions:
         assert "state" not in result  # processed shape uses 'status'
 
     def test_query_missing_name_falls_back_to_raw(self) -> None:
-        """Rows without a name should return raw fallback with error message."""
+        """Rows without a name should return raw fallback with warning message."""
         idx = {"bucket_id": "b"}
         result = process_index_data_from_query(idx)
-        assert "error" in result
-        assert "name" in result["error"]
+        assert "warning" in result
+        assert "name" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_query_missing_metadata_falls_back_to_raw(self) -> None:
@@ -468,8 +468,8 @@ class TestIndexUtilsFunctions:
             "state": "online",
         }
         result = process_index_data_from_query(idx)
-        assert "error" in result
-        assert "metadata.definition" in result["error"]
+        assert "warning" in result
+        assert "metadata.definition" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_query_missing_let_bucket_falls_back_to_raw(self) -> None:
@@ -484,8 +484,8 @@ class TestIndexUtilsFunctions:
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
         result = process_index_data_from_query(idx)
-        assert "error" in result
-        assert "bucket" in result["error"]
+        assert "warning" in result
+        assert "bucket" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_query_missing_let_scope_falls_back_to_raw(self) -> None:
@@ -499,8 +499,8 @@ class TestIndexUtilsFunctions:
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
         result = process_index_data_from_query(idx)
-        assert "error" in result
-        assert "scope" in result["error"]
+        assert "warning" in result
+        assert "scope" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_query_missing_let_collection_falls_back_to_raw(self) -> None:
@@ -514,8 +514,8 @@ class TestIndexUtilsFunctions:
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
         result = process_index_data_from_query(idx)
-        assert "error" in result
-        assert "collection" in result["error"]
+        assert "warning" in result
+        assert "collection" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     # ------------------------------------------------------------------
@@ -524,7 +524,7 @@ class TestIndexUtilsFunctions:
 
     def test_rest_missing_status_falls_back_to_raw(self) -> None:
         """REST path: missing 'status' must NOT default to empty string —
-        the row should fall back to raw with an error message."""
+        the row should fall back to raw with a warning message."""
         idx = {
             "name": "idx_test",
             "definition": "CREATE INDEX idx_test ON bucket(field)",
@@ -534,13 +534,13 @@ class TestIndexUtilsFunctions:
         }
         result = process_index_data_from_rest_api(idx)
         assert result.get("status") is None
-        assert "error" in result
-        assert "status" in result["error"]
+        assert "warning" in result
+        assert "status" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_query_missing_state_falls_back_to_raw(self) -> None:
         """Query path: missing 'state' must NOT default to empty string —
-        the row should fall back to raw with an error message."""
+        the row should fall back to raw with a warning message."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
@@ -550,8 +550,8 @@ class TestIndexUtilsFunctions:
         }
         result = process_index_data_from_query(idx)
         assert result.get("status") is None
-        assert "error" in result
-        assert "state" in result["error"]
+        assert "warning" in result
+        assert "state" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_rest_missing_last_scan_time_key_falls_back_to_raw(self) -> None:
@@ -569,8 +569,8 @@ class TestIndexUtilsFunctions:
             # no lastScanTime — simulate a schema change
         }
         result = process_index_data_from_rest_api(idx)
-        assert "error" in result
-        assert "lastScanTime" in result["error"]
+        assert "warning" in result
+        assert "lastScanTime" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_rest_literal_NA_last_scan_time_passes_through(self) -> None:
@@ -584,7 +584,7 @@ class TestIndexUtilsFunctions:
             "lastScanTime": "NA",
         }
         result = process_index_data_from_rest_api(idx)
-        assert "error" not in result
+        assert "warning" not in result
         assert result["lastScanTime"] == "NA"
 
     def test_rest_null_last_scan_time_defaults_to_NA(self) -> None:
@@ -598,7 +598,7 @@ class TestIndexUtilsFunctions:
             "lastScanTime": None,
         }
         result = process_index_data_from_rest_api(idx)
-        assert "error" not in result
+        assert "warning" not in result
         assert result["lastScanTime"] == "NA"
 
     def test_query_missing_last_scan_time_key_falls_back_to_raw(self) -> None:
@@ -617,8 +617,8 @@ class TestIndexUtilsFunctions:
             "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
         }
         result = process_index_data_from_query(idx)
-        assert "error" in result
-        assert "last_scan_time" in result["error"]
+        assert "warning" in result
+        assert "last_scan_time" in result["warning"]
         assert result["raw_index_stats"] is idx
 
     def test_query_null_last_scan_time_passes_through(self) -> None:
@@ -636,7 +636,7 @@ class TestIndexUtilsFunctions:
             },
         }
         result = process_index_data_from_query(idx)
-        assert "error" not in result
+        assert "warning" not in result
         assert result["lastScanTime"] is None
 
     def test_query_timestamp_last_scan_time_passes_through(self) -> None:
@@ -654,7 +654,7 @@ class TestIndexUtilsFunctions:
             },
         }
         result = process_index_data_from_query(idx)
-        assert "error" not in result
+        assert "warning" not in result
         assert result["lastScanTime"] == ts
 
     def test_query_legacy_keyspace_id_only_works(self) -> None:
@@ -678,7 +678,7 @@ class TestIndexUtilsFunctions:
             },
         }
         result = process_index_data_from_query(idx)
-        assert "error" not in result
+        assert "warning" not in result
         assert result["bucket"] == "my-bucket"
         assert result["scope"] == "_default"
         assert result["collection"] == "_default"

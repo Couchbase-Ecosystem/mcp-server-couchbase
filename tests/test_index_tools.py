@@ -280,9 +280,9 @@ async def test_list_indexes_with_raw_stats() -> None:
 # Schema-contract tests against the live data source.
 #
 # These exist as an early-warning system: if Couchbase ever renames a key in
-# /getIndexStatus or system:all_indexes, or introduces a new status / state
-# value, these tests will fail with a clear message so we can update our
-# mapping code rather than silently emitting wrong data to users.
+# /getIndexStatus or system:all_indexes, these tests will fail with a clear
+# message so we can update our processors rather than silently emitting
+# wrong data to users.
 # ---------------------------------------------------------------------------
 
 

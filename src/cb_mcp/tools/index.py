@@ -172,7 +172,7 @@ def list_indexes(
     Set ``return_raw_index_stats=True`` to get the unprocessed source row for each index.
 
     Each result contains: name, definition (CREATE INDEX statement), status, isPrimary, bucket, scope, collection, lastScanTime.
-    If a required field is missing, the entry contains error and raw_index_stats instead.
+    If a required field is missing, the entry contains warning and raw_index_stats instead.
     """
     try:
         # Validate parameters

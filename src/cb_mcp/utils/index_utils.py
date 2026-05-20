@@ -55,8 +55,8 @@ def clean_index_definition(definition: Any) -> str:
 def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
     """Build a fallback response when an index row cannot be fully processed.
 
-    Returns the raw index data as-is under ``raw_index_stats`` and an
-    ``error`` field explaining what went wrong.
+    Returns the raw index data as-is under ``raw_index_stats`` and a
+    ``warning`` field explaining what went wrong.
     """
     logger.warning(
         "Failed to process index data (%s). There's a problem in fetching the "
@@ -65,7 +65,7 @@ def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
         reason,
     )
     return {
-        "error": (
+        "warning": (
             f"Failed to process index data: {reason}. Returning raw row "
             "under 'raw_index_stats' — please report this issue."
         ),
@@ -74,7 +74,7 @@ def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
 
 
 def _validate_rest_row(idx: dict[str, Any]) -> str | None:
-    """Return an error reason if *idx* from the REST API is missing required fields."""
+    """Return a warning reason if *idx* from the REST API is missing required fields."""
     if not (idx.get("indexName") or idx.get("name")):
         return "missing 'indexName'/'name' field"
     definition = idx.get("definition")
@@ -90,7 +90,7 @@ def _validate_rest_row(idx: dict[str, Any]) -> str | None:
 
 
 def _validate_query_row(idx: dict[str, Any]) -> str | None:
-    """Return an error reason if *idx* from system:indexes is missing required fields."""
+    """Return a warning reason if *idx* from system:indexes is missing required fields."""
     if not idx.get("name"):
         return "missing 'name' field"
     metadata = idx.get("metadata")
@@ -116,12 +116,12 @@ def process_index_data_from_rest_api(
 
     Returns:
         Formatted index info dictionary. If a required field is missing or
-        invalid, returns a fallback dict containing ``error`` and the
+        invalid, returns a fallback dict containing ``warning`` and the
         unprocessed raw row under ``raw_index_stats``.
     """
-    error = _validate_rest_row(idx)
-    if error:
-        return _raw_fallback(idx, error)
+    warning = _validate_rest_row(idx)
+    if warning:
+        return _raw_fallback(idx, warning)
 
     name = idx.get("indexName") or idx.get("name")
     raw_definition = idx["definition"]
@@ -162,12 +162,12 @@ def process_index_data_from_query(
 
     Returns:
         Formatted index info dictionary. If a required field is missing or
-        invalid, returns a fallback dict containing ``error`` and the
+        invalid, returns a fallback dict containing ``warning`` and the
         unprocessed raw row under ``raw_index_stats``.
     """
-    error = _validate_query_row(idx)
-    if error:
-        return _raw_fallback(idx, error)
+    warning = _validate_query_row(idx)
+    if warning:
+        return _raw_fallback(idx, warning)
 
     metadata = idx["metadata"]
 
