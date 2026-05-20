@@ -139,7 +139,7 @@ def process_index_data_from_rest_api(
     if "collection" in idx:
         index_info["collection"] = idx["collection"]
 
-    index_info["lastScanTime"] = idx["lastScanTime"] or "NA"
+    index_info["lastScanTime"] = idx["lastScanTime"]
 
     return index_info
 
