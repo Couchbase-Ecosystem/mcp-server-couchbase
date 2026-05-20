@@ -37,7 +37,6 @@ from cb_mcp.utils.index_utils import (
     _determine_ssl_verification,
     _extract_hosts_from_connection_string,
     clean_index_definition,
-    map_rest_status_to_query_state,
     parse_major_version,
     process_index_data_from_query,
     process_index_data_from_rest_api,
@@ -155,13 +154,14 @@ class TestIndexUtilsFunctions:
             "bucket": "travel-sample",
             "scope": "_default",
             "collection": "_default",
+            "lastScanTime": "NA",
         }
         result = process_index_data_from_rest_api(idx)
 
         assert result is not None
         assert result["name"] == "idx_test"
         assert result["bucket"] == "travel-sample"
-        assert result["status"] == "online"
+        assert result["status"] == "Ready"
         assert result["isPrimary"] is False
         assert "lastScanTime" in result
 
@@ -169,6 +169,7 @@ class TestIndexUtilsFunctions:
         """Process index data includes lastScanTime."""
         idx = {
             "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
             "status": "Ready",
             "bucket": "bucket",
             "scope": "scope",
@@ -182,18 +183,63 @@ class TestIndexUtilsFunctions:
         assert result["lastScanTime"] == "Thu Feb 26 13:12:55 IST 2026"
         assert "extra_field" not in result
 
-    def test_process_index_data_no_name(self) -> None:
-        """Index without name should return None."""
+    def test_process_index_data_without_raw_stats(self) -> None:
+        """Process index data without raw stats by default."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+            "lastScanTime": "NA",
+        }
+        result = process_index_data_from_rest_api(idx)
+
+        assert result is not None
+        assert "raw_index_stats" not in result
+
+    def test_rest_missing_name_falls_back_to_raw(self) -> None:
+        """Missing 'name' field should return raw fallback with warning message."""
         idx = {"status": "Ready", "bucket": "bucket"}
         result = process_index_data_from_rest_api(idx)
-        assert result is None
+        assert result == {
+            "warning": result["warning"],
+            "raw_index_stats": idx,
+        }
+        assert "name" in result["warning"]
+        # Raw stats must be the unmodified original input.
+        assert result["raw_index_stats"] is idx
+
+    def test_rest_missing_definition_falls_back_to_raw(self) -> None:
+        """Missing 'definition' field should return raw fallback with warning message."""
+        idx = {"name": "idx_test", "status": "Ready", "bucket": "bucket"}
+        result = process_index_data_from_rest_api(idx)
+        assert "warning" in result
+        assert "definition" in result["warning"]
+        assert result["raw_index_stats"] is idx
+
+    def test_rest_missing_bucket_falls_back_to_raw(self) -> None:
+        """Missing 'bucket' field should return raw fallback. REST always
+        emits bucket today, so its absence indicates a problem in fetching
+        the index information."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert "warning" in result
+        assert "bucket" in result["warning"]
+        assert result["raw_index_stats"] is idx
 
     def test_process_index_data_primary_index(self) -> None:
         """Process primary index data."""
         idx = {
             "name": "#primary",
+            "definition": "CREATE PRIMARY INDEX `#primary` ON `bucket`",
+            "status": "Ready",
             "isPrimary": True,
             "bucket": "bucket",
+            "lastScanTime": "NA",
         }
         result = process_index_data_from_rest_api(idx)
 
@@ -308,14 +354,19 @@ class TestIndexUtilsFunctions:
             parse_major_version("abc.def")
 
     def test_process_index_data_from_query_basic(self) -> None:
-        """Map a typical system:all_indexes row to the standard schema."""
+        """Map a typical post-LET system:indexes row to the standard schema.
+
+        The processor reads bucket/scope/collection (LET-injected by
+        fetch_indexes_via_query_service) and ignores the raw bucket_id /
+        scope_id / keyspace_id fields, so the fixture only needs the
+        injected shape.
+        """
         idx = {
             "name": "def_inventory_airport_city",
-            "bucket_id": "travel-sample",
-            "scope_id": "inventory",
-            "keyspace_id": "airport",
+            "bucket": "travel-sample",
+            "scope": "inventory",
+            "collection": "airport",
             "state": "online",
-            "using": "gsi",
             "metadata": {
                 "definition": (
                     "CREATE INDEX `def_inventory_airport_city` ON "
@@ -341,12 +392,15 @@ class TestIndexUtilsFunctions:
         """Primary index rows should set isPrimary=True."""
         idx = {
             "name": "def_inventory_airport_primary",
-            "bucket_id": "travel-sample",
-            "scope_id": "inventory",
-            "keyspace_id": "airport",
+            "bucket": "travel-sample",
+            "scope": "inventory",
+            "collection": "airport",
             "is_primary": True,
             "state": "online",
-            "metadata": {"definition": "CREATE PRIMARY INDEX ..."},
+            "metadata": {
+                "definition": "CREATE PRIMARY INDEX ...",
+                "last_scan_time": None,
+            },
         }
 
         result = process_index_data_from_query(idx)
@@ -358,9 +412,9 @@ class TestIndexUtilsFunctions:
         """lastScanTime should be included from metadata."""
         idx = {
             "name": "idx",
-            "bucket_id": "b",
-            "scope_id": "s",
-            "keyspace_id": "c",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
             "state": "online",
             "metadata": {
                 "definition": "CREATE INDEX idx ON b.s.c(x)",
@@ -371,13 +425,41 @@ class TestIndexUtilsFunctions:
         assert result is not None
         assert result["lastScanTime"] == "2026-02-26T13:12:56.581+05:30"
 
-    def test_process_index_data_from_query_no_name(self) -> None:
-        """Rows without a name should be filtered out."""
-        idx = {"bucket_id": "b"}
-        assert process_index_data_from_query(idx) is None
+    def test_process_index_data_from_query_without_raw_stats(self) -> None:
+        """Default (processed) shape should not carry raw-row keys."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
+            "state": "online",
+            "metadata": {
+                "definition": "CREATE INDEX idx ON b.s.c(x)",
+                "last_scan_time": None,
+            },
+        }
+        result = process_index_data_from_query(idx)
+        assert result is not None
+        # Raw-shape keys should not leak into the processed output.
+        assert "raw_index_stats" not in result
+        assert "bucket_id" not in result
+        assert "scope_id" not in result
+        assert "keyspace_id" not in result
+        assert "state" not in result  # processed shape uses 'status'
 
-    def test_process_index_data_from_query_no_metadata(self) -> None:
-        """Missing metadata should not crash and should return empty definition."""
+    def test_query_missing_name_falls_back_to_raw(self) -> None:
+        """Rows without a name should return raw fallback with warning message."""
+        idx = {"bucket_id": "b"}
+        result = process_index_data_from_query(idx)
+        assert "warning" in result
+        assert "name" in result["warning"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_metadata_falls_back_to_raw(self) -> None:
+        """Missing metadata.definition should return raw fallback, not empty string."""
         idx = {
             "name": "idx",
             "bucket_id": "b",
@@ -386,58 +468,241 @@ class TestIndexUtilsFunctions:
             "state": "online",
         }
         result = process_index_data_from_query(idx)
-        assert result is not None
-        assert result["definition"] == ""
+        assert "warning" in result
+        assert "metadata.definition" in result["warning"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_let_bucket_falls_back_to_raw(self) -> None:
+        """Query path: bucket is injected by the SQL LET clause. Its absence
+        means the row didn't come from our SQL or the LET semantics have
+        changed — must fail loud."""
+        idx = {
+            "name": "idx",
+            "state": "online",
+            "scope": "s",
+            "collection": "c",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "warning" in result
+        assert "bucket" in result["warning"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_let_scope_falls_back_to_raw(self) -> None:
+        """Query path: scope is injected by the SQL LET clause — same fail-
+        loud contract as bucket."""
+        idx = {
+            "name": "idx",
+            "state": "online",
+            "bucket": "b",
+            "collection": "c",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "warning" in result
+        assert "scope" in result["warning"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_let_collection_falls_back_to_raw(self) -> None:
+        """Query path: collection is injected by the SQL LET clause — same
+        fail-loud contract as bucket."""
+        idx = {
+            "name": "idx",
+            "state": "online",
+            "bucket": "b",
+            "scope": "s",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "warning" in result
+        assert "collection" in result["warning"]
+        assert result["raw_index_stats"] is idx
+
+    # ------------------------------------------------------------------
+    # Failure-mode tests: missing status, missing lastScanTime, etc.
+    # ------------------------------------------------------------------
+
+    def test_rest_missing_status_falls_back_to_raw(self) -> None:
+        """REST path: missing 'status' must NOT default to empty string —
+        the row should fall back to raw with a warning message."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "bucket": "bucket",
+            "scope": "scope",
+            "collection": "collection",
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert result.get("status") is None
+        assert "warning" in result
+        assert "status" in result["warning"]
+        assert result["raw_index_stats"] is idx
+
+    def test_query_missing_state_falls_back_to_raw(self) -> None:
+        """Query path: missing 'state' must NOT default to empty string —
+        the row should fall back to raw with a warning message."""
+        idx = {
+            "name": "idx",
+            "bucket_id": "b",
+            "scope_id": "s",
+            "keyspace_id": "c",
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert result.get("status") is None
+        assert "warning" in result
+        assert "state" in result["warning"]
+        assert result["raw_index_stats"] is idx
+
+    def test_rest_missing_last_scan_time_key_falls_back_to_raw(self) -> None:
+        """REST path: REST always emits the 'lastScanTime' key today (with
+        literal 'NA' for never-scanned). Its absence indicates a schema
+        change upstream and must fall back to raw.
+        """
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+            "scope": "scope",
+            "collection": "collection",
+            # no lastScanTime — simulate a schema change
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert "warning" in result
+        assert "lastScanTime" in result["warning"]
+        assert result["raw_index_stats"] is idx
+
+    def test_rest_literal_NA_last_scan_time_passes_through(self) -> None:
+        """REST path: never-scanned indexes carry the literal 'NA' string —
+        this is the normal case and must NOT trigger a fallback."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+            "lastScanTime": "NA",
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert "warning" not in result
         assert result["lastScanTime"] == "NA"
 
-    def test_map_rest_status_to_query_state(self) -> None:
-        """REST API status strings should map to SQL++ query service equivalents."""
-        assert map_rest_status_to_query_state("Ready") == "online"
-        assert map_rest_status_to_query_state("Building") == "building"
-        assert map_rest_status_to_query_state("Error") == "offline"
-        assert (
-            map_rest_status_to_query_state("Scheduled for Creation")
-            == "scheduled for creation"
-        )
-        assert map_rest_status_to_query_state("Moving") == "building"
-        assert map_rest_status_to_query_state("Paused") == "offline"
-        assert map_rest_status_to_query_state("Warmup") == "pending"
+    def test_rest_null_last_scan_time_defaults_to_NA(self) -> None:
+        """REST path: explicit null lastScanTime (defensive — REST doesn't
+        emit null today but we coerce it to 'NA' if it ever does)."""
+        idx = {
+            "name": "idx_test",
+            "definition": "CREATE INDEX idx_test ON bucket(field)",
+            "status": "Ready",
+            "bucket": "bucket",
+            "lastScanTime": None,
+        }
+        result = process_index_data_from_rest_api(idx)
+        assert "warning" not in result
+        assert result["lastScanTime"] == "NA"
 
-    def test_map_rest_status_created_with_defer_build(self) -> None:
-        """Created + defer_build in definition -> deferred."""
-        definition = 'CREATE INDEX idx ON b(x) WITH {"defer_build": true}'
-        assert map_rest_status_to_query_state("Created", definition) == "deferred"
+    def test_query_missing_last_scan_time_key_falls_back_to_raw(self) -> None:
+        """Query path: system:indexes always emits 'metadata.last_scan_time'
+        today (with value null for never-scanned). Its absence indicates a
+        schema change upstream and must fall back to raw.
+        """
+        idx = {
+            "name": "idx",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
+            "state": "online",
+            # metadata is present but the last_scan_time key is missing —
+            # this is the schema-drift case we want to detect.
+            "metadata": {"definition": "CREATE INDEX idx ON b.s.c(x)"},
+        }
+        result = process_index_data_from_query(idx)
+        assert "warning" in result
+        assert "last_scan_time" in result["warning"]
+        assert result["raw_index_stats"] is idx
 
-    def test_map_rest_status_created_without_defer_build(self) -> None:
-        """Created without defer_build in definition -> pending."""
-        definition = "CREATE INDEX idx ON b(x)"
-        assert map_rest_status_to_query_state("Created", definition) == "pending"
+    def test_query_null_last_scan_time_passes_through(self) -> None:
+        """Query path: null last_scan_time (never-scanned) is honored verbatim
+        — we don't substitute 'NA' or any other sentinel."""
+        idx = {
+            "name": "idx",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
+            "state": "online",
+            "metadata": {
+                "definition": "CREATE INDEX idx ON b.s.c(x)",
+                "last_scan_time": None,
+            },
+        }
+        result = process_index_data_from_query(idx)
+        assert "warning" not in result
+        assert result["lastScanTime"] is None
 
-    def test_map_rest_status_created_no_definition(self) -> None:
-        """Created with no definition defaults to pending."""
-        assert map_rest_status_to_query_state("Created") == "pending"
-        assert map_rest_status_to_query_state("Created", "") == "pending"
+    def test_query_timestamp_last_scan_time_passes_through(self) -> None:
+        """Query path: timestamp last_scan_time is passed through verbatim."""
+        ts = "2026-02-26T13:12:56.581+05:30"
+        idx = {
+            "name": "idx",
+            "bucket": "b",
+            "scope": "s",
+            "collection": "c",
+            "state": "online",
+            "metadata": {
+                "definition": "CREATE INDEX idx ON b.s.c(x)",
+                "last_scan_time": ts,
+            },
+        }
+        result = process_index_data_from_query(idx)
+        assert "warning" not in result
+        assert result["lastScanTime"] == ts
 
-    def test_map_rest_status_to_query_state_qualified(self) -> None:
-        """Qualified REST statuses (with parenthesis) should use prefix for mapping."""
-        assert map_rest_status_to_query_state("Building (Upgrading)") == "building"
-        assert map_rest_status_to_query_state("Building (Downgrading)") == "building"
-        assert (
-            map_rest_status_to_query_state(
-                "Created (Upgrading)", 'WITH {"defer_build":true}'
-            )
-            == "deferred"
-        )
-        assert (
-            map_rest_status_to_query_state(
-                "Created (Downgrading)", "CREATE INDEX idx ON b(x)"
-            )
-            == "pending"
-        )
+    def test_query_legacy_keyspace_id_only_works(self) -> None:
+        """Query path: legacy bucket-level indexes are normalised in SQL via
+        the LET clause in fetch_indexes_via_query_service, so by the time the
+        processor sees the row, bucket/scope/collection are already populated.
+        """
+        # Simulated post-LET shape for a legacy bucket-level index:
+        # the SQL coerces scope="_default", collection="_default" when
+        # bucket_id is absent.
+        idx = {
+            "name": "legacy_idx",
+            "keyspace_id": "my-bucket",
+            "bucket": "my-bucket",
+            "scope": "_default",
+            "collection": "_default",
+            "state": "online",
+            "metadata": {
+                "definition": "CREATE INDEX legacy_idx ON `my-bucket`(x)",
+                "last_scan_time": None,
+            },
+        }
+        result = process_index_data_from_query(idx)
+        assert "warning" not in result
+        assert result["bucket"] == "my-bucket"
+        assert result["scope"] == "_default"
+        assert result["collection"] == "_default"
 
-    def test_map_rest_status_to_query_state_unknown(self) -> None:
-        """Unknown REST statuses should be returned as-is in lowercase."""
-        assert map_rest_status_to_query_state("SomeNewStatus") == "somenewstatus"
+    def test_rest_status_passes_through_as_is(self) -> None:
+        """REST API status strings should pass through unchanged."""
+        for status in (
+            "Ready",
+            "Building",
+            "Created",
+            "Error",
+            "Scheduled for Creation",
+            "Building (Upgrading)",
+            "SomeNewStatus",
+        ):
+            idx = {
+                "name": "idx_test",
+                "definition": "CREATE INDEX idx_test ON bucket(field)",
+                "status": status,
+                "bucket": "bucket",
+                "lastScanTime": "NA",
+            }
+            result = process_index_data_from_rest_api(idx)
+            assert result["status"] == status
 
 
 class TestConstants:
@@ -722,11 +987,21 @@ class TestContextModule:
 class TestFetchIndexesViaQueryService:
     """Unit tests for fetch_indexes_via_query_service."""
 
+    _LET_CLAUSE = (
+        "LET bid = IFMISSING(s.bucket_id, s.keyspace_id), "
+        "sid = IFMISSING(s.scope_id, '_default'), "
+        "kid = NVL2(s.bucket_id, s.keyspace_id, '_default')"
+    )
+    _BASE_WHERE = "s.namespace_id = 'default' AND s.`using` = 'gsi'"
+
     def test_no_filters(self) -> None:
-        """With no filters, query should only have the GSI clause."""
+        """With no filters, query should carry the namespace + GSI guards
+        and the LET-based bucket/scope/collection normalization."""
         mock_ctx = MagicMock()
         expected_query = (
-            "SELECT RAW all_indexes FROM system:all_indexes WHERE `using` = 'gsi'"
+            "SELECT s.*, bid AS `bucket`, sid AS `scope`, kid AS `collection` "
+            f"FROM system:indexes AS s {self._LET_CLAUSE} "
+            f"WHERE {self._BASE_WHERE}"
         )
 
         with patch(
@@ -741,8 +1016,31 @@ class TestFetchIndexesViaQueryService:
         )
         assert len(result) == 2
 
+    def test_raw_mode_selects_raw_source_rows(self) -> None:
+        """return_raw_index_stats=True must SELECT RAW s — no injected
+        bucket/scope/collection on the result rows."""
+        mock_ctx = MagicMock()
+        expected_query = (
+            f"SELECT RAW s FROM system:indexes AS s {self._LET_CLAUSE} "
+            f"WHERE {self._BASE_WHERE}"
+        )
+
+        with patch(
+            "cb_mcp.tools.index.run_cluster_query",
+            new_callable=MagicMock,
+            return_value=[{"name": "idx1"}],
+        ) as mock_query:
+            fetch_indexes_via_query_service(
+                mock_ctx, None, None, None, None, return_raw_index_stats=True
+            )
+
+        mock_query.assert_called_once_with(
+            mock_ctx, expected_query, named_parameters={}
+        )
+
     def test_all_filters(self) -> None:
-        """All filters should produce named_parameters with the right keys."""
+        """All filters should apply against the normalized LET aliases so
+        legacy indexes match by bucket symmetrically with modern ones."""
         mock_ctx = MagicMock()
 
         with patch(
@@ -754,14 +1052,20 @@ class TestFetchIndexesViaQueryService:
                 mock_ctx, "bucket", "scope", "collection", "idx1"
             )
 
-        _, kwargs = mock_query.call_args
-        params = kwargs["named_parameters"]
+        sent_query = mock_query.call_args[0][1]
+        params = mock_query.call_args[1]["named_parameters"]
         assert params == {
             "bucket_id": "bucket",
             "scope_id": "scope",
             "keyspace_id": "collection",
             "index_name": "idx1",
         }
+        # Verify filters are applied against LET aliases (not raw fields)
+        # so legacy and modern indexes both match.
+        assert "bid = $bucket_id" in sent_query
+        assert "sid = $scope_id" in sent_query
+        assert "kid = $keyspace_id" in sent_query
+        assert "s.name = $index_name" in sent_query
         assert len(result) == 1
 
     def test_non_dict_rows_filtered(self) -> None:
@@ -875,8 +1179,17 @@ class TestListIndexesVersionRouting:
                         "bucket_id": "b",
                         "scope_id": "s",
                         "keyspace_id": "c",
+                        # bucket/scope/collection are injected by the LET
+                        # clause in the production SQL; the mock simulates
+                        # what the query service actually returns.
+                        "bucket": "b",
+                        "scope": "s",
+                        "collection": "c",
                         "state": "online",
-                        "metadata": {"definition": "CREATE INDEX idx1 ON b.s.c(x)"},
+                        "metadata": {
+                            "definition": "CREATE INDEX idx1 ON b.s.c(x)",
+                            "last_scan_time": None,
+                        },
                     }
                 ],
             ) as mock_query,
@@ -928,6 +1241,7 @@ class TestListIndexesVersionRouting:
                         "scope": "s",
                         "collection": "c",
                         "isPrimary": False,
+                        "lastScanTime": "NA",
                     }
                 ],
             ) as mock_rest,

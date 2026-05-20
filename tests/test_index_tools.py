@@ -8,6 +8,8 @@ Tests for:
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from conftest import (
     create_mcp_session,
@@ -16,6 +18,14 @@ from conftest import (
     get_test_scope,
     require_test_bucket,
 )
+
+# REST-side keys we read in process_index_data_from_rest_api.
+_REQUIRED_REST_KEYS: frozenset[str] = frozenset(
+    {"name", "indexName", "definition", "status", "bucket", "scope", "collection"}
+)
+
+# Query-side top-level keys we read in process_index_data_from_query.
+_REQUIRED_QUERY_TOPLEVEL_KEYS: frozenset[str] = frozenset({"name", "state", "metadata"})
 
 
 @pytest.mark.asyncio
@@ -41,6 +51,69 @@ async def test_list_indexes_all() -> None:
 
     if skip_reason:
         pytest.skip(skip_reason)
+
+
+@pytest.mark.asyncio
+async def test_list_indexes_filtered_by_bucket_includes_legacy_indexes() -> None:
+    """Regression test: filtering by bucket_name must include legacy indexes.
+
+    Legacy bucket-level indexes (created on a bucket before scopes/collections
+    existed) appear in `system:indexes` with only `keyspace_id` (holding the
+    bucket name) and no `bucket_id`/`scope_id`. The SQL query in
+    fetch_indexes_via_query_service applies the user's bucket filter against
+    the normalized LET alias `bid = IFMISSING(s.bucket_id, s.keyspace_id)`,
+    so a legacy index in bucket X matches `bucket_name=X` symmetrically
+    with a modern one.
+
+    Before this fix, the filter was `bucket_id = $bucket_id`, which
+    silently dropped every legacy index from the result.
+    """
+    bucket = require_test_bucket()
+
+    async with create_mcp_session() as session:
+        response = await session.call_tool(
+            "list_indexes", arguments={"bucket_name": bucket}
+        )
+        payload = extract_payload(response)
+
+    if not isinstance(payload, list) or not payload:
+        pytest.skip(f"No indexes found in bucket {bucket!r}")
+
+    # Every returned row must actually belong to the requested bucket.
+    for idx in payload:
+        assert idx.get("bucket") == bucket, (
+            f"Index {idx.get('name')!r} reported bucket "
+            f"{idx.get('bucket')!r} but bucket filter was {bucket!r}"
+        )
+
+    # Identify any legacy bucket-level indexes returned. The DDL signature
+    # for legacy is `ON \`bucket\`(...)` (no scope.collection qualifier);
+    # the normalised shape is scope=_default + collection=_default.
+    legacy_indexes = [
+        idx
+        for idx in payload
+        if (
+            idx.get("scope") == "_default"
+            and idx.get("collection") == "_default"
+            and isinstance(idx.get("definition"), str)
+            and f"ON `{bucket}`(" in idx["definition"]
+            and f"ON `{bucket}`." not in idx["definition"]
+        )
+    ]
+
+    if not legacy_indexes:
+        pytest.skip(
+            f"Bucket {bucket!r} has no legacy bucket-level indexes — cannot "
+            f"verify the legacy filter fix. Try a bucket like travel-sample."
+        )
+
+    # Each legacy index must be correctly normalised: bucket equals the
+    # filter, scope/collection both '_default'. If any of these slip,
+    # either the SQL LET clause or our bucket filter has regressed.
+    for idx in legacy_indexes:
+        assert idx["bucket"] == bucket
+        assert idx["scope"] == "_default"
+        assert idx["collection"] == "_default"
 
 
 @pytest.mark.asyncio
@@ -157,6 +230,186 @@ async def test_list_indexes_has_last_scan_time() -> None:
 
     if skip_reason:
         pytest.skip(skip_reason)
+
+
+@pytest.mark.asyncio
+async def test_list_indexes_with_raw_stats() -> None:
+    """Verify list_indexes returns unprocessed source rows when raw stats requested."""
+    skip_reason = None
+
+    async with create_mcp_session() as session:
+        response = await session.call_tool(
+            "list_indexes", arguments={"return_raw_index_stats": True}
+        )
+        payload = extract_payload(response)
+
+        # Skip if no indexes exist
+        if payload is None or (isinstance(payload, list) and len(payload) == 0):
+            skip_reason = "No indexes found to test raw stats"
+        else:
+            assert isinstance(payload, list), f"Expected list, got {type(payload)}"
+            first_index = payload[0]
+            # Each entry should be the raw source row, not the processed shape.
+            # The query-service path returns rows with `state` / `bucket_id` /
+            # `keyspace_id` / `metadata`; the REST path returns rows with
+            # `defnId` / `indexName` / `indexType` etc. — either way, the
+            # entry should contain at least one field that the processed
+            # shape does not.
+            raw_only_keys = {
+                # query service raw fields
+                "state",
+                "bucket_id",
+                "keyspace_id",
+                "metadata",
+                # REST raw fields
+                "defnId",
+                "instId",
+                "indexName",
+                "indexType",
+            }
+            assert raw_only_keys & set(first_index.keys()), (
+                "Expected raw source row when return_raw_index_stats=True; "
+                f"got keys: {sorted(first_index.keys())}"
+            )
+
+    if skip_reason:
+        pytest.skip(skip_reason)
+
+
+# ---------------------------------------------------------------------------
+# Schema-contract tests against the live data source.
+#
+# These exist as an early-warning system: if Couchbase ever renames a key in
+# /getIndexStatus or system:all_indexes, these tests will fail with a clear
+# message so we can update our processors rather than silently emitting
+# wrong data to users.
+# ---------------------------------------------------------------------------
+
+
+def _identify_source_path(row: dict[str, object]) -> str:
+    """Return 'query', 'rest', or 'unknown' based on raw row shape."""
+    if "state" in row or "keyspace_id" in row or "metadata" in row:
+        return "query"
+    if "indexName" in row or "defnId" in row or "indexType" in row:
+        return "rest"
+    return "unknown"
+
+
+@pytest.mark.asyncio
+async def test_list_indexes_raw_rows_have_expected_keys() -> None:
+    """Schema contract: raw index rows must carry every key our processor reads.
+
+    If this test fails after a Couchbase Server upgrade, a key has likely
+    been renamed — update the processor (and the constants at the top of this
+    file) before shipping.
+    """
+    async with create_mcp_session() as session:
+        response = await session.call_tool(
+            "list_indexes", arguments={"return_raw_index_stats": True}
+        )
+        payload = extract_payload(response)
+
+    if not isinstance(payload, list) or not payload:
+        pytest.skip("No indexes available to check raw shape")
+
+    path = _identify_source_path(payload[0])
+    if path == "unknown":
+        pytest.fail(
+            "Could not identify data source path from raw row. "
+            f"Keys observed: {sorted(payload[0].keys())}"
+        )
+
+    for idx in payload:
+        name = idx.get("name") or idx.get("indexName") or "<unnamed>"
+        if path == "rest":
+            missing = _REQUIRED_REST_KEYS - idx.keys()
+            assert not missing, (
+                f"REST index {name!r}: required keys missing from "
+                f"/getIndexStatus row: {sorted(missing)}. Possible key rename "
+                f"upstream — update process_index_data_from_rest_api accordingly."
+            )
+        else:  # query path
+            missing = _REQUIRED_QUERY_TOPLEVEL_KEYS - idx.keys()
+            assert not missing, (
+                f"Query index {name!r}: required top-level keys missing from "
+                f"system:all_indexes row: {sorted(missing)}. Possible key "
+                f"rename — update process_index_data_from_query accordingly."
+            )
+            metadata = idx.get("metadata")
+            assert isinstance(metadata, dict), (
+                f"Query index {name!r}: 'metadata' should be a dict, "
+                f"got {type(metadata).__name__}. system:all_indexes shape "
+                f"may have changed."
+            )
+            assert "definition" in metadata, (
+                f"Query index {name!r}: 'metadata.definition' missing. "
+                f"Possible key rename in system:all_indexes."
+            )
+            # Location info must match modern or legacy shape — anything
+            # else means the schema discriminator has shifted.
+            modern = {"bucket_id", "scope_id", "keyspace_id"}.issubset(idx.keys())
+            legacy = (
+                "keyspace_id" in idx
+                and "bucket_id" not in idx
+                and "scope_id" not in idx
+            )
+            assert modern or legacy, (
+                f"Query index {name!r}: bucket/scope/collection identifiers "
+                f"don't match modern (bucket_id+scope_id+keyspace_id) or "
+                f"legacy (keyspace_id only) shape. Keys present: "
+                f"{sorted(idx.keys())}. The legacy/modern discriminator may "
+                f"have changed in system:all_indexes."
+            )
+
+
+@pytest.mark.asyncio
+async def test_list_indexes_primary_index_flag_consistency() -> None:
+    """Schema contract: any index whose DDL starts with ``CREATE PRIMARY INDEX``
+    must have the primary-flag field set to True in the raw row.
+
+    Catches the isPrimary blind spot: if Couchbase renames ``isPrimary`` (REST)
+    or ``is_primary`` (query), the flag would silently default to False and
+    every primary index would appear non-primary in our output. This test
+    fails fast so the rename gets caught before shipping.
+    """
+    async with create_mcp_session() as session:
+        response = await session.call_tool(
+            "list_indexes", arguments={"return_raw_index_stats": True}
+        )
+        payload = extract_payload(response)
+
+    if not isinstance(payload, list) or not payload:
+        pytest.skip("No indexes available to check primary-index consistency")
+
+    primary_ddl = re.compile(r"^\s*CREATE\s+PRIMARY\s+INDEX\b", re.IGNORECASE)
+
+    primary_by_ddl: list[dict[str, object]] = []
+    for idx in payload:
+        # REST stores DDL on `definition`; query stores it under `metadata.definition`.
+        ddl = idx.get("definition")
+        if not ddl and isinstance(idx.get("metadata"), dict):
+            ddl = idx["metadata"].get("definition")
+        if isinstance(ddl, str) and primary_ddl.match(ddl):
+            primary_by_ddl.append(idx)
+
+    if not primary_by_ddl:
+        pytest.skip("No primary indexes in the cluster to verify the flag")
+
+    path = _identify_source_path(payload[0])
+    flag_key = "isPrimary" if path == "rest" else "is_primary"
+
+    mismatches: list[str] = []
+    for idx in primary_by_ddl:
+        name = idx.get("name") or idx.get("indexName") or "<unnamed>"
+        flag = idx.get(flag_key)
+        if flag is not True:
+            mismatches.append(f"{name!r} (got {flag_key}={flag!r})")
+
+    assert not mismatches, (
+        f"Indexes whose DDL declares CREATE PRIMARY INDEX but whose {flag_key!r} "
+        f"field is missing or not True: {mismatches}. The primary-flag key may "
+        f"have been renamed upstream — update processor and tests."
+    )
 
 
 @pytest.mark.asyncio

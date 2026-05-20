@@ -52,179 +52,135 @@ def clean_index_definition(definition: Any) -> str:
     return ""
 
 
-# Mapping from REST API /getIndexStatus status strings to SQL++ query service states.
-# Source: https://github.com/couchbase/indexing/blob/master/secondary/indexer/request_handler.go
-# The REST API produces these status strings from internal indexer states.
-# SQL++ system:all_indexes uses 7 canonical states:
-# online, deferred, building, pending, offline, abridged, scheduled for creation
-_REST_STATUS_TO_QUERY_STATE: dict[str, str] = {
-    "Ready": "online",
-    # "Created" can mean deferred (WITH {\"defer_build\":true}) or pending (waiting to build).
-    # Resolved at call-site by inspecting the definition field — see map_rest_status_to_query_state.
-    "Created": "pending",
-    "Building": "building",
-    "Moving": "building",
-    "Error": "offline",
-    "Paused": "offline",
-    "Warmup": "pending",
-    "Not Available": "offline",
-    "Retrying": "offline",
-    "Scheduled for Creation": "scheduled for creation",
-    "Training": "building",
-    "Graph Building": "building",
-    # "Scheduled for build" and "Training complete, scheduled for build" come from
-    # INDEX_STATE_READY (same as "Created"). Use defer_build check at call-site.
-    "Scheduled for build": "pending",
-    "Training complete, scheduled for build": "pending",
-}
+def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
+    """Build a fallback response when an index row cannot be fully processed.
 
-
-def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> str:
-    """Map a REST API index status string to its SQL++ query service equivalent.
-
-    The REST API /getIndexStatus endpoint returns status strings like
-    "Ready", "Created", "Building", etc. This function normalizes them
-    to the SQL++ system:all_indexes state values: online, deferred, building,
-    pending, offline, scheduled for creation.
-
-    For statuses with qualifiers (e.g. "Building (Upgrading)"), the prefix
-    before the parenthesis is used for lookup.
-
-    For "Created" status, the definition field is inspected: if it contains
-    ``defer_build`` the index is explicitly deferred; otherwise it is pending
-    (created normally but not yet built).
-
-    Args:
-        rest_status: Status string from the REST API.
-        definition: The raw CREATE INDEX definition string from the REST API.
-            Used to distinguish deferred from pending for "Created" indexes.
-
-    Returns:
-        Normalized SQL++ query service state string.
+    Returns the raw index data as-is under ``raw_index_stats`` and a
+    ``warning`` field explaining what went wrong.
     """
-    # Direct lookup first
-    if rest_status in _REST_STATUS_TO_QUERY_STATE:
-        # "Created", "Scheduled for build", and "Training complete, scheduled for build"
-        # all share INDEX_STATE_READY. Use defer_build in definition to distinguish
-        # deferred (explicit defer) from pending (waiting to build).
-        if rest_status in (
-            "Created",
-            "Scheduled for build",
-            "Training complete, scheduled for build",
-        ):
-            return "deferred" if "defer_build" in definition.lower() else "pending"
-        return _REST_STATUS_TO_QUERY_STATE[rest_status]
+    logger.warning(
+        "Failed to process index data (%s). There's a problem in fetching the "
+        "index information. Please report this issue. Returning raw index data "
+        "as-is.",
+        reason,
+    )
+    return {
+        "warning": (
+            f"Failed to process index data: {reason}. Returning raw row "
+            "under 'raw_index_stats' — please report this issue."
+        ),
+        "raw_index_stats": idx,
+    }
 
-    # Handle qualified statuses like "Building (Upgrading)", "Created (Downgrading)"
-    prefix = rest_status.split("(")[0].strip()
-    if prefix in _REST_STATUS_TO_QUERY_STATE:
-        if prefix in (
-            "Created",
-            "Scheduled for build",
-            "Training complete, scheduled for build",
-        ):
-            return "deferred" if "defer_build" in definition.lower() else "pending"
-        return _REST_STATUS_TO_QUERY_STATE[prefix]
 
-    # Unknown status — return as-is in lowercase
-    return rest_status.lower()
+def _validate_rest_row(idx: dict[str, Any]) -> str | None:
+    """Return a warning reason if *idx* from the REST API is missing required fields."""
+    if not (idx.get("indexName") or idx.get("name")):
+        return "missing 'indexName'/'name' field"
+    definition = idx.get("definition")
+    if not definition or not isinstance(definition, str):
+        return "missing or invalid 'definition' field"
+    if not idx.get("status"):
+        return "missing 'status' field"
+    if not idx.get("bucket"):
+        return "missing 'bucket' field"
+    if "lastScanTime" not in idx:
+        return "missing 'lastScanTime' field"
+    return None
+
+
+def _validate_query_row(idx: dict[str, Any]) -> str | None:
+    """Return a warning reason if *idx* from system:indexes is missing required fields."""
+    if not idx.get("name"):
+        return "missing 'name' field"
+    metadata = idx.get("metadata")
+    if not isinstance(metadata, dict) or not metadata.get("definition"):
+        return "missing or invalid 'metadata.definition' field"
+    if not idx.get("state"):
+        return "missing 'state' field"
+    for field in ("bucket", "scope", "collection"):
+        if not idx.get(field):
+            return f"missing {field!r} field (LET clause may not have run)"
+    if "last_scan_time" not in metadata:
+        return "missing 'metadata.last_scan_time' field"
+    return None
 
 
 def process_index_data_from_rest_api(
     idx: dict[str, Any],
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     """Process raw index data from the REST API into formatted index info.
 
     Args:
         idx: Raw index data from the /getIndexStatus API
 
     Returns:
-        Formatted index info dictionary, or None if the index should be skipped (e.g., no name).
+        Formatted index info dictionary. If a required field is missing or
+        invalid, returns a fallback dict containing ``warning`` and the
+        unprocessed raw row under ``raw_index_stats``.
     """
-    name = idx.get("indexName", "") or idx.get("name", "")
-    if not name:
-        return None
+    warning = _validate_rest_row(idx)
+    if warning:
+        return _raw_fallback(idx, warning)
 
-    index_info: dict[str, Any] = {"name": name}
+    name = idx.get("indexName") or idx.get("name")
+    raw_definition = idx["definition"]
 
-    raw_definition = idx.get("definition", "")
-    index_info["definition"] = clean_index_definition(raw_definition)
+    index_info: dict[str, Any] = {
+        "name": name,
+        "definition": clean_index_definition(raw_definition),
+        "status": idx["status"],
+        "isPrimary": bool(idx.get("isPrimary", False)),
+        "bucket": idx["bucket"],
+    }
 
-    # Map REST status to SQL++ query service state, passing definition to resolve Created → deferred/pending
-    raw_status = idx.get("status", "")
-    index_info["status"] = (
-        map_rest_status_to_query_state(raw_status, raw_definition) if raw_status else ""
-    )
-
-    index_info["isPrimary"] = bool(idx.get("isPrimary", False))
-
-    if "bucket" in idx:
-        index_info["bucket"] = idx["bucket"]
     if "scope" in idx:
         index_info["scope"] = idx["scope"]
     if "collection" in idx:
         index_info["collection"] = idx["collection"]
 
-    index_info["lastScanTime"] = idx.get("lastScanTime") or "NA"
+    index_info["lastScanTime"] = idx["lastScanTime"]
 
     return index_info
 
 
 def process_index_data_from_query(
     idx: dict[str, Any],
-) -> dict[str, Any] | None:
-    """Process a row from ``system:all_indexes`` into formatted index info.
+) -> dict[str, Any]:
+    """Process a row from ``system:indexes`` into formatted index info.
 
-    Field mapping (system:all_indexes -> output):
-        - name              -> name
-        - metadata.definition -> definition
-        - state             -> status
-        - bucket_id         -> bucket
-        - scope_id          -> scope
-        - keyspace_id       -> collection
-        - is_primary        -> isPrimary
-        - metadata.last_scan_time -> lastScanTime
+    Bucket / scope / collection are normalized in SQL++ by
+    ``fetch_indexes_via_query_service`` via a LET clause, so legacy
+    bucket-level indexes (only ``keyspace_id`` present) and modern scoped
+    indexes (``bucket_id`` + ``scope_id`` + ``keyspace_id``) both arrive
+    here with the same enriched shape — no branching needed here.
 
     Args:
-        idx: A single index document from ``system:all_indexes``, returned
-            directly by ``SELECT RAW all_indexes`` (i.e. the outer wrapper is
-            already stripped by the ``RAW`` keyword).
+        idx: A single index row from ``system:indexes`` with ``bucket`` /
+            ``scope`` / ``collection`` already injected by the LET clause
+            in the fetch query.
 
     Returns:
-        Formatted index info dictionary, or None if the row should be skipped
-        (no name).
+        Formatted index info dictionary. If a required field is missing or
+        invalid, returns a fallback dict containing ``warning`` and the
+        unprocessed raw row under ``raw_index_stats``.
     """
-    name = idx.get("name", "")
-    if not name:
-        return None
+    warning = _validate_query_row(idx)
+    if warning:
+        return _raw_fallback(idx, warning)
 
-    index_info: dict[str, Any] = {"name": name}
+    metadata = idx["metadata"]
 
-    metadata = idx.get("metadata") or {}
-    # No cleaning needed — query service returns verbatim SQL++
-    index_info["definition"] = metadata.get("definition", "")
-
-    state = idx.get("state")
-    index_info["status"] = state if state else ""
-
-    if "bucket_id" in idx:
-        index_info["bucket"] = idx["bucket_id"]
-        if "scope_id" in idx:
-            index_info["scope"] = idx["scope_id"]
-        if "keyspace_id" in idx:
-            index_info["collection"] = idx["keyspace_id"]
-    elif "keyspace_id" in idx:
-        # Legacy bucket-level indexes don't have bucket_id/scope_id;
-        # keyspace_id is the bucket name in that case.
-        index_info["bucket"] = idx["keyspace_id"]
-        index_info["scope"] = "_default"
-        index_info["collection"] = "_default"
-
-    index_info["isPrimary"] = bool(idx.get("is_primary", False))
-
-    index_info["lastScanTime"] = metadata.get("last_scan_time", "NA") or "NA"
-
-    return index_info
+    return {
+        "name": idx["name"],
+        "definition": metadata["definition"],
+        "status": idx["state"],
+        "bucket": idx["bucket"],
+        "scope": idx["scope"],
+        "collection": idx["collection"],
+        "isPrimary": bool(idx.get("is_primary", False)),
+        "lastScanTime": metadata["last_scan_time"],
+    }
 
 
 def parse_major_version(version_str: str | None) -> int:
