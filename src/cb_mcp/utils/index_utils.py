@@ -52,80 +52,6 @@ def clean_index_definition(definition: Any) -> str:
     return ""
 
 
-# Mapping from REST API /getIndexStatus status strings to SQL++ query service states.
-# Source: https://github.com/couchbase/indexing/blob/master/secondary/indexer/request_handler.go
-# The REST API produces these status strings from internal indexer states.
-# SQL++ system:all_indexes uses 7 canonical states:
-# online, deferred, building, pending, offline, abridged, scheduled for creation
-_REST_STATUS_TO_QUERY_STATE: dict[str, str] = {
-    "Ready": "online",
-    # "Created" can mean deferred (WITH {\"defer_build\":true}) or pending (waiting to build).
-    # Resolved at call-site by inspecting the definition field — see map_rest_status_to_query_state.
-    "Created": "pending",
-    "Building": "building",
-    "Moving": "building",
-    "Error": "offline",
-    "Paused": "offline",
-    "Warmup": "pending",
-    "Not Available": "offline",
-    "Retrying": "offline",
-    "Scheduled for Creation": "scheduled for creation",
-    "Training": "building",
-    "Graph Building": "building",
-    # "Scheduled for build" and "Training complete, scheduled for build" come from
-    # INDEX_STATE_READY (same as "Created"). Use defer_build check at call-site.
-    "Scheduled for build": "pending",
-    "Training complete, scheduled for build": "pending",
-}
-
-
-def map_rest_status_to_query_state(rest_status: str, definition: str = "") -> str:
-    """Map a REST API index status string to its SQL++ query service equivalent.
-
-    Args:
-        rest_status: Status string from the REST API.
-        definition: The raw CREATE INDEX definition string from the REST API.
-            Used to distinguish deferred from pending for "Created" indexes.
-
-    Returns:
-        Normalized SQL++ query service state string.
-    """
-    # Direct lookup first
-    if rest_status in _REST_STATUS_TO_QUERY_STATE:
-        # "Created", "Scheduled for build", and "Training complete, scheduled for build"
-        # all share INDEX_STATE_READY. Use defer_build in definition to distinguish
-        # deferred (explicit defer) from pending (waiting to build).
-        if rest_status in (
-            "Created",
-            "Scheduled for build",
-            "Training complete, scheduled for build",
-        ):
-            return "deferred" if "defer_build" in definition.lower() else "pending"
-        return _REST_STATUS_TO_QUERY_STATE[rest_status]
-
-    # Handle qualified statuses like "Building (Upgrading)", "Created (Downgrading)"
-    prefix = rest_status.split("(")[0].strip()
-    if prefix in _REST_STATUS_TO_QUERY_STATE:
-        if prefix in (
-            "Created",
-            "Scheduled for build",
-            "Training complete, scheduled for build",
-        ):
-            return "deferred" if "defer_build" in definition.lower() else "pending"
-        return _REST_STATUS_TO_QUERY_STATE[prefix]
-
-    # Unknown status — there's a problem in fetching the status (the value
-    # returned isn't one we recognize). Log a warning so it can be reported,
-    # but still return a usable value (lowercased) so the caller doesn't break.
-    logger.warning(
-        "Encountered unexpected REST API index status %r. There's a problem "
-        "in fetching the status. Please report this issue. Returning the "
-        "status lowercased.",
-        rest_status,
-    )
-    return rest_status.lower()
-
-
 def _raw_fallback(idx: dict[str, Any], reason: str) -> dict[str, Any]:
     """Build a fallback response when an index row cannot be fully processed.
 
@@ -199,12 +125,11 @@ def process_index_data_from_rest_api(
 
     name = idx.get("indexName") or idx.get("name")
     raw_definition = idx["definition"]
-    raw_status = idx["status"]
 
     index_info: dict[str, Any] = {
         "name": name,
         "definition": clean_index_definition(raw_definition),
-        "status": map_rest_status_to_query_state(raw_status, raw_definition),
+        "status": idx["status"],
         "isPrimary": bool(idx.get("isPrimary", False)),
         "bucket": idx["bucket"],
     }

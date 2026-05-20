@@ -11,7 +11,6 @@ Tests for:
 
 from __future__ import annotations
 
-import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -38,7 +37,6 @@ from cb_mcp.utils.index_utils import (
     _determine_ssl_verification,
     _extract_hosts_from_connection_string,
     clean_index_definition,
-    map_rest_status_to_query_state,
     parse_major_version,
     process_index_data_from_query,
     process_index_data_from_rest_api,
@@ -163,7 +161,7 @@ class TestIndexUtilsFunctions:
         assert result is not None
         assert result["name"] == "idx_test"
         assert result["bucket"] == "travel-sample"
-        assert result["status"] == "online"
+        assert result["status"] == "Ready"
         assert result["isPrimary"] is False
         assert "lastScanTime" in result
 
@@ -685,80 +683,26 @@ class TestIndexUtilsFunctions:
         assert result["scope"] == "_default"
         assert result["collection"] == "_default"
 
-    # ------------------------------------------------------------------
-    # Unknown REST status: must log a warning and still return lowercase
-    # (so the caller doesn't break on a new/unexpected backend value).
-    # ------------------------------------------------------------------
-
-    def test_unknown_rest_status_logs_warning_and_returns_lowercase(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """An unrecognised REST status should produce a warning log AND be
-        returned in lowercase form, exactly as the current contract states."""
-        with caplog.at_level(
-            logging.WARNING, logger=f"{MCP_SERVER_NAME}.utils.index_utils"
+    def test_rest_status_passes_through_as_is(self) -> None:
+        """REST API status strings should pass through unchanged."""
+        for status in (
+            "Ready",
+            "Building",
+            "Created",
+            "Error",
+            "Scheduled for Creation",
+            "Building (Upgrading)",
+            "SomeNewStatus",
         ):
-            result = map_rest_status_to_query_state("BrandNewStatus")
-
-        assert result == "brandnewstatus"
-        # Must log a warning so operators can report it.
-        assert any(
-            record.levelno == logging.WARNING
-            and "BrandNewStatus" in record.getMessage()
-            for record in caplog.records
-        ), "Expected a WARNING log mentioning the unknown status string"
-        assert any(
-            "report" in record.getMessage().lower() for record in caplog.records
-        ), "Warning should ask the user to report the issue"
-
-    def test_map_rest_status_to_query_state(self) -> None:
-        """REST API status strings should map to SQL++ query service equivalents."""
-        assert map_rest_status_to_query_state("Ready") == "online"
-        assert map_rest_status_to_query_state("Building") == "building"
-        assert map_rest_status_to_query_state("Error") == "offline"
-        assert (
-            map_rest_status_to_query_state("Scheduled for Creation")
-            == "scheduled for creation"
-        )
-        assert map_rest_status_to_query_state("Moving") == "building"
-        assert map_rest_status_to_query_state("Paused") == "offline"
-        assert map_rest_status_to_query_state("Warmup") == "pending"
-
-    def test_map_rest_status_created_with_defer_build(self) -> None:
-        """Created + defer_build in definition -> deferred."""
-        definition = 'CREATE INDEX idx ON b(x) WITH {"defer_build": true}'
-        assert map_rest_status_to_query_state("Created", definition) == "deferred"
-
-    def test_map_rest_status_created_without_defer_build(self) -> None:
-        """Created without defer_build in definition -> pending."""
-        definition = "CREATE INDEX idx ON b(x)"
-        assert map_rest_status_to_query_state("Created", definition) == "pending"
-
-    def test_map_rest_status_created_no_definition(self) -> None:
-        """Created with no definition defaults to pending."""
-        assert map_rest_status_to_query_state("Created") == "pending"
-        assert map_rest_status_to_query_state("Created", "") == "pending"
-
-    def test_map_rest_status_to_query_state_qualified(self) -> None:
-        """Qualified REST statuses (with parenthesis) should use prefix for mapping."""
-        assert map_rest_status_to_query_state("Building (Upgrading)") == "building"
-        assert map_rest_status_to_query_state("Building (Downgrading)") == "building"
-        assert (
-            map_rest_status_to_query_state(
-                "Created (Upgrading)", 'WITH {"defer_build":true}'
-            )
-            == "deferred"
-        )
-        assert (
-            map_rest_status_to_query_state(
-                "Created (Downgrading)", "CREATE INDEX idx ON b(x)"
-            )
-            == "pending"
-        )
-
-    def test_map_rest_status_to_query_state_unknown(self) -> None:
-        """Unknown REST statuses should be returned as-is in lowercase."""
-        assert map_rest_status_to_query_state("SomeNewStatus") == "somenewstatus"
+            idx = {
+                "name": "idx_test",
+                "definition": "CREATE INDEX idx_test ON bucket(field)",
+                "status": status,
+                "bucket": "bucket",
+                "lastScanTime": "NA",
+            }
+            result = process_index_data_from_rest_api(idx)
+            assert result["status"] == status
 
 
 class TestConstants:

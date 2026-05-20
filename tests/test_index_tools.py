@@ -19,23 +19,6 @@ from conftest import (
     require_test_bucket,
 )
 
-from cb_mcp.utils.index_utils import _REST_STATUS_TO_QUERY_STATE
-
-# Canonical SQL++ states emitted by `system:all_indexes` (Couchbase Server docs).
-# If `system:all_indexes` ever returns a value outside this set, our processor
-# will pass it through verbatim — the schema-contract test below will flag it.
-_KNOWN_QUERY_STATES: frozenset[str] = frozenset(
-    {
-        "online",
-        "deferred",
-        "building",
-        "pending",
-        "offline",
-        "abridged",
-        "scheduled for creation",
-    }
-)
-
 # REST-side keys we read in process_index_data_from_rest_api.
 _REQUIRED_REST_KEYS: frozenset[str] = frozenset(
     {"name", "indexName", "definition", "status", "bucket", "scope", "collection"}
@@ -377,52 +360,6 @@ async def test_list_indexes_raw_rows_have_expected_keys() -> None:
                 f"{sorted(idx.keys())}. The legacy/modern discriminator may "
                 f"have changed in system:all_indexes."
             )
-
-
-@pytest.mark.asyncio
-async def test_list_indexes_raw_status_values_are_known() -> None:
-    """Schema contract: every status / state value the cluster returns must
-    already be in the set our mapping code knows about.
-
-    A new value would currently be lowercased and passed through, which means
-    LLM consumers would see a status they can't interpret. Flag it here so
-    we update _REST_STATUS_TO_QUERY_STATE (or the SQL++ state set) explicitly.
-    """
-    async with create_mcp_session() as session:
-        response = await session.call_tool(
-            "list_indexes", arguments={"return_raw_index_stats": True}
-        )
-        payload = extract_payload(response)
-
-    if not isinstance(payload, list) or not payload:
-        pytest.skip("No indexes available to check status values")
-
-    path = _identify_source_path(payload[0])
-
-    if path == "query":
-        seen = {idx["state"] for idx in payload if idx.get("state")}
-        unknown = seen - _KNOWN_QUERY_STATES
-        assert not unknown, (
-            f"Unexpected SQL++ state value(s) from system:all_indexes: "
-            f"{sorted(unknown)}. Known states: {sorted(_KNOWN_QUERY_STATES)}. "
-            f"Update the canonical state set and verify processor handles them."
-        )
-    elif path == "rest":
-        known = set(_REST_STATUS_TO_QUERY_STATE.keys())
-        unknown: set[str] = set()
-        for idx in payload:
-            raw_status = idx.get("status")
-            if not raw_status:
-                continue
-            # Strip qualifier like "Building (Upgrading)" before checking.
-            prefix = raw_status.split("(")[0].strip()
-            if prefix not in known:
-                unknown.add(raw_status)
-        assert not unknown, (
-            f"Unexpected REST status value(s) from /getIndexStatus: "
-            f"{sorted(unknown)}. Known statuses: {sorted(known)}. "
-            f"Update _REST_STATUS_TO_QUERY_STATE before silently lowercasing."
-        )
 
 
 @pytest.mark.asyncio
