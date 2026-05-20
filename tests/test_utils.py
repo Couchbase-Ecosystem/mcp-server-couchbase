@@ -587,9 +587,10 @@ class TestIndexUtilsFunctions:
         assert "warning" not in result
         assert result["lastScanTime"] == "NA"
 
-    def test_rest_null_last_scan_time_defaults_to_NA(self) -> None:
+    def test_rest_null_last_scan_time_omitted(self) -> None:
         """REST path: explicit null lastScanTime (defensive — REST doesn't
-        emit null today but we coerce it to 'NA' if it ever does)."""
+        emit null today but if it ever does we omit the field rather than
+        surfacing a meaningless null to the caller)."""
         idx = {
             "name": "idx_test",
             "definition": "CREATE INDEX idx_test ON bucket(field)",
@@ -599,7 +600,7 @@ class TestIndexUtilsFunctions:
         }
         result = process_index_data_from_rest_api(idx)
         assert "warning" not in result
-        assert result["lastScanTime"] == "NA"
+        assert "lastScanTime" not in result
 
     def test_query_missing_last_scan_time_key_falls_back_to_raw(self) -> None:
         """Query path: system:indexes always emits 'metadata.last_scan_time'
