@@ -107,29 +107,50 @@ def fetch_indexes_via_query_service(
     scope_name: str | None,
     collection_name: str | None,
     index_name: str | None,
+    return_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
-    """Fetch indexes by querying ``system:all_indexes`` via the query service.
+    """Fetch indexes from ``system:indexes`` via the query service.
+
+    Uses a LET clause to normalize legacy and modern index shapes so filters
+    apply symmetrically. When ``return_raw_index_stats`` is True, returns raw
+    rows with no injected bucket/scope/collection fields.
+
     Returns:
-        List of unwrapped raw index rows from ``system:all_indexes``.
+        List of dict rows from ``system:indexes``.
     """
-    clauses: list[str] = ["`using` = 'gsi'"]
+    # Always present — guards future Couchbase pool/namespace additions and
+    # restricts to GSI indexes.
+    clauses: list[str] = ["s.namespace_id = 'default'", "s.`using` = 'gsi'"]
     params: dict[str, Any] = {}
 
     if bucket_name:
-        clauses.append("bucket_id = $bucket_id")
+        clauses.append("bid = $bucket_id")
         params["bucket_id"] = bucket_name
     if scope_name:
-        clauses.append("scope_id = $scope_id")
+        clauses.append("sid = $scope_id")
         params["scope_id"] = scope_name
     if collection_name:
-        clauses.append("keyspace_id = $keyspace_id")
+        clauses.append("kid = $keyspace_id")
         params["keyspace_id"] = collection_name
     if index_name:
-        clauses.append("name = $index_name")
+        clauses.append("s.name = $index_name")
         params["index_name"] = index_name
 
-    query = "SELECT RAW all_indexes FROM system:all_indexes WHERE " + " AND ".join(
-        clauses
+    let_clause = (
+        "LET bid = IFMISSING(s.bucket_id, s.keyspace_id), "
+        "sid = IFMISSING(s.scope_id, '_default'), "
+        "kid = NVL2(s.bucket_id, s.keyspace_id, '_default')"
+    )
+    if return_raw_index_stats:
+        select_clause = "SELECT RAW s"
+    else:
+        select_clause = (
+            "SELECT s.*, bid AS `bucket`, sid AS `scope`, kid AS `collection`"
+        )
+
+    query = (
+        f"{select_clause} FROM system:indexes AS s {let_clause} "
+        f"WHERE {' AND '.join(clauses)}"
     )
     logger.info(f"Running list_indexes query: {query}")
 
@@ -143,36 +164,15 @@ def list_indexes(
     scope_name: str | None = None,
     collection_name: str | None = None,
     index_name: str | None = None,
+    return_raw_index_stats: bool = False,
 ) -> list[dict[str, Any]]:
-    """List all indexes in the cluster with optional filtering by bucket, scope, collection, and index name.
-    Returns a list of indexes with their names and CREATE INDEX definitions.
+    """List indexes in the cluster with optional filtering by bucket, scope, collection, and index name.
 
-    The data source depends on the Couchbase Server version:
-    - Cluster version >= 8.x: query ``system:all_indexes`` via the query
-      service, which exposes the original CREATE INDEX statement directly in
-      ``metadata.definition``.
-    - Cluster version < 8.x: fall back to the
-      Index Service REST API ``/getIndexStatus`` endpoint.
+    Filters must be provided hierarchically: scope requires bucket, collection requires both, index requires all three.
+    Set ``return_raw_index_stats=True`` to get the unprocessed source row for each index.
 
-    Args:
-        ctx: MCP context for cluster connection
-        bucket_name: Optional bucket name to filter indexes
-        scope_name: Optional scope name to filter indexes (requires bucket_name)
-        collection_name: Optional collection name to filter indexes (requires bucket_name and scope_name)
-        index_name: Optional index name to filter indexes (requires bucket_name, scope_name, and collection_name)
-
-    Returns:
-        List of dictionaries with keys:
-        - name (str): Index name
-        - definition (str): CREATE INDEX statement
-        - status (str): Current index state. SQL++ defines 7 canonical values:
-          online, deferred, building, pending, offline, abridged, scheduled for creation.
-          On the REST path, unknown/future statuses are returned lowercased for forward-compat.
-        - isPrimary (bool): Whether this is a primary index
-        - bucket (str): Bucket name where the index exists
-        - scope (str): Scope name where the index exists
-        - collection (str): Collection name where the index exists
-        - lastScanTime (str): Last time the index was scanned
+    Each result contains: name, definition (CREATE INDEX statement), status, isPrimary, bucket, scope, collection, lastScanTime.
+    If a required field is missing, the entry contains warning and raw_index_stats instead.
     """
     try:
         # Validate parameters
@@ -188,7 +188,7 @@ def list_indexes(
 
         if major_version >= QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION:
             logger.info(
-                f"Fetching indexes via query service (system:all_indexes) for "
+                f"Fetching indexes via query service (system:indexes) for "
                 f"bucket={bucket_name}, scope={scope_name}, "
                 f"collection={collection_name}, index={index_name}"
             )
@@ -198,12 +198,11 @@ def list_indexes(
                 scope_name=scope_name,
                 collection_name=collection_name,
                 index_name=index_name,
+                return_raw_index_stats=return_raw_index_stats,
             )
-            indexes = [
-                processed
-                for idx in raw_indexes
-                if (processed := process_index_data_from_query(idx)) is not None
-            ]
+            if return_raw_index_stats:
+                return raw_indexes
+            indexes = [process_index_data_from_query(idx) for idx in raw_indexes]
             logger.info(f"Found {len(indexes)} indexes via query service")
             return indexes
 
@@ -225,11 +224,9 @@ def list_indexes(
         )
 
         # Process and format the results
-        indexes = [
-            processed
-            for idx in raw_indexes
-            if (processed := process_index_data_from_rest_api(idx)) is not None
-        ]
+        if return_raw_index_stats:
+            return raw_indexes
+        indexes = [process_index_data_from_rest_api(idx) for idx in raw_indexes]
 
         logger.info(f"Found {len(indexes)} indexes from REST API")
         return indexes
