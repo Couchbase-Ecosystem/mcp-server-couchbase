@@ -14,7 +14,6 @@ When read-only mode is enabled, the following tools are affected:
 | `delete_document_by_id` | Delete a document by ID |
 | `run_sql_plus_plus_query` | Run SQL++ queries that modify data |
 
-
 ## Read-Only Mode (Recommended)
 
 This is the primary security control (`CB_MCP_READ_ONLY_MODE`):
