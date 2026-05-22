@@ -59,6 +59,8 @@ const config = {
           routeBasePath: "/",
           editUrl:
             "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/tree/main/website/",
+          includeCurrentVersion: false,
+          lastVersion: "0.8",
         },
         blog: false,
         theme: {
@@ -88,6 +90,10 @@ const config = {
           src: "img/logo.svg",
         },
         items: [
+          {
+            type: "docsVersionDropdown",
+            position: "right",
+          },
           {
             href: "https://pypi.org/project/couchbase-mcp-server/",
             label: "PyPI",
