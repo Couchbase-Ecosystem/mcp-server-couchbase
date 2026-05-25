@@ -106,6 +106,7 @@ const config = {
           {
             type: "docsVersionDropdown",
             position: "left",
+            className: "navbar__version-pill",
           },
           {
             href: "https://pypi.org/project/couchbase-mcp-server/",
