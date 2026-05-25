@@ -77,6 +77,19 @@ const config = {
     ],
   ],
 
+  themes: [
+    [
+      "@easyops-cn/docusaurus-search-local",
+      {
+        hashed: true,
+        indexBlog: false,
+        docsDir: ["versioned_docs/version-0.8", "versioned_docs/version-0.7"],
+        docsRouteBasePath: "/",
+        explicitSearchResultPath: true,
+      },
+    ],
+  ],
+
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
