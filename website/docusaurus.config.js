@@ -93,6 +93,13 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      image: "img/social-card.jpg",
+      metadata: [
+        {
+          name: "description",
+          content: "Connect LLMs to Couchbase clusters via the Model Context Protocol",
+        },
+      ],
       colorMode: {
         respectPrefersColorScheme: true,
       },

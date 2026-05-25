@@ -1,6 +1,7 @@
 ---
 sidebar_label: Overview
 slug: /
+description: Connect LLMs to Couchbase clusters via the Model Context Protocol — read-only modes, fine-grained tool disabling, stdio + HTTP transports.
 ---
 
 # Couchbase MCP Server

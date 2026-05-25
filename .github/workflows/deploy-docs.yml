@@ -95,6 +95,7 @@ jobs:
           preview-branch: gh-pages
           umbrella-dir: pr-preview
           action: deploy
+          pages-base-url: mcp-server.couchbase.com
 
   cleanup:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
