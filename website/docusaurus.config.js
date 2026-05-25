@@ -92,7 +92,7 @@ const config = {
         items: [
           {
             type: "docsVersionDropdown",
-            position: "right",
+            position: "left",
           },
           {
             href: "https://pypi.org/project/couchbase-mcp-server/",
