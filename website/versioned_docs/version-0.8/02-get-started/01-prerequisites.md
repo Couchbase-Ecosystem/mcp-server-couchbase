@@ -12,7 +12,7 @@ Before using the Couchbase MCP Server, ensure you have the following:
 
   - A self-hosted Couchbase Server instance
 
-  :::note Compatibility
+  :::note[Compatibility]
   The MCP Server is compatible with **Couchbase Server 7.2+** (Operational Cluster). The following services are **not supported**: Couchbase Analytics, Sync Gateway, Couchbase Lite, and Capella AI Services.
   :::
 

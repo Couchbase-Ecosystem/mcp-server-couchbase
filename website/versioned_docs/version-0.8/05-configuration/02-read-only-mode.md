@@ -24,7 +24,7 @@ This is the primary security control (`CB_MCP_READ_ONLY_MODE`):
 
 ## Read-Only Query Mode (Deprecated)
 
-:::warning Deprecated
+:::warning[Deprecated]
 `CB_MCP_READ_ONLY_QUERY_MODE` only controls SQL++ query-based writes but does not prevent KV write operations. Use `CB_MCP_READ_ONLY_MODE` instead for comprehensive protection.
 :::
 
