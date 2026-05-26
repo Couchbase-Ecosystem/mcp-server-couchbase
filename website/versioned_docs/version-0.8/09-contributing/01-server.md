@@ -43,23 +43,34 @@ uv run pre-commit run --all-files
 ```bash
 mcp-server-couchbase/
 ├── src/
-│   ├── mcp_server.py              # MCP server entry point
-│   ├── certs/                     # SSL/TLS certificates
-│   │   └── capella_root_ca.pem    # Capella root CA certificate
-│   ├── tools/                     # MCP tool implementations
-│   │   ├── __init__.py            # Tool exports and ALL_TOOLS list
-│   │   ├── server.py              # Server status and connection tools
-│   │   ├── kv.py                  # Key-value operations (CRUD)
-│   │   ├── query.py               # SQL++ query and performance tools
-│   │   └── index.py               # Index operations and recommendations
-│   └── utils/                     # Utility modules
-│       ├── constants.py           # Project constants
-│       ├── config.py              # Configuration management
-│       ├── connection.py          # Couchbase connection handling
-│       ├── context.py             # Application context management
-│       ├── elicitation.py         # Confirmation/elicitation support
-│       ├── index_utils.py         # Index-related helper functions
-│       └── query_utils.py         # Query-related helper functions
+│   ├── mcp_server.py              # Standalone MCP server entry point (uv run src/mcp_server.py)
+│   ├── providers/                 # Standalone-host ClusterProvider implementations
+│   │   ├── __init__.py
+│   │   └── static.py              # StaticClusterProvider used by mcp_server.py
+│   └── cb_mcp/                    # Reusable Python package shared with other host implementations
+│       ├── __init__.py            # Package marker
+│       ├── tool_registration.py   # Shared tool prep: parse, filter, wrap with confirmation
+│       ├── core/                  # Host-agnostic contracts
+│       │   ├── __init__.py
+│       │   └── contracts.py       # ClusterProvider protocol and related contracts
+│       ├── certs/                 # SSL/TLS certificates
+│       │   ├── __init__.py
+│       │   └── capella_root_ca.pem    # Capella root CA certificate
+│       ├── tools/                 # MCP tool implementations
+│       │   ├── __init__.py        # Tool exports, READ_ONLY_TOOLS / KV_WRITE_TOOLS, TOOL_ANNOTATIONS
+│       │   ├── server.py          # Server status and connection tools
+│       │   ├── kv.py              # Key-value operations (CRUD)
+│       │   ├── query.py           # SQL++ query and performance tools
+│       │   └── index.py           # Index operations and recommendations
+│       └── utils/                 # Utility modules
+│           ├── __init__.py
+│           ├── constants.py       # Project constants
+│           ├── config.py          # Configuration management
+│           ├── connection.py      # Couchbase connection handling
+│           ├── context.py         # Application context (AppContext, cluster provider accessors)
+│           ├── elicitation.py     # Confirmation/elicitation support
+│           ├── index_utils.py     # Index-related helper functions
+│           └── query_utils.py     # Query-related helper functions
 ├── tests/                         # Test suite
 ├── website/                       # Documentation website
 ├── scripts/                       # Development scripts
@@ -70,6 +81,10 @@ mcp-server-couchbase/
 ├── pyproject.toml                 # Project config and dependencies
 └── .pre-commit-config.yaml        # Pre-commit hook configuration
 ```
+
+:::note[Package layout]
+Tool, utility, and certificate modules live under the reusable `src/cb_mcp/` package so other hosts (e.g. embedded servers, alternate transports) can import them. The standalone `src/mcp_server.py` entry point wires `cb_mcp` together with a `ClusterProvider` from `src/providers/`.
+:::
 
 ### Development Workflow
 
@@ -152,7 +167,7 @@ uv run src/mcp_server.py \
 
 ### Implementation Steps
 
-1. **Create the tool function** in the appropriate module under `src/tools/`:
+1. **Create the tool function** in the appropriate module under `src/cb_mcp/tools/`:
 
    - `server.py` — Server and cluster management tools
 
@@ -162,7 +177,7 @@ uv run src/mcp_server.py \
 
    - `index.py` — Index management tools
 
-2. **Export the tool** in `src/tools/__init__.py`:
+2. **Export the tool** in `src/cb_mcp/tools/__init__.py`:
    - Import the function
 
    - Add it to `READ_ONLY_TOOLS` (if it only reads data) or `KV_WRITE_TOOLS` (if it modifies data)
@@ -175,16 +190,16 @@ uv run src/mcp_server.py \
 
 ### Example
 
-Here's the pattern used by existing tools:
+Here's the pattern used by existing tools (note the relative imports from within the `cb_mcp` package):
 
 ```python
 import logging
 from typing import Any
 
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
-from utils.constants import MCP_SERVER_NAME
-from utils.context import get_cluster_connection
+from ..utils.constants import MCP_SERVER_NAME
+from ..utils.context import get_cluster_connection
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.your_module")
 
@@ -202,9 +217,11 @@ def your_new_tool(
 
 ### Key Patterns
 
-- **Context**: Always accept `ctx: Context` as the first parameter. Use `get_cluster_connection(ctx)` to get the Couchbase cluster object.
+- **Context**: Always accept `ctx: Context` (from `fastmcp`) as the first parameter. Use `get_cluster_connection(ctx)` from `cb_mcp.utils.context` to get the Couchbase `Cluster` object. If you need the full provider (e.g. to read host configuration), use `get_cluster_provider(ctx)` instead.
 
-- **Lazy connection**: The cluster connection is established on the first tool call, not at server startup.
+- **Provider-backed connection**: Cluster access is mediated by a `ClusterProvider` (see `src/cb_mcp/core/contracts.py`). The standalone server uses `StaticClusterProvider` from `src/providers/static.py`; other hosts may inject their own. Tools should not assume how the connection is established.
+
+- **Relative imports**: Tool modules live inside the `cb_mcp` package, so use relative imports (`from ..utils.constants import ...`) rather than absolute `utils.*` imports.
 
 - **Logging**: Use the hierarchical logger pattern: `logging.getLogger(f"{MCP_SERVER_NAME}.tools.module_name")`
 
@@ -214,9 +231,10 @@ def your_new_tool(
 
 ### Checklist
 
-- [ ] Function created in appropriate `src/tools/*.py` module
-- [ ] Exported in `src/tools/__init__.py`
+- [ ] Function created in appropriate `src/cb_mcp/tools/*.py` module
+- [ ] Exported in `src/cb_mcp/tools/__init__.py`
 - [ ] Added to the correct tool list (`READ_ONLY_TOOLS` or `KV_WRITE_TOOLS`)
+- [ ] Annotation added to `TOOL_ANNOTATIONS`
 - [ ] Added to `__all__`
 - [ ] Descriptive docstring (this is what the LLM sees)
 - [ ] Tested with an MCP client
