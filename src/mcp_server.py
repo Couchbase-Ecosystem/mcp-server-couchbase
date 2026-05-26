@@ -338,7 +338,7 @@ def main(
     logger.info(f"Registered {len(final_tools)} tool(s)")
 
     run_kwargs = {"host": host, "port": port} if transport in NETWORK_TRANSPORTS else {}
-    mcp.run(transport=sdk_transport, **run_kwargs)  # type: ignore
+    mcp.run(transport=sdk_transport, show_banner=False, **run_kwargs)  # type: ignore
 
 
 if __name__ == "__main__":
