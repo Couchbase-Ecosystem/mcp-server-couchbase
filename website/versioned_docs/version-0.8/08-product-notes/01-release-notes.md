@@ -4,6 +4,12 @@ Full release details are published on the [GitHub Releases](https://github.com/C
 
 ## Version History
 
+### v0.8.0 (27 May 2026)
+
+- **Python 3.14 Support** - The Couchbase MCP Server is now compatible with Python 3.14, allowing users to take advantage of the latest features and improvements in the Python ecosystem.
+
+- **Migrate to FastMCP SDK** - The server has been updated to use the native [FastMCP SDK](https://gofastmcp.com/getting-started/welcome) instead of the native [MCP SDK](https://py.sdk.modelcontextprotocol.io/).
+
 ### v0.7.1 (9 April 2026)
 
 - **Fix for test_cluster_connection Tool** - Resolved an issue where the `test_cluster_connection` tool could cause an exception with the latest Couchbase SDK (4.6.0). The tool now accurately reflects the connection status in its response.
@@ -44,8 +50,6 @@ Full release details are published on the [GitHub Releases](https://github.com/C
 - **Cluster Health** - New `get_cluster_health_and_services` tool for monitoring cluster status and service latency.
 
 ## Upcoming Features
-
-- **Support for Python 3.14** - We are actively working on ensuring compatibility for the Couchbase MCP Server with Python 3.14.
 
 - **Search-Based Tools** - Tools for Full Text Search (FTS).
 

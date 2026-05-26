@@ -55,7 +55,8 @@ To enable write operations:
         "CB_CONNECTION_STRING": "couchbases://your-connection-string",
         "CB_USERNAME": "username",
         "CB_PASSWORD": "password",
-        "CB_MCP_READ_ONLY_MODE": "false"
+        "CB_MCP_READ_ONLY_MODE": "false",
+        "CB_MCP_READ_ONLY_QUERY_MODE": "false"
       }
     }
   }
