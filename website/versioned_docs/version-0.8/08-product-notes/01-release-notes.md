@@ -10,6 +10,8 @@ Full release details are published on the [GitHub Releases](https://github.com/C
 
 - **Migrate to FastMCP SDK** - The server has been updated to use the native [FastMCP SDK](https://gofastmcp.com/getting-started/welcome) instead of the native [MCP SDK](https://py.sdk.modelcontextprotocol.io/).
 
+- **Docker Base Image Update** - The base images for the prebuilt Docker images have been updated to `python:3.13-slim-trixie` for security and performance improvements.
+
 ### v0.7.1 (9 April 2026)
 
 - **Fix for test_cluster_connection Tool** - Resolved an issue where the `test_cluster_connection` tool could cause an exception with the latest Couchbase SDK (4.6.0). The tool now accurately reflects the connection status in its response.
