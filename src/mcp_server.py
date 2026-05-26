@@ -11,6 +11,7 @@ from fastmcp import FastMCP
 from fastmcp.tools import FunctionTool
 
 # Reusable tools and utilities from the cb_mcp package
+from cb_mcp.auth import build_remote_auth, make_metadata_proxy_handler
 from cb_mcp.tool_registration import prepare_tools_for_registration
 from cb_mcp.tools import TOOL_ANNOTATIONS
 from cb_mcp.utils import (
@@ -124,7 +125,65 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     "Also accepts a file path containing one tool name per line. "
     "Requires the MCP client to support elicitation.",
 )
+@click.option(
+    "--mcp-base-url",
+    envvar="MCP_BASE_URL",
+    default=None,
+    help="Public base URL of this MCP server (e.g. https://api.yourcompany.com). "
+    "Advertised in OAuth 2.0 protected-resource metadata. "
+    "Required to enable auth.",
+)
+@click.option(
+    "--auth-jwks-uri",
+    envvar="AUTH_JWKS_URI",
+    default=None,
+    help="JWKS endpoint of the upstream identity provider, used to verify "
+    "bearer JWT signatures (e.g. https://test.stytch.com/v1/sessions/jwks/<project_id>).",
+)
+@click.option(
+    "--auth-issuer",
+    envvar="AUTH_ISSUER",
+    default=None,
+    help="Expected JWT 'iss' claim value (e.g. stytch.com/<project_id>).",
+)
+@click.option(
+    "--auth-audience",
+    envvar="AUTH_AUDIENCE",
+    default=None,
+    help="Expected JWT 'aud' claim value. Omit to skip audience checks.",
+)
+@click.option(
+    "--auth-authorization-server",
+    envvar="AUTH_AUTHORIZATION_SERVER",
+    default=None,
+    help="Upstream OAuth authorization server URL advertised to MCP clients "
+    "for OAuth metadata discovery and Dynamic Client Registration.",
+)
+@click.option(
+    "--auth-required-scopes",
+    envvar="AUTH_REQUIRED_SCOPES",
+    default=None,
+    help="Comma-separated OAuth scopes a token must carry to access this server.",
+)
 @click.version_option(package_name="couchbase-mcp-server")
+@click.option(
+    "--auth-upstream-metadata-url",
+    envvar="AUTH_UPSTREAM_METADATA_URL",
+    default=None,
+    help="Enable metadata-proxy mode by fetching upstream AS metadata from "
+    "this URL (typically the provider's OIDC discovery doc). When set, this "
+    "server advertises itself as the AS and serves an augmented metadata doc "
+    "at /.well-known/oauth-authorization-server. Use together with "
+    "--auth-registration-endpoint when the upstream omits it.",
+)
+@click.option(
+    "--auth-registration-endpoint",
+    envvar="AUTH_REGISTRATION_ENDPOINT",
+    default=None,
+    help="Dynamic Client Registration endpoint URL to inject into the "
+    "metadata-proxy response. Use this when the upstream provider supports "
+    "DCR but doesn't advertise registration_endpoint in its OIDC doc.",
+)
 @click.pass_context
 def main(
     ctx,
@@ -141,6 +200,14 @@ def main(
     port,
     disabled_tools,
     confirmation_required_tools,
+    mcp_base_url,
+    auth_jwks_uri,
+    auth_issuer,
+    auth_audience,
+    auth_authorization_server,
+    auth_required_scopes,
+    auth_upstream_metadata_url,
+    auth_registration_endpoint,
 ):
     """Couchbase MCP Server"""
 
@@ -200,7 +267,62 @@ def main(
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
 
-    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
+    required_scopes_list = (
+        [s.strip() for s in auth_required_scopes.split(",") if s.strip()]
+        if auth_required_scopes
+        else None
+    )
+    auth = build_remote_auth(
+        base_url=mcp_base_url,
+        jwks_uri=auth_jwks_uri,
+        issuer=auth_issuer,
+        audience=auth_audience,
+        authorization_server=auth_authorization_server,
+        required_scopes=required_scopes_list,
+        upstream_metadata_url=auth_upstream_metadata_url,
+    )
+    if auth is not None and transport not in NETWORK_TRANSPORTS:
+        logger.warning(
+            "Auth was configured but transport=%s; "
+            "auth is only meaningful for network transports (http, sse).",
+            transport,
+        )
+
+    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, auth=auth)
+
+    # Metadata-proxy mode: serve an augmented AS metadata doc at the
+    # well-known paths so clients discover registration_endpoint (and any
+    # other fields the upstream omits).
+    if auth is not None and auth_upstream_metadata_url:
+        if not auth_registration_endpoint:
+            logger.warning(
+                "--auth-upstream-metadata-url is set without "
+                "--auth-registration-endpoint; the augmented metadata "
+                "will pass through unchanged. DCR clients may still fail."
+            )
+        extra_fields = {}
+        if auth_registration_endpoint:
+            extra_fields["registration_endpoint"] = auth_registration_endpoint
+        metadata_handler = make_metadata_proxy_handler(
+            upstream_metadata_url=auth_upstream_metadata_url,
+            extra_fields=extra_fields,
+        )
+
+        @mcp.custom_route("/.well-known/oauth-authorization-server", methods=["GET"])
+        async def _as_metadata(request):
+            return await metadata_handler(request)
+
+        @mcp.custom_route("/.well-known/openid-configuration", methods=["GET"])
+        async def _oidc_metadata(request):
+            return await metadata_handler(request)
+
+        logger.info(
+            "Metadata-proxy routes mounted at "
+            "/.well-known/oauth-authorization-server and "
+            "/.well-known/openid-configuration (upstream=%s, injecting=%s)",
+            auth_upstream_metadata_url,
+            sorted(extra_fields),
+        )
 
     logger.info(
         f"Registering {len(final_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
