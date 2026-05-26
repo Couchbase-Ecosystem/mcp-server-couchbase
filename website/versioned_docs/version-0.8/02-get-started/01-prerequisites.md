@@ -4,7 +4,7 @@ Before using the Couchbase MCP Server, ensure you have the following:
 
 ## Required
 
-- **Python 3.10 or higher** - The server requires Python 3.10+ (supports 3.10, 3.11, 3.12, 3.13).
+- **Python 3.10 or higher** - The server requires Python 3.10+
 
 - **A running Couchbase cluster** - Either:
 
