@@ -173,6 +173,11 @@ def list_indexes(
 
     Each result contains: name, definition (CREATE INDEX statement), status, isPrimary, bucket, scope, collection, lastScanTime.
     If a required field is missing, the entry contains warning and raw_index_stats instead.
+
+    Source depends on cluster version: v8+ queries ``system:indexes`` via the
+    query service (RBAC-scoped — the connected user sees only indexes on
+    keyspaces they can access); older clusters fall back to the admin-level
+    Index Service REST API ``/getIndexStatus``.
     """
     try:
         # Validate parameters

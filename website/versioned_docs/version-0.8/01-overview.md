@@ -1,6 +1,7 @@
 ---
 sidebar_label: Overview
 slug: /
+description: Connect LLMs to Couchbase clusters via the Model Context Protocol — read-only modes, fine-grained tool disabling, stdio + HTTP transports.
 ---
 
 # Couchbase MCP Server
@@ -47,8 +48,6 @@ See the [Tools](./04-tools.md) page for full details.
 The latest release is available on [PyPI](https://pypi.org/project/couchbase-mcp-server/) and [Docker Hub](https://hub.docker.com/r/couchbaseecosystem/mcp-server-couchbase).
 
 See the [Release Notes](./08-product-notes/01-release-notes.md) for version history and details.
-
-The latest version (v0.7.0) introduces support for explaining queries and elicitation for tool calls.
 
 ## Support Policy
 

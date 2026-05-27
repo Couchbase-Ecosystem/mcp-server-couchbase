@@ -4,7 +4,7 @@ Before using the Couchbase MCP Server, ensure you have the following:
 
 ## Required
 
-- **Python 3.10 or higher** - The server requires Python 3.10+ (supports 3.10, 3.11, 3.12, 3.13).
+- **Python 3.10 or higher** - The server requires Python 3.10+
 
 - **A running Couchbase cluster** - Either:
 
@@ -12,7 +12,7 @@ Before using the Couchbase MCP Server, ensure you have the following:
 
   - A self-hosted Couchbase Server instance
 
-  :::note Compatibility
+  :::note[Compatibility]
   The MCP Server is compatible with **Couchbase Server 7.2+** (Operational Cluster). The following services are **not supported**: Couchbase Analytics, Sync Gateway, Couchbase Lite, and Capella AI Services.
   :::
 

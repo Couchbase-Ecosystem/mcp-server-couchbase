@@ -323,6 +323,7 @@ def main(
             auth_upstream_metadata_url,
             sorted(extra_fields),
         )
+    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
 
     logger.info(
         f"Registering {len(final_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "

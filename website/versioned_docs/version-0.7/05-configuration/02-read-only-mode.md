@@ -14,10 +14,9 @@ When read-only mode is enabled, the following tools are affected:
 | `delete_document_by_id` | Delete a document by ID |
 | `run_sql_plus_plus_query` | Run SQL++ queries that modify data |
 
-
 ## Read-Only Mode (Recommended)
 
-This is the primary security control (`CB_MCP_READ_ONLY_MODE`):
+This is the primary server-side safety switch (`CB_MCP_READ_ONLY_MODE`) — defense-in-depth on top of database RBAC, which remains the authoritative boundary:
 
 - **When `true` (default)**: All write operations are disabled. KV write tools (upsert, insert, replace, delete) are **not loaded** and will not be available to the LLM. SQL++ queries that modify data are also blocked.
 
@@ -25,7 +24,7 @@ This is the primary security control (`CB_MCP_READ_ONLY_MODE`):
 
 ## Read-Only Query Mode (Deprecated)
 
-:::warning Deprecated
+:::warning[Deprecated]
 `CB_MCP_READ_ONLY_QUERY_MODE` only controls SQL++ query-based writes but does not prevent KV write operations. Use `CB_MCP_READ_ONLY_MODE` instead for comprehensive protection.
 :::
 
@@ -56,7 +55,8 @@ To enable write operations:
         "CB_CONNECTION_STRING": "couchbases://your-connection-string",
         "CB_USERNAME": "username",
         "CB_PASSWORD": "password",
-        "CB_MCP_READ_ONLY_MODE": "false"
+        "CB_MCP_READ_ONLY_MODE": "false",
+        "CB_MCP_READ_ONLY_QUERY_MODE": "false"
       }
     }
   }

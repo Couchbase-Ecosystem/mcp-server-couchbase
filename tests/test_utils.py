@@ -1150,7 +1150,7 @@ class TestListIndexesVersionRouting:
     """Integration-level tests verifying list_indexes routes to the correct path."""
 
     def test_version_8_uses_query_service(self) -> None:
-        """Cluster version >= 8 should use system:all_indexes, not REST API."""
+        """Cluster version >= 8 should use system:indexes, not REST API."""
         mock_ctx = MagicMock()
         mock_cluster = MagicMock()
         info = MagicMock()

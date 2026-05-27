@@ -24,7 +24,7 @@ cd mcp-server-couchbase
 uv sync --extra dev
 ```
 
-:::note External contributors
+:::note[External contributors]
 If you don't have commit access, [fork the repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/fork) to your own GitHub account and clone your fork instead.
 :::
 
