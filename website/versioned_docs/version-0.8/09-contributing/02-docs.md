@@ -1,11 +1,15 @@
-# Couchbase MCP Server Documentation
+# Documentation
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Guide for contributing to the Couchbase MCP Server documentation site.
+
+If you want to contribute to the server itself, see [Contributing to the MCP Server](./01-server.md).
+
+The documentation is built with [Docusaurus](https://docusaurus.io/) and lives in the `website/` directory of the repository. The site is **versioned**: there is no unversioned `docs/` folder — all content lives under `versioned_docs/version-<X>/`.
 
 ## Prerequisites
 
-- **Node.js 22** — pinned in [.nvmrc](.nvmrc). With `nvm` installed, run `nvm use` in this directory. Check with `node --version`.
-- **npm** — Comes with Node.js.
+- **Node.js 22** — pinned in `website/.nvmrc`. With `nvm` installed, run `nvm use` in the `website/` directory. Check with `node --version`.
+- **npm** — comes with Node.js.
 
 ## Local Development
 
@@ -15,21 +19,7 @@ npm install
 npm start
 ```
 
-This starts a local development server at `http://localhost:3000` and opens a browser window. Most changes are reflected live without restarting the server.
-
-## Build
-
-```bash
-npm run build
-```
-
-Generates a static production build in the `build/` directory. Run this to catch broken links and other build-time errors before deploying.
-
-To preview the production build locally:
-
-```bash
-npm run serve
-```
+Opens a local dev server at `http://localhost:3000`. Most changes are reflected live without restarting.
 
 ## Project Structure
 
@@ -56,7 +46,7 @@ website/
 
 ## Editing the right version
 
-This site is versioned, and `includeCurrentVersion: false` is set in `docusaurus.config.js`. **All edits go into `versioned_docs/`** — there is no unversioned `docs/` folder. Pick the version that matches your intent:
+`includeCurrentVersion: false` is set in `docusaurus.config.js`. **All edits go into `versioned_docs/`** — there is no unversioned `docs/` folder. Pick the version that matches your intent:
 
 - **`versioned_docs/version-0.8/`** — the **current released docs**, served at `/`. Edit here for typo fixes, clarifications, or any change to the live site.
 - **`versioned_docs/version-0.7/`** — older released docs, served at `/0.7/`. Edit here only for fixes that apply specifically to the 0.7 release.
@@ -96,7 +86,7 @@ versioned_sidebars/
 
 For a non-`lastVersion` like 0.7, URLs are prefixed with the version: `/0.7/tools`, `/0.7/configuration/read-only-mode`, etc.
 
-Note that each version's sidebar is frozen at snapshot time — restructuring `sidebars.js` later only affects future versions. The same applies to file structure: renaming a file in 0.8 doesn't touch 0.7.
+Each version's sidebar is frozen at snapshot time — restructuring `sidebars.js` later only affects future versions. The same applies to file structure: renaming a file in 0.8 doesn't touch 0.7.
 
 ### Cutting a new version
 
@@ -126,16 +116,16 @@ Use **major.minor** for version labels (`0.8`, `1.0`) — patch releases edit th
 
 ## Adding or Editing Pages
 
-- **Docs** live under `versioned_docs/version-<X>/`. Files are named with a numeric prefix (`01-`, `02-`) which controls sidebar ordering automatically - no `sidebar_position` frontmatter needed.
-- **Frontmatter** is only required when you need to override defaults:
-  - `slug` - custom URL (e.g. `slug: /` for the homepage)
-  - `sidebar_label` - sidebar label when it differs from the H1
-- **MDX files** that use JSX imports (e.g. `<Tabs>`) need frontmatter or a comment before the imports to satisfy markdownlint MD041.
+- **Docs** live under `versioned_docs/version-<X>/`. Files are named with a numeric prefix (`01-`, `02-`) which controls sidebar ordering automatically — no `sidebar_position` frontmatter needed.
+- **Frontmatter** is only required when overriding defaults:
+  - `slug` — custom URL (e.g. `slug: /` for the homepage)
+  - `sidebar_label` — sidebar label when it differs from the H1
+- **MDX files** that use JSX (e.g. `<Tabs>`) need frontmatter or a comment before the imports to satisfy markdownlint MD041.
 - **Internal links** should use relative file paths (e.g. `../05-configuration/01-environment-variables.md`) so Docusaurus validates them at build time.
 
 ## Linting
 
-Markdownlint is configured in `.markdownlint.jsonc`. Key rules in effect:
+Markdownlint is configured in `.markdownlint.jsonc`. Key rules:
 
 | Rule | Status | Reason |
 | ---- | ------ | ------ |
@@ -149,8 +139,22 @@ To check for lint errors, use the markdownlint VS Code extension or run:
 npx markdownlint-cli 'versioned_docs/**/*.md'
 ```
 
+## Building for Production
+
+```bash
+npm run build
+```
+
+Generates a static build in `build/`. Always run this before opening a PR — it catches broken links and MDX compilation errors that `npm start` won't surface.
+
+To preview the production build locally:
+
+```bash
+npm run serve
+```
+
 ## Deployment
 
-The site is automatically deployed to GitHub Pages via GitHub Actions when changes to `website/` are pushed to `main`. See `.github/workflows/deploy-docs.yml`.
+The site is automatically deployed to [GitHub Pages](https://mcp-server.couchbase.com/) via GitHub Actions when changes to `website/` are pushed to `main`. See [`.github/workflows/deploy-docs.yml`](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/.github/workflows/deploy-docs.yml).
 
-The live site is available at: <https://mcp-server.couchbase.com/>
+PR previews are also deployed automatically — a preview URL is posted as a comment on each PR that touches `website/`.

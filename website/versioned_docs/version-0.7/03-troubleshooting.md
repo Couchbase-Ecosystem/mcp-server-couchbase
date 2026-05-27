@@ -48,6 +48,8 @@ If you are trying to perform write operations but they are not working as expect
 
 - When `CB_MCP_READ_ONLY_MODE=true`, KV write tools are not loaded and SQL++ write queries are blocked — regardless of `CB_MCP_READ_ONLY_QUERY_MODE`.
 
+- If you configured `CB_MCP_READ_ONLY_MODE=false`, and still your MCP is not allowing you to write (mainly for SQL++ queries), then set `CB_MCP_READ_ONLY_QUERY_MODE=false`. By default, the `CB_MCP_READ_ONLY_QUERY_MODE` is true and it blocks SQL++ write queries.
+
 - See [Read-Only Mode](./05-configuration/02-read-only-mode.md) for the full behavior truth table.
 
 ## Tool Disabling Issues
