@@ -59,6 +59,8 @@ const config = {
           routeBasePath: "/",
           editUrl:
             "https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/tree/main/website/",
+          includeCurrentVersion: false,
+          lastVersion: "0.8",
         },
         blog: false,
         theme: {
@@ -75,9 +77,29 @@ const config = {
     ],
   ],
 
+  themes: [
+    [
+      "@easyops-cn/docusaurus-search-local",
+      {
+        hashed: true,
+        indexBlog: false,
+        docsDir: ["versioned_docs/version-0.8", "versioned_docs/version-0.7"],
+        docsRouteBasePath: "/",
+        explicitSearchResultPath: true,
+      },
+    ],
+  ],
+
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      image: "img/social-card.jpg",
+      metadata: [
+        {
+          name: "description",
+          content: "Connect LLMs to Couchbase clusters via the Model Context Protocol",
+        },
+      ],
       colorMode: {
         respectPrefersColorScheme: true,
       },
@@ -88,6 +110,11 @@ const config = {
           src: "img/logo.svg",
         },
         items: [
+          {
+            type: "docsVersionDropdown",
+            position: "left",
+            className: "navbar__version-pill",
+          },
           {
             href: "https://pypi.org/project/couchbase-mcp-server/",
             label: "PyPI",

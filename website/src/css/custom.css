@@ -88,3 +88,18 @@
   color: var(--ifm-color-emphasis-700);
   font-size: 0.9rem;
 }
+
+/* Version dropdown pill */
+.navbar__link.navbar__version-pill {
+  border: 1px solid var(--ifm-color-primary);
+  border-radius: 999px;
+  padding: 0.25rem 0.85rem;
+  font-weight: 600;
+  color: var(--ifm-color-primary);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.navbar__link.navbar__version-pill:hover {
+  background: var(--ifm-color-primary);
+  color: var(--ifm-color-white, #fff);
+}

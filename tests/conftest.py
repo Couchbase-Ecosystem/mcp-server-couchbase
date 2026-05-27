@@ -17,7 +17,6 @@ import pytest
 from mcp import ClientSession, StdioServerParameters, stdio_client
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = PROJECT_ROOT / "src"
 
 # Tools we expect to be registered by the server
 EXPECTED_TOOLS = {
@@ -147,12 +146,6 @@ def _build_env() -> dict[str, str]:
             "Integration tests require demo cluster credentials. "
             f"Missing env vars: {', '.join(missing)}"
         )
-
-    # Ensure the server module can be imported from the repo's src/ folder
-    existing_path = env.get("PYTHONPATH")
-    env["PYTHONPATH"] = (
-        f"{SRC_DIR}{os.pathsep}{existing_path}" if existing_path else str(SRC_DIR)
-    )
 
     # Force stdio transport for the test server to match stdio_client
     env["CB_MCP_TRANSPORT"] = "stdio"
