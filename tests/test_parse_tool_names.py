@@ -2,14 +2,10 @@
 Tests for parse_tool_names utility used by disabled tools and confirmation-required tools.
 """
 
-import sys
 import tempfile
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from utils.config import parse_tool_names
+from cb_mcp.utils.config import parse_tool_names
 
 # Sample valid tool names (subset of actual tools)
 VALID_TOOL_NAMES = {

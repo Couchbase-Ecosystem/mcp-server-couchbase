@@ -48,7 +48,7 @@ We use **[Ruff](https://docs.astral.sh/ruff/)** for fast linting and code format
 # or: uv run ruff check src/
 
 # Auto-fix issues
-./scripts/fix_lint.sh
+./scripts/lint_fix.sh
 # or: uv run ruff check src/ --fix && uv run ruff format src/
 ```
 
@@ -81,32 +81,41 @@ Our Ruff configuration includes:
 3. **Add proper logging**: Use the hierarchical logging system
 4. **Handle errors gracefully**: Provide helpful error messages
 5. **Consider read-only mode**: If your tool modifies data, respect `read_only_mode` settings
-6. **Update documentation**: Update README.md and DOCKER.md if adding user-facing features
+6. **Update documentation**: Update README.md, DOCKER.md, and the docs site (`website/versioned_docs/version-<X>/`) if adding user-facing features
 
 ## 🏗️ Project Structure
 
 ```
 mcp-server-couchbase/
 ├── src/
-│   ├── mcp_server.py                              # MCP server entry point
-│   ├── certs/                                     # SSL/TLS certificates
-│   │   ├── __init__.py                            # Package marker
-│   │   └── capella_root_ca.pem                    # Capella root CA certificate (for Capella connections)
-│   ├── tools/                                     # MCP tool implementations
-│   │   ├── __init__.py                            # Tool exports and ALL_TOOLS list
-│   │   ├── server.py                              # Server status and connection tools
-│   │   ├── kv.py                                  # Key-value operations (CRUD)
-│   │   ├── query.py                               # SQL++ Query based tools
-│   │   └── index.py                               # Index operations and recommendations
-│   └── utils/                                     # Utility modules
-│       ├── __init__.py                            # Utility exports
-│       ├── constants.py                           # Project constants
-│       ├── config.py                              # Configuration management
-│       ├── connection.py                          # Couchbase connection handling
-│       ├── context.py                             # Application context management
-│       ├── elicitation.py                         # Confirmation/elicitation support
-│       ├── index_utils.py                         # Index-related helper functions
-│       └── query_utils.py                         # Query-related helper functions
+│   ├── mcp_server.py                              # MCP server entry point (uv run src/mcp_server.py)
+│   ├── providers/                                 # Standalone-host ClusterProvider implementations
+│   │   ├── __init__.py
+│   │   └── static.py                              # StaticClusterProvider used by mcp_server.py
+│   └── cb_mcp/                                    # Reusable Python package shared with other implementations
+│       ├── __init__.py                            # Package marker
+│       ├── tool_registration.py                   # Shared tool preparation for MCP server: parse, filter, wrap with confirmation
+│       ├── core/                                  # Host-agnostic contracts (ClusterProvider, ...)
+│       │   ├── __init__.py
+│       │   └── contracts.py
+│       ├── certs/                                 # SSL/TLS certificates
+│       │   ├── __init__.py                        # Package marker
+│       │   └── capella_root_ca.pem                # Capella root CA certificate (for Capella connections)
+│       ├── tools/                                 # MCP tool implementations
+│       │   ├── __init__.py                        # Tool exports and ALL_TOOLS list
+│       │   ├── server.py                          # Server status and connection tools
+│       │   ├── kv.py                              # Key-value operations (CRUD)
+│       │   ├── query.py                           # SQL++ Query based tools
+│       │   └── index.py                           # Index operations and recommendations
+│       └── utils/                                 # Utility modules
+│           ├── __init__.py                        # Utility exports
+│           ├── constants.py                       # Project constants
+│           ├── config.py                          # Configuration management
+│           ├── connection.py                      # Couchbase connection handling
+│           ├── context.py                         # Application context management
+│           ├── elicitation.py                     # Confirmation/elicitation support
+│           ├── index_utils.py                     # Index-related helper functions
+│           └── query_utils.py                     # Query-related helper functions
 ├── scripts/                                       # Development scripts
 │   ├── lint.sh                                    # Manual linting script
 │   ├── lint_fix.sh                                # Auto-fix linting issues
@@ -177,11 +186,12 @@ mcp-server-couchbase/
 
 When adding new MCP tools:
 
-1. **Create the tool function** in the appropriate module (in `tools` directory)
-2. **Export the tool** in `tools/__init__.py`
-3. **Add to ALL_TOOLS** list in `tools/__init__.py`
-4. **Write tests** for the new tool in the `tests/` directory
-5. **Test the tool** with an MCP client
+1. **Create the tool function** in the appropriate module under `src/cb_mcp/tools/` (`server.py`, `kv.py`, `query.py`, or `index.py`)
+2. **Export the tool** in `src/cb_mcp/tools/__init__.py` and add it to `__all__`
+3. **Add to the correct tool list** in `src/cb_mcp/tools/__init__.py`: `READ_ONLY_TOOLS` if it only reads data, or `KV_WRITE_TOOLS` if it modifies data (so it's excluded under read-only mode)
+4. **Add an entry to `TOOL_ANNOTATIONS`** in the same file with the appropriate hints (`readOnlyHint`, `idempotentHint`, `destructiveHint`)
+5. **Write tests** for the new tool in the `tests/` directory
+6. **Test the tool** with an MCP client
 
 ### Code Style Guidelines
 

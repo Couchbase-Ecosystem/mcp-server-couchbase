@@ -1,5 +1,5 @@
-# Build stage - use official uv image with Python 3.10
-FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim AS builder
+# Build stage - use official uv image with Python 3.13
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS builder
 
 # Set uv configuration
 ENV UV_COMPILE_BYTECODE=1 \
@@ -16,7 +16,7 @@ RUN uv venv /opt/venv && \
     uv pip install --python /opt/venv/bin/python .
 
 # Runtime stage - use Python image with same version as builder
-FROM python:3.10-slim-bookworm AS runtime
+FROM python:3.13-slim-trixie AS runtime
 
 # Accept build arguments for labels
 ARG GIT_COMMIT_HASH="unknown"
