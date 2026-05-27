@@ -7,8 +7,6 @@ on:
       - 'website/**'
   pull_request:
     types: [opened, synchronize, reopened, closed]
-    paths:
-      - 'website/**'
   workflow_dispatch:
 
 concurrency:
