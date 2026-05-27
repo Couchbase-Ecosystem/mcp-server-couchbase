@@ -16,7 +16,7 @@ When read-only mode is enabled, the following tools are affected:
 
 ## Read-Only Mode (Recommended)
 
-This is the primary security control (`CB_MCP_READ_ONLY_MODE`):
+This is the primary server-side safety switch (`CB_MCP_READ_ONLY_MODE`) — defense-in-depth on top of database RBAC, which remains the authoritative boundary:
 
 - **When `true` (default)**: All write operations are disabled. KV write tools (upsert, insert, replace, delete) are **not loaded** and will not be available to the LLM. SQL++ queries that modify data are also blocked.
 
