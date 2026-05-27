@@ -17,8 +17,9 @@ NETWORK_TRANSPORTS_SDK_MAPPING = {
 
 # Index Service Configuration
 # Cluster major version at which list_indexes prefers the query service over
-# the Index Service REST API (system:all_indexes returns full definitions
-# starting from this version).
+# the Index Service REST API. From this version, system:indexes exposes the
+# original CREATE INDEX statement in metadata.definition, so we query it
+# instead of the /getIndexStatus REST endpoint.
 QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION = 8
 
 # Logging Configuration

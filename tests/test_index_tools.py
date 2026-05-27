@@ -280,7 +280,7 @@ async def test_list_indexes_with_raw_stats() -> None:
 # Schema-contract tests against the live data source.
 #
 # These exist as an early-warning system: if Couchbase ever renames a key in
-# /getIndexStatus or system:all_indexes, these tests will fail with a clear
+# /getIndexStatus or system:indexes, these tests will fail with a clear
 # message so we can update our processors rather than silently emitting
 # wrong data to users.
 # ---------------------------------------------------------------------------
@@ -332,18 +332,18 @@ async def test_list_indexes_raw_rows_have_expected_keys() -> None:
             missing = _REQUIRED_QUERY_TOPLEVEL_KEYS - idx.keys()
             assert not missing, (
                 f"Query index {name!r}: required top-level keys missing from "
-                f"system:all_indexes row: {sorted(missing)}. Possible key "
+                f"system:indexes row: {sorted(missing)}. Possible key "
                 f"rename — update process_index_data_from_query accordingly."
             )
             metadata = idx.get("metadata")
             assert isinstance(metadata, dict), (
                 f"Query index {name!r}: 'metadata' should be a dict, "
-                f"got {type(metadata).__name__}. system:all_indexes shape "
+                f"got {type(metadata).__name__}. system:indexes shape "
                 f"may have changed."
             )
             assert "definition" in metadata, (
                 f"Query index {name!r}: 'metadata.definition' missing. "
-                f"Possible key rename in system:all_indexes."
+                f"Possible key rename in system:indexes."
             )
             # Location info must match modern or legacy shape — anything
             # else means the schema discriminator has shifted.
@@ -358,7 +358,7 @@ async def test_list_indexes_raw_rows_have_expected_keys() -> None:
                 f"don't match modern (bucket_id+scope_id+keyspace_id) or "
                 f"legacy (keyspace_id only) shape. Keys present: "
                 f"{sorted(idx.keys())}. The legacy/modern discriminator may "
-                f"have changed in system:all_indexes."
+                f"have changed in system:indexes."
             )
 
 
