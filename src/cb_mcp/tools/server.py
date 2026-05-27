@@ -8,13 +8,13 @@ import json
 import logging
 from typing import Any
 
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
-from tools.query import run_cluster_query
-from utils.config import get_settings
-from utils.connection import connect_to_bucket
-from utils.constants import MCP_SERVER_NAME
-from utils.context import get_cluster_connection
+from ..utils.config import get_settings
+from ..utils.connection import connect_to_bucket
+from ..utils.constants import MCP_SERVER_NAME
+from ..utils.context import get_cluster_connection, get_cluster_provider
+from .query import run_cluster_query
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.tools.server")
 
@@ -23,27 +23,27 @@ def get_server_configuration_status(ctx: Context) -> dict[str, Any]:
     """Get the server status and configuration without establishing connection.
     This tool can be used to verify if the server is running and check the configuration.
     """
-    settings = get_settings()
+    settings = get_settings(ctx)
+    provider = get_cluster_provider(ctx)
 
-    # Don't expose sensitive information like passwords
+    provider_config = provider.get_configuration(ctx) if provider is not None else {}
+
+    # Server-level keys are spread last so they always reflect what the server
+    # actually enforces, even if a provider returns overlapping keys.
     configuration = {
-        "connection_string": settings.get("connection_string", "Not set"),
-        "username": settings.get("username", "Not set"),
+        **provider_config,
         "read_only_mode": settings.get("read_only_mode", True),
         "read_only_query_mode": settings.get("read_only_query_mode", True),
         "disabled_tools": sorted(settings.get("disabled_tools", set())),
         "confirmation_required_tools": sorted(
             settings.get("confirmation_required_tools", set())
         ),
-        "password_configured": bool(settings.get("password")),
-        "ca_cert_path_configured": bool(settings.get("ca_cert_path")),
-        "client_cert_path_configured": bool(settings.get("client_cert_path")),
-        "client_key_path_configured": bool(settings.get("client_key_path")),
     }
 
-    app_context = ctx.request_context.lifespan_context
     connection_status = {
-        "cluster_connected": app_context.cluster is not None,
+        "cluster_connected": (
+            provider.is_connected(ctx) if provider is not None else False
+        ),
     }
 
     return {
@@ -70,7 +70,7 @@ def test_cluster_connection(
 
         return {
             "status": "success",
-            "cluster_connected": cluster is not None,
+            "cluster_connected": True,
             "bucket_connected": bucket is not None,
             "bucket_name": bucket_name,
             "message": "Successfully connected to Couchbase cluster",
@@ -167,10 +167,12 @@ def get_cluster_health_and_services(
         if bucket_name:
             # Ping services from the perspective of the bucket
             bucket = connect_to_bucket(cluster, bucket_name)
-            result = bucket.ping().as_json()
+            ping_result = bucket.ping()
+            result = ping_result.as_json()
         else:
             # Ping services from the perspective of the cluster
-            result = cluster.ping().as_json()
+            ping_result = cluster.ping()
+            result = ping_result.as_json()
 
         return {
             "status": "success",

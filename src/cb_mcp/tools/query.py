@@ -8,13 +8,13 @@ import logging
 import re
 from typing import Any
 
+from fastmcp import Context
 from lark_sqlpp import modifies_data, modifies_structure, parse_sqlpp
-from mcp.server.fastmcp import Context
 
-from utils.connection import connect_to_bucket
-from utils.constants import MCP_SERVER_NAME
-from utils.context import get_cluster_connection
-from utils.query_utils import (
+from ..utils.connection import connect_to_bucket
+from ..utils.constants import MCP_SERVER_NAME
+from ..utils.context import get_cluster_connection
+from ..utils.query_utils import (
     evaluate_query_plan,
     extract_plan_from_explain_results,
 )

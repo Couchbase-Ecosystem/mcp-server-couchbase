@@ -1,17 +1,24 @@
 import logging
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
-import click
+from fastmcp import Context
 
 from .constants import MCP_SERVER_NAME
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.config")
 
 
-def get_settings() -> dict:
-    """Get settings from Click context."""
-    ctx = click.get_current_context()
-    return ctx.obj or {}
+def get_settings(ctx: Context) -> Mapping[str, Any]:
+    """Return the settings mapping attached to the lifespan context.
+
+    Settings live on ``AppContext.settings``, populated once by the CLI
+    entrypoint when it builds the lifespan closure. Reading from ``ctx``
+    keeps the values per-server-instance instead of a module global and
+    works from FastMCP's threadpool workers.
+    """
+    return ctx.request_context.lifespan_context.settings
 
 
 def _parse_file(file_path: Path, valid_tool_names: set[str]) -> set[str]:

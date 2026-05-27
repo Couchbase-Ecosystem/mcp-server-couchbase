@@ -3,7 +3,8 @@ import os
 from datetime import timedelta
 
 from couchbase.auth import CertificateAuthenticator, PasswordAuthenticator
-from couchbase.cluster import Bucket, Cluster
+from couchbase.bucket import Bucket
+from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions
 
 from .constants import MCP_SERVER_NAME
@@ -65,6 +66,7 @@ def connect_to_bucket(cluster: Cluster, bucket_name: str) -> Bucket:
     """
     try:
         bucket = cluster.bucket(bucket_name)
+        logger.info(f"Successfully connected to bucket: {bucket_name}")
         return bucket
     except Exception as e:
         logger.error(f"Failed to connect to bucket: {e}")

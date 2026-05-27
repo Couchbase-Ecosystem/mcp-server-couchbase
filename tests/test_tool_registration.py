@@ -2,12 +2,7 @@
 Unit tests for prepare_tools_for_registration — tool disabling and confirmation wrapping.
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from mcp_server import prepare_tools_for_registration
+from cb_mcp.tool_registration import prepare_tools_for_registration
 
 
 class TestPrepareToolsDisabling:
