@@ -8,6 +8,8 @@ Full release details are published on the [GitHub Releases](https://github.com/C
 
 - **Python 3.14 Support** - The Couchbase MCP Server is now compatible with Python 3.14, allowing users to take advantage of the latest features and improvements in the Python ecosystem.
 
+- **List Indexes Tool** - List indexes tool will be powered by SQL++ for Couchbase Server versions 8.0 and above. Users can set `return_raw_index_stats=true` to return the unprocessed index information.
+
 - **Migrate to FastMCP SDK** - The server has been updated to use the native [FastMCP SDK](https://gofastmcp.com/getting-started/welcome) instead of the native [MCP SDK](https://py.sdk.modelcontextprotocol.io/).
 
 - **Docker Base Image Update** - The base images for the prebuilt Docker images have been updated to `python:3.13-slim-trixie` for security and performance improvements.
