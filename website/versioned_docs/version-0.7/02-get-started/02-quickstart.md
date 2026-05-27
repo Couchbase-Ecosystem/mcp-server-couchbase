@@ -533,7 +533,7 @@ By default, the server runs in **read-only mode** (`CB_MCP_READ_ONLY_MODE=true`)
 
 - All KV write tools (upsert, insert, replace, delete) are **not loaded**
 
-- SQL++ queries that modify data are **not loaded**
+- SQL++ write statements (INSERT, UPDATE, DELETE, etc.) are **blocked** at runtime by `run_sql_plus_plus_query` (the tool itself is still loaded for reads)
 
 To enable write operations, set `CB_MCP_READ_ONLY_MODE=false` in your configuration. See [Read-Only Mode](../05-configuration/02-read-only-mode.md) for details.
 

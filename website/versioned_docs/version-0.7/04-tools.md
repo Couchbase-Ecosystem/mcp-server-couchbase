@@ -1,12 +1,12 @@
 # Tools
 
-The Couchbase MCP Server exposes several tools across multiple categories. The list of supported tools is constantly evolving so check the [GitHub readme](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase?tab=readme-ov-file#featurestools/) for the latest set of tools. Each tool is available to LLMs through the MCP protocol.
+The Couchbase MCP Server exposes several tools across multiple categories. The list of supported tools is constantly evolving so check the [GitHub readme](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase?tab=readme-ov-file#featurestools) for the latest set of tools. Each tool is available to LLMs through the MCP protocol.
 
 ## Cluster Setup & Health
 
 Tools for checking server status and cluster connectivity.
 
-[Source](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/tools/server.py)
+[Source](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/cb_mcp/tools/server.py)
 
 | Tool | Description |
 | ---- | ----------- |
@@ -18,7 +18,7 @@ Tools for checking server status and cluster connectivity.
 
 Tools for exploring buckets, scopes, collections, and document schemas.
 
-[Source](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/tools/server.py)
+[Source](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/cb_mcp/tools/server.py)
 
 | Tool | Description |
 | ---- | ----------- |
@@ -32,7 +32,7 @@ Tools for exploring buckets, scopes, collections, and document schemas.
 
 Tools for reading and writing documents by ID. Tools that modify data are disabled by default when `CB_MCP_READ_ONLY_MODE=true`.
 
-[Source](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/tools/kv.py)
+[Source](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/cb_mcp/tools/kv.py)
 
 | Tool | Description |
 | ---- | ----------- |
@@ -46,7 +46,7 @@ Tools for reading and writing documents by ID. Tools that modify data are disabl
 
 Tools for running SQL++ queries, listing indexes, and getting index recommendations.
 
-[Source (query)](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/tools/query.py) | [Source (index)](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/tools/index.py)
+[Source (query)](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/cb_mcp/tools/query.py) | [Source (index)](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/cb_mcp/tools/index.py)
 
 | Tool | Description |
 | ---- | ----------- |
@@ -59,7 +59,7 @@ Tools for running SQL++ queries, listing indexes, and getting index recommendati
 
 Tools for identifying slow queries, missing indexes, and optimization opportunities. These tools query `system:completed_requests`.
 
-[Source](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/tools/query.py)
+[Source](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/src/cb_mcp/tools/query.py)
 
 | Tool | Description |
 | ---- | ----------- |

@@ -8,7 +8,7 @@ The documentation is built with [Docusaurus](https://docusaurus.io/) and lives i
 
 ## Prerequisites
 
-- **Node.js 20+** — pinned in `website/.nvmrc`. With `nvm` installed, run `nvm use` in the `website/` directory. Check with `node --version`.
+- **Node.js 22** — pinned in `website/.nvmrc`. With `nvm` installed, run `nvm use` in the `website/` directory. Check with `node --version`.
 - **npm** — comes with Node.js.
 
 ## Local Development

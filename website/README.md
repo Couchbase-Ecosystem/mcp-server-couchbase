@@ -4,7 +4,7 @@ This website is built using [Docusaurus](https://docusaurus.io/), a modern stati
 
 ## Prerequisites
 
-- **Node.js 20+** — pinned in [.nvmrc](.nvmrc). With `nvm` installed, run `nvm use` in this directory. Check with `node --version`.
+- **Node.js 22** — pinned in [.nvmrc](.nvmrc). With `nvm` installed, run `nvm use` in this directory. Check with `node --version`.
 - **npm** — Comes with Node.js.
 
 ## Local Development

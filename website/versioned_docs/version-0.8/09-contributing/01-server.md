@@ -276,7 +276,7 @@ uv run pytest tests/test_query_tools.py -v
 
 | Test File | Description |
 | --------- | ----------- |
-| `test_mcp_integration.py` | MCP Serverintegration tests |
+| `test_mcp_integration.py` | MCP Server integration tests |
 | `test_server_tools.py` | Server status and connection tools |
 | `test_server_configuration_status_tool.py` | Server configuration status tool |
 | `test_kv_tools.py` | KV CRUD operations |
