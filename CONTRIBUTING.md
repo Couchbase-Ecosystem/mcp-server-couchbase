@@ -81,7 +81,7 @@ Our Ruff configuration includes:
 3. **Add proper logging**: Use the hierarchical logging system
 4. **Handle errors gracefully**: Provide helpful error messages
 5. **Consider read-only mode**: If your tool modifies data, respect `read_only_mode` settings
-6. **Update documentation**: Update README.md, DOCKER.md, and the docs site (`website/versioned_docs/version-<X>/`) if adding user-facing features
+6. **Update documentation**: Update README.md, DOCKER.md, and the docs site (in the [Couchbase-Ecosystem/mcp-server-couchbase-docs](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase-docs) repo, under `versioned_docs/version-<X>/`) if adding user-facing features
 
 ## 🏗️ Project Structure
 
