@@ -154,6 +154,12 @@ def _build_env() -> dict[str, str]:
     env["CB_MCP_READ_ONLY_MODE"] = "false"
     # Ensure unbuffered output to avoid stdout/stderr buffering surprises
     env.setdefault("PYTHONUNBUFFERED", "1")
+    # Forward coverage subprocess config so the child mcp_server process is
+    # instrumented when pytest is run with --cov. Requires a .pth file in
+    # site-packages that calls coverage.process_startup().
+    coverage_rc = PROJECT_ROOT / ".coveragerc"
+    if coverage_rc.exists():
+        env.setdefault("COVERAGE_PROCESS_START", str(coverage_rc))
     return env
 
 

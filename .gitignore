@@ -15,3 +15,7 @@ wheels/
 website/node_modules/
 website/build/
 website/.docusaurus/
+
+#test coverage
+.coverage
+htmlcov/
