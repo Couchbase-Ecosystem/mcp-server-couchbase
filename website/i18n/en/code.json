@@ -1,6 +1,0 @@
-{
-  "theme.docs.versions.unmaintainedVersionLabel": {
-    "message": "This is documentation for {siteTitle} {versionLabel}.",
-    "description": "The label used to tell the user that he's browsing an older doc version"
-  }
-}
