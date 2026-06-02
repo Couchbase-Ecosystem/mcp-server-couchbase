@@ -37,6 +37,7 @@ dev = [
     "pytest==9.0.3",
     "pytest-asyncio==1.3.0",
     "pytest-cov>=7.0.0",
+    "openai>=1.50.0,<2.0.0",
 ]
 
 # Ruff configuration
@@ -130,6 +131,9 @@ line-ending = "auto"
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "accuracy: AI-in-the-loop accuracy tests. Require OPENAI_API_KEY and a Couchbase cluster.",
+]
 
 # Build system configuration
 [build-system]
