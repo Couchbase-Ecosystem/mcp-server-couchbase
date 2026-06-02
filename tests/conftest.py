@@ -164,9 +164,21 @@ def _build_env() -> dict[str, str]:
 
 
 @asynccontextmanager
-async def create_mcp_session() -> AsyncIterator[ClientSession]:
-    """Create a fresh MCP client session connected to the server over stdio."""
+async def create_mcp_session(
+    extra_env: dict[str, str] | None = None,
+) -> AsyncIterator[ClientSession]:
+    """Create a fresh MCP client session connected to the server over stdio.
+
+    Args:
+        extra_env: Optional mapping of env vars to merge on top of the
+            default test env. Values here OVERRIDE the defaults set by
+            ``_build_env`` — use this to launch the server in a non-default
+            mode (e.g., ``{"CB_MCP_READ_ONLY_MODE": "true"}``) for a single
+            test without affecting the rest of the suite.
+    """
     env = _build_env()
+    if extra_env:
+        env.update(extra_env)
     params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "mcp_server"],
@@ -178,6 +190,17 @@ async def create_mcp_session() -> AsyncIterator[ClientSession]:
             async with ClientSession(read_stream, write_stream) as session:
                 await session.initialize()
                 yield session
+
+
+def is_error_response(response: Any) -> bool:
+    """Return True if the MCP tool response represents an error.
+
+    Different MCP client versions expose this flag as ``isError`` or
+    ``is_error``; this helper normalizes the two so tests don't have to.
+    """
+    return bool(
+        getattr(response, "isError", None) or getattr(response, "is_error", False)
+    )
 
 
 def extract_payload(response: Any) -> Any:

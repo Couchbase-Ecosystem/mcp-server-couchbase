@@ -11,6 +11,8 @@ Tests for:
 
 from __future__ import annotations
 
+import threading
+
 import httpx
 from unittest.mock import MagicMock, patch
 
@@ -966,6 +968,64 @@ class TestContextModule:
 
         # Cache stayed empty so a subsequent attempt can retry.
         assert provider._cluster is None
+
+    def test_static_cluster_provider_coalesces_concurrent_first_calls(self) -> None:
+        """The threading.Lock in StaticClusterProvider must coalesce concurrent
+        first-call attempts so we don't open multiple cluster connections when
+        several tool handlers race to be the first caller.
+        """
+        mock_cluster = MagicMock()
+        mock_settings = {
+            "connection_string": "couchbase://localhost",
+            "username": "admin",
+            "password": "password",
+        }
+
+        # Events let us hold the first connect attempt inside the lock so
+        # the other threads actually contend on it.
+        connect_started = threading.Event()
+        connect_allowed = threading.Event()
+
+        def slow_connect(*args, **kwargs):
+            connect_started.set()
+            # Block until the test releases us — guarantees that other
+            # threads queue up behind the lock during this window.
+            connect_allowed.wait(timeout=2.0)
+            return mock_cluster
+
+        with patch(
+            "providers.static.connect_to_couchbase_cluster",
+            side_effect=slow_connect,
+        ) as mock_connect:
+            provider = StaticClusterProvider(settings=mock_settings)
+
+            results: list = []
+            results_lock = threading.Lock()
+
+            def worker():
+                cluster = provider.get_cluster(MagicMock())
+                with results_lock:
+                    results.append(cluster)
+
+            threads = [threading.Thread(target=worker) for _ in range(5)]
+            for t in threads:
+                t.start()
+
+            # Wait for the first thread to enter slow_connect, then release.
+            assert connect_started.wait(timeout=2.0), (
+                "no thread reached the connect callback"
+            )
+            connect_allowed.set()
+
+            for t in threads:
+                t.join(timeout=5.0)
+
+        # Every thread saw the same cluster reference.
+        assert len(results) == 5
+        assert all(r is mock_cluster for r in results)
+        # The crucial assertion: the lock coalesced the racers into one
+        # actual connection attempt — without it this would be 5.
+        mock_connect.assert_called_once()
 
     def test_static_cluster_provider_close_releases_cluster(self) -> None:
         """close() calls cluster.close() and clears the cache."""

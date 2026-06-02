@@ -457,3 +457,62 @@ async def test_get_index_advisor_recommendations() -> None:
 
     if skip_reason:
         pytest.skip(skip_reason)
+
+
+@pytest.mark.asyncio
+async def test_get_index_advisor_recommendations_with_update_query() -> None:
+    """ADVISOR must accept UPDATE statements per the tool's documented contract."""
+    bucket = require_test_bucket()
+    scope = get_test_scope()
+    collection = get_test_collection()
+
+    # UPDATE with a no-match WHERE clause — safe even if anything went sideways.
+    query = f"UPDATE `{collection}` SET name = name WHERE id > 99999999"
+
+    async with create_mcp_session() as session:
+        response = await session.call_tool(
+            "get_index_advisor_recommendations",
+            arguments={
+                "bucket_name": bucket,
+                "scope_name": scope,
+                "query": query,
+            },
+        )
+        payload = extract_payload(response)
+
+        # Accept either the recommendations envelope or the "no recommendations"
+        # envelope — both prove ADVISOR accepted the UPDATE without crashing.
+        assert isinstance(payload, dict), (
+            f"Expected dict envelope, got {type(payload)}: {payload}"
+        )
+        assert (
+            "recommended_indexes" in payload or "message" in payload
+        ), f"Unexpected advisor response shape: {payload}"
+
+
+@pytest.mark.asyncio
+async def test_get_index_advisor_recommendations_with_delete_query() -> None:
+    """ADVISOR must accept DELETE statements per the tool's documented contract."""
+    bucket = require_test_bucket()
+    scope = get_test_scope()
+    collection = get_test_collection()
+
+    query = f"DELETE FROM `{collection}` WHERE id = -99999999"
+
+    async with create_mcp_session() as session:
+        response = await session.call_tool(
+            "get_index_advisor_recommendations",
+            arguments={
+                "bucket_name": bucket,
+                "scope_name": scope,
+                "query": query,
+            },
+        )
+        payload = extract_payload(response)
+
+        assert isinstance(payload, dict), (
+            f"Expected dict envelope, got {type(payload)}: {payload}"
+        )
+        assert (
+            "recommended_indexes" in payload or "message" in payload
+        ), f"Unexpected advisor response shape: {payload}"
