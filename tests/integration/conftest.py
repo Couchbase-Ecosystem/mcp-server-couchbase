@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
+import pytest
 from _test_env import (
     _build_env,
     get_test_bucket,
@@ -36,7 +37,32 @@ __all__ = [
     "require_test_bucket",
 ]
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# tests/integration -> tests -> <repo>
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+_INTEGRATION_DIR = Path(__file__).resolve().parent
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-tag every test in tests/integration/ with the `integration` marker.
+
+    Lets users select / skip the whole tier with ``-m integration`` /
+    ``-m "not integration"`` without decorating every test by hand.
+
+    ``items`` is the full session list, not just tests under this conftest's
+    directory, so we filter by path.
+    """
+    for item in items:
+        try:
+            item_path = Path(str(item.fspath)).resolve()
+        except Exception:
+            continue
+        try:
+            item_path.relative_to(_INTEGRATION_DIR)
+        except ValueError:
+            continue
+        item.add_marker(pytest.mark.integration)
 
 # Tools we expect to be registered by the server
 EXPECTED_TOOLS = {

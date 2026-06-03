@@ -131,7 +131,11 @@ line-ending = "auto"
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+# Put tests/ on sys.path so shared helpers (tests/_test_env.py) are importable
+# from any subdirectory (tests/unit, tests/integration, tests/accuracy).
+pythonpath = ["tests"]
 markers = [
+    "integration: Integration tests against a live Couchbase cluster via the MCP server.",
     "accuracy: AI-in-the-loop accuracy tests. Require OPENAI_API_KEY and a Couchbase cluster.",
 ]
 
