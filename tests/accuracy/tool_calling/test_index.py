@@ -46,7 +46,7 @@ def _build_cases(bucket: str, scope: str, collection: str) -> list[AccuracyCase]
                         "scope_name": _optional(),
                         "collection_name": _optional(),
                         "index_name": _optional(),
-                        "include_raw_index_stats": Matcher.any_of(
+                        "return_raw_index_stats": Matcher.any_of(
                             Matcher.undefined(),
                             Matcher.boolean(False),
                         ),
@@ -68,7 +68,7 @@ def _build_cases(bucket: str, scope: str, collection: str) -> list[AccuracyCase]
                         "scope_name": _optional(),
                         "collection_name": _optional(),
                         "index_name": _optional(),
-                        "include_raw_index_stats": Matcher.any_of(
+                        "return_raw_index_stats": Matcher.any_of(
                             Matcher.undefined(),
                             Matcher.boolean(False),
                         ),
@@ -93,7 +93,7 @@ def _build_cases(bucket: str, scope: str, collection: str) -> list[AccuracyCase]
                         "scope_name": scope,
                         "collection_name": collection,
                         "index_name": _optional(),
-                        "include_raw_index_stats": Matcher.any_of(
+                        "return_raw_index_stats": Matcher.any_of(
                             Matcher.undefined(),
                             Matcher.boolean(False),
                         ),

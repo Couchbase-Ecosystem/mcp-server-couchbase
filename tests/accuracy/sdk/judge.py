@@ -59,7 +59,7 @@ JUDGE_SYSTEM_PROMPT = "\n".join(
         "IMPORTANT about truncation: a tool result may end with a marker like",
         "'... [truncated N chars]'. When present, the tool returned MORE data than",
         "you can see. In that case you MUST NOT conclude that an item mentioned in",
-        "the answer is fabricated merely because it is absent from the visible "
+        "the answer is fabricated merely because it is absent from the visible ",
         "portion — it may lie in the truncated remainder. Only flag fabrication",
         "you can positively confirm contradicts the visible tool output.",
         "",

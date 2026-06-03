@@ -175,9 +175,9 @@ class NotMatcher(Matcher):
 class ValueMatcher(Matcher):
     """Default matcher for literal expected values.
 
-    Recurses into dicts and lists. Extra keys/elements in the actual value
-    are treated as a 0 (incorrect) — define matchers explicitly when extras
-    should be tolerated.
+    Recurses into dicts and lists. Extra keys/elements in the actual value reduce
+    the score to 0.75 (partial match) when all expected values match. Missing
+    expected keys/elements still score 0.0.
     """
 
     def __init__(self, expected: Any) -> None:
