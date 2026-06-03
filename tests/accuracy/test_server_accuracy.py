@@ -176,6 +176,35 @@ def _build_cases(bucket: str, scope: str) -> list[AccuracyCase]:
         )
     )
 
+    cases.append(
+        AccuracyCase(
+            test_id="conversational_what_buckets_do_i_have",
+            prompt="What buckets do I actually have on this Couchbase cluster?",
+            expected_tools=[
+                ExpectedToolCall(
+                    tool_name="get_buckets_in_cluster",
+                    parameters=Matcher.any_value(),
+                ),
+            ],
+        )
+    )
+
+    cases.append(
+        AccuracyCase(
+            test_id="conversational_is_everything_healthy",
+            prompt=(
+                "Is my Couchbase cluster healthy? I want to know whether all the "
+                "services are up and reachable."
+            ),
+            expected_tools=[
+                ExpectedToolCall(
+                    tool_name="get_cluster_health_and_services",
+                    parameters=Matcher.any_value(),
+                ),
+            ],
+        )
+    )
+
     return cases
 
 
@@ -194,6 +223,8 @@ SERVER_CASE_IDS = [
     "get_scopes_and_collections_in_bucket",
     "get_cluster_health_and_services_no_bucket",
     "get_cluster_health_and_services_with_bucket",
+    "conversational_what_buckets_do_i_have",
+    "conversational_is_everything_healthy",
 ]
 
 

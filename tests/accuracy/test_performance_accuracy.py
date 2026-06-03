@@ -181,6 +181,38 @@ def _build_cases() -> list[AccuracyCase]:
         )
     )
 
+    cases.append(
+        AccuracyCase(
+            test_id="conversational_slow_queries",
+            prompt=(
+                "Tell me which SQL++ queries on my cluster are taking forever to "
+                "run — I want to know the biggest time hogs."
+            ),
+            expected_tools=[
+                ExpectedToolCall(
+                    tool_name="get_longest_running_queries",
+                    parameters=Matcher.any_value(),
+                ),
+            ],
+        )
+    )
+
+    cases.append(
+        AccuracyCase(
+            test_id="conversational_what_runs_constantly",
+            prompt=(
+                "Which queries get fired off over and over again? I want to see "
+                "the most-executed ones."
+            ),
+            expected_tools=[
+                ExpectedToolCall(
+                    tool_name="get_most_frequent_queries",
+                    parameters=Matcher.any_value(),
+                ),
+            ],
+        )
+    )
+
     return cases
 
 
@@ -199,6 +231,8 @@ PERFORMANCE_CASE_IDS = [
     "get_queries_using_primary_index",
     "get_queries_not_using_covering_index",
     "get_queries_not_selective",
+    "conversational_slow_queries",
+    "conversational_what_runs_constantly",
 ]
 
 

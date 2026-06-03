@@ -267,6 +267,19 @@ def _build_cases(bucket: str, scope: str, collection: str) -> list[AccuracyCase]
         )
     )
 
+    cases.append(
+        AccuracyCase(
+            test_id="conversational_lookup_document",
+            prompt="I'm looking for a document — can you pull up the one with id 'doc_42'?",
+            expected_tools=[
+                ExpectedToolCall(
+                    tool_name="get_document_by_id",
+                    parameters=Matcher.any_value(),
+                ),
+            ],
+        )
+    )
+
     return cases
 
 
@@ -283,6 +296,7 @@ KV_CASE_IDS = [
     "delete_document_by_id",
     "get_then_upsert_multistep",
     "read_only_prompt_uses_get_only",
+    "conversational_lookup_document",
 ]
 
 

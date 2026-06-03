@@ -123,6 +123,36 @@ def _build_cases(bucket: str, scope: str, collection: str) -> list[AccuracyCase]
         )
     )
 
+    cases.append(
+        AccuracyCase(
+            test_id="conversational_what_indexes_exist",
+            prompt="What indexes does my Couchbase cluster currently have?",
+            expected_tools=[
+                ExpectedToolCall(
+                    tool_name="list_indexes",
+                    parameters=Matcher.any_value(),
+                ),
+            ],
+        )
+    )
+
+    cases.append(
+        AccuracyCase(
+            test_id="conversational_make_this_faster",
+            prompt=(
+                f"This query feels slow — what index should I create to make it "
+                f"faster? Use bucket '{bucket}', scope '{scope}'. Query: "
+                f"SELECT * FROM `{collection}` WHERE country = 'US'"
+            ),
+            expected_tools=[
+                ExpectedToolCall(
+                    tool_name="get_index_advisor_recommendations",
+                    parameters=Matcher.any_value(),
+                ),
+            ],
+        )
+    )
+
     return cases
 
 
@@ -136,6 +166,8 @@ INDEX_CASE_IDS = [
     "list_indexes_bucket_filter",
     "list_indexes_collection_filter",
     "get_index_advisor_recommendations",
+    "conversational_what_indexes_exist",
+    "conversational_make_this_faster",
 ]
 
 

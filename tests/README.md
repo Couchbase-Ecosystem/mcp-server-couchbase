@@ -123,34 +123,28 @@ Test → AccuracyTestingClient → MCP Server → Couchbase
 
 ## What's currently covered
 
-56 cases across two axes — **parameter extraction** (per-tool-family) and
-**tool selection / intent recognition** (one cross-family file):
+42 cases across five per-tool-family files. Each file mixes two kinds of
+cases:
 
-### Parameter extraction (33 cases)
-
-These tests use explicit prompts and verify both the right tool *and* the
-right parameters were extracted.
+- **Parameter-extraction cases** — explicit, command-style prompts that
+  verify both the right tool *and* the right parameters were extracted.
+- **Conversational cases** (`test_id` prefixed with `conversational_`) —
+  natural, real-user-style prompts that only assert on tool selection
+  (parameters use `Matcher.any_value()`). These decouple intent
+  recognition from parameter extraction.
 
 | File | Family | Cases |
 | --- | --- | --- |
-| `accuracy/test_kv_accuracy.py` | KV (get/insert/upsert/replace/delete + multi-step + negative selection) | 7 |
-| `accuracy/test_server_accuracy.py` | Server / cluster (buckets, scopes, collections, health, connection, config) | 9 |
-| `accuracy/test_query_accuracy.py` | SQL++ query (schema, run, explain) | 4 |
-| `accuracy/test_index_accuracy.py` | Indexes (list with filters, advisor recommendations) | 4 |
-| `accuracy/test_performance_accuracy.py` | Query performance analysis (all 7 tools, default + explicit limits) | 9 |
+| `accuracy/test_kv_accuracy.py` | KV (get/insert/upsert/replace/delete + multi-step + negative + 1 conversational) | 8 |
+| `accuracy/test_server_accuracy.py` | Server / cluster + 2 conversational | 11 |
+| `accuracy/test_query_accuracy.py` | SQL++ query + 2 conversational | 6 |
+| `accuracy/test_index_accuracy.py` | Indexes + 2 conversational | 6 |
+| `accuracy/test_performance_accuracy.py` | Query performance analysis + 2 conversational | 11 |
 
-### Tool selection (23 cases)
-
-[`accuracy/test_tool_selection.py`](accuracy/test_tool_selection.py) tests
-*intent recognition*: given a conversational, real-user-style prompt, does
-the LLM pick the right tool from the pool of 24? Parameter values are
-intentionally not checked (the expected `parameters` is just
-`Matcher.any_value()`) so this signal is decoupled from parameter
-extraction.
-
-Example: prompt is _"Tell me which SQL++ queries on my cluster are taking
-forever to run — I want to know the biggest time hogs."_ and we assert
-the LLM called `get_longest_running_queries`.
+Example of a conversational case: prompt is _"Tell me which SQL++ queries
+on my cluster are taking forever to run — I want to know the biggest
+time hogs."_ and we assert the LLM called `get_longest_running_queries`
+(any params).
 
 Each test file defines its cases inside `_build_cases(...)` and runs them
 through the shared `run_accuracy_case` driver in

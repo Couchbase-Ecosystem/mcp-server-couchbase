@@ -121,6 +121,39 @@ def _build_cases(bucket: str, scope: str, collection: str) -> list[AccuracyCase]
         )
     )
 
+    cases.append(
+        AccuracyCase(
+            test_id="conversational_what_does_the_data_look_like",
+            prompt=(
+                f"I'm new to the '{collection}' collection in bucket '{bucket}', "
+                f"scope '{scope}'. What does the data look like — what fields do "
+                "documents have?"
+            ),
+            expected_tools=[
+                ExpectedToolCall(
+                    tool_name="get_schema_for_collection",
+                    parameters=Matcher.any_value(),
+                ),
+            ],
+        )
+    )
+
+    cases.append(
+        AccuracyCase(
+            test_id="conversational_just_run_this",
+            prompt=(
+                f"Execute this SQL++ in bucket '{bucket}', scope '{scope}' for me: "
+                f"SELECT name FROM `{collection}` LIMIT 3"
+            ),
+            expected_tools=[
+                ExpectedToolCall(
+                    tool_name="run_sql_plus_plus_query",
+                    parameters=Matcher.any_value(),
+                ),
+            ],
+        )
+    )
+
     return cases
 
 
@@ -134,6 +167,8 @@ QUERY_CASE_IDS = [
     "run_sql_plus_plus_query_select_limit",
     "run_sql_plus_plus_query_count",
     "explain_sql_plus_plus_query",
+    "conversational_what_does_the_data_look_like",
+    "conversational_just_run_this",
 ]
 
 
