@@ -155,8 +155,12 @@ async def test_calling_disabled_tool_fails() -> None:
     async with create_mcp_session(
         env_overrides={"CB_MCP_DISABLED_TOOLS": "get_buckets_in_cluster"}
     ) as session:
-        with pytest.raises(ValueError):
-            await session.call_tool("get_buckets_in_cluster", arguments={})
+        response = await session.call_tool("get_buckets_in_cluster", arguments={})
+
+        assert getattr(response, "isError", False), (
+            "Calling a disabled tool should produce an error response, "
+            f"got: {response}"
+        )
 
 
 @pytest.mark.asyncio
@@ -165,13 +169,17 @@ async def test_read_only_mode_blocks_calling_write_tools() -> None:
     async with create_mcp_session(
         env_overrides={"CB_MCP_READ_ONLY_MODE": "true"}
     ) as session:
-        with pytest.raises(ValueError):
-            await session.call_tool(
-                "delete_document_by_id",
-                arguments={
-                    "bucket_name": "dummy",
-                    "scope_name": "_default",
-                    "collection_name": "_default",
-                    "document_id": "nonexistent_id",
-                },
-            )
+        response = await session.call_tool(
+            "delete_document_by_id",
+            arguments={
+                "bucket_name": "dummy",
+                "scope_name": "_default",
+                "collection_name": "_default",
+                "document_id": "nonexistent_id",
+            },
+        )
+
+        assert getattr(response, "isError", False), (
+            "Calling a write tool in read-only mode should produce an "
+            f"error response, got: {response}"
+        )
