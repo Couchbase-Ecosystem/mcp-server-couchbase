@@ -37,10 +37,6 @@ __all__ = [
     "require_test_bucket",
 ]
 
-# tests/integration -> tests -> <repo>
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-
 _INTEGRATION_DIR = Path(__file__).resolve().parent
 
 
