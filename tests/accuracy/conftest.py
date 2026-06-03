@@ -42,11 +42,36 @@ from mcp import ClientSession, StdioServerParameters, stdio_client
 from accuracy.sdk import (
     AccuracyTestingClient,
     DiskResultStorage,
+    LLMJudge,
     OpenAIAgent,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TIMEOUT = int(os.getenv("CB_ACCURACY_TIMEOUT", "300"))
+
+_ACCURACY_DIR = Path(__file__).resolve().parent
+_RESULT_VALIDATION_DIR = _ACCURACY_DIR / "result_validation"
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-tag accuracy tests by directory so test files stay decorator-free.
+
+    Everything under tests/accuracy/ gets the ``accuracy`` marker; everything
+    under tests/accuracy/result_validation/ additionally gets ``result_eval``.
+    ``items`` is the whole session list, so we filter by path.
+    """
+    for item in items:
+        try:
+            item_path = Path(str(item.fspath)).resolve()
+        except Exception:
+            continue
+        try:
+            item_path.relative_to(_ACCURACY_DIR)
+        except ValueError:
+            continue
+        item.add_marker(pytest.mark.accuracy)
+        if _RESULT_VALIDATION_DIR in item_path.parents:
+            item.add_marker(pytest.mark.result_eval)
 
 
 def _openai_api_key() -> str | None:
@@ -102,6 +127,16 @@ def openai_model() -> str:
     return os.getenv("CB_ACCURACY_OPENAI_MODEL", "gpt-4o-mini")
 
 
+@pytest.fixture(scope="session")
+def judge_model(openai_model: str) -> str:
+    """Model used by the LLM-as-judge. Defaults to the agent model.
+
+    Override with CB_ACCURACY_JUDGE_MODEL to judge with a different (often
+    stronger) model than the one under test.
+    """
+    return os.getenv("CB_ACCURACY_JUDGE_MODEL", openai_model)
+
+
 @pytest.fixture()
 def openai_agent(openai_model: str) -> OpenAIAgent:
     api_key = _require_openai()
@@ -119,6 +154,13 @@ def openai_agent(openai_model: str) -> OpenAIAgent:
         base_url=base_url,
         extra_system_prompt=extra_prompt,
     )
+
+
+@pytest.fixture()
+def judge(judge_model: str) -> LLMJudge:
+    api_key = _require_openai()
+    base_url = os.getenv("CB_ACCURACY_OPENAI_BASE_URL")
+    return LLMJudge(model=judge_model, api_key=api_key, base_url=base_url)
 
 
 @asynccontextmanager

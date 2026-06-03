@@ -171,7 +171,6 @@ INDEX_CASE_IDS = [
 ]
 
 
-@pytest.mark.accuracy
 @pytest.mark.asyncio
 @pytest.mark.parametrize("case_id", INDEX_CASE_IDS)
 async def test_index_tool_accuracy(

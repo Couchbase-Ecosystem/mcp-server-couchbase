@@ -47,8 +47,12 @@ def get_index_advisor_recommendations(
     - statements: Array of statement objects with the query and run count
     """
     try:
-        # Build the ADVISOR query
-        advisor_query = f"SELECT ADVISOR('{query}') AS advisor_result"
+        # Build the ADVISOR query. The user query is embedded inside a
+        # single-quoted N1QL string literal, so any single quotes within it
+        # (e.g. WHERE country = 'France') must be escaped by doubling them,
+        # otherwise the wrapped statement is invalid SQL++.
+        escaped_query = query.replace("'", "''")
+        advisor_query = f"SELECT ADVISOR('{escaped_query}') AS advisor_result"
 
         logger.info("Running Index Advisor for the provided query")
 

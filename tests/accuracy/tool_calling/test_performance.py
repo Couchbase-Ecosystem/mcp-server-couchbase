@@ -236,7 +236,6 @@ PERFORMANCE_CASE_IDS = [
 ]
 
 
-@pytest.mark.accuracy
 @pytest.mark.asyncio
 @pytest.mark.parametrize("case_id", PERFORMANCE_CASE_IDS)
 async def test_performance_tool_accuracy(

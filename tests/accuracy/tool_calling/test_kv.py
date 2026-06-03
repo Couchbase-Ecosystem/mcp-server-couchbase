@@ -9,61 +9,26 @@ Cases:
 from __future__ import annotations
 
 import json
-import uuid
-from typing import Any
 
 import pytest
 
 from accuracy.sdk import (
     AccuracyCase,
-    AccuracyTestingClient,
     DiskResultStorage,
     Matcher,
     OpenAIAgent,
+    delete_document,
+    doc_id,
     run_accuracy_case,
+    seed_document,
 )
 from accuracy.sdk.types import ExpectedToolCall
 
-
-def _doc_id(prefix: str) -> str:
-    return f"{prefix}_{uuid.uuid4().hex[:8]}"
-
-
-def _seed_doc(
-    bucket: str,
-    scope: str,
-    collection: str,
-    doc_id: str,
-    content: dict[str, Any],
-):
-    async def _hook(client: AccuracyTestingClient) -> None:
-        await client.call_tool_silent(
-            "upsert_document_by_id",
-            {
-                "bucket_name": bucket,
-                "scope_name": scope,
-                "collection_name": collection,
-                "document_id": doc_id,
-                "document_content": content,
-            },
-        )
-
-    return _hook
-
-
-def _delete_doc(bucket: str, scope: str, collection: str, doc_id: str):
-    async def _hook(client: AccuracyTestingClient) -> None:
-        await client.call_tool_silent(
-            "delete_document_by_id",
-            {
-                "bucket_name": bucket,
-                "scope_name": scope,
-                "collection_name": collection,
-                "document_id": doc_id,
-            },
-        )
-
-    return _hook
+# Local aliases keep the original call sites below unchanged while sourcing
+# the seed/cleanup helpers from the shared sdk module.
+_doc_id = doc_id
+_seed_doc = seed_document
+_delete_doc = delete_document
 
 
 def _build_cases(bucket: str, scope: str, collection: str) -> list[AccuracyCase]:
@@ -300,7 +265,6 @@ KV_CASE_IDS = [
 ]
 
 
-@pytest.mark.accuracy
 @pytest.mark.asyncio
 @pytest.mark.parametrize("case_id", KV_CASE_IDS)
 async def test_kv_tool_accuracy(

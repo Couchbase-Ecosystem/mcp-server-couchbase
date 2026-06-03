@@ -177,9 +177,18 @@ DEFAULT_TIMEOUT = int(os.getenv("CB_MCP_TEST_TIMEOUT", "120"))
 
 
 @asynccontextmanager
-async def create_mcp_session() -> AsyncIterator[ClientSession]:
-    """Create a fresh MCP client session connected to the server over stdio."""
+async def create_mcp_session(
+    env_overrides: dict[str, str] | None = None,
+) -> AsyncIterator[ClientSession]:
+    """Create a fresh MCP client session connected to the server over stdio.
+
+    Optional ``env_overrides`` are merged onto the environment passed to the
+    spawned server process, letting individual tests opt into things like
+    ``CB_MCP_READ_ONLY_MODE`` or ``CB_MCP_DISABLED_TOOLS``.
+    """
     env = _build_env()
+    if env_overrides:
+        env.update(env_overrides)
     params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "mcp_server"],

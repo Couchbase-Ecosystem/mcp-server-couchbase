@@ -172,7 +172,6 @@ QUERY_CASE_IDS = [
 ]
 
 
-@pytest.mark.accuracy
 @pytest.mark.asyncio
 @pytest.mark.parametrize("case_id", QUERY_CASE_IDS)
 async def test_query_tool_accuracy(

@@ -15,6 +15,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
+from .judge import JudgeVerdict
 from .matcher import Matcher
 from .types import ExpectedToolCall, ModelResponse
 
@@ -68,6 +69,54 @@ class DiskResultStorage:
                 doc["prompt_results"].append(prompt_entry)
 
             prompt_entry["model_responses"].append(_serialize(model_response))
+            path.write_text(json.dumps(doc, indent=2, default=_default_json))
+
+    def save_result_eval(
+        self,
+        *,
+        run_id: str,
+        commit_sha: str,
+        prompt: str,
+        expectation: str,
+        verdict: JudgeVerdict,
+        answer: str,
+        tool_results: list[dict[str, Any]],
+        tool_calling_accuracy: float | None,
+        model_response: ModelResponse,
+    ) -> None:
+        """Append one LLM-as-judge result-validation outcome.
+
+        Stored under a separate ``result_evals`` array in the same per-run
+        JSON file used by ``save_model_response`` so a single run id holds
+        both tool-calling and answer-correctness results.
+        """
+        with self._lock:
+            path = self._path(run_id)
+            doc: dict[str, Any]
+            if path.exists():
+                doc = json.loads(path.read_text())
+            else:
+                doc = {
+                    "run_id": run_id,
+                    "commit_sha": commit_sha,
+                    "created_on": int(time.time()),
+                    "prompt_results": [],
+                }
+
+            doc.setdefault("result_evals", [])
+            doc["result_evals"].append(
+                _serialize(
+                    {
+                        "prompt": prompt,
+                        "expectation": expectation,
+                        "verdict": verdict,
+                        "answer": answer,
+                        "tool_results": tool_results,
+                        "tool_calling_accuracy": tool_calling_accuracy,
+                        "model_response": model_response,
+                    }
+                )
+            )
             path.write_text(json.dumps(doc, indent=2, default=_default_json))
 
 
