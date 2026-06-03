@@ -196,9 +196,9 @@ class ValueMatcher(Matcher):
         if isinstance(expected, list):
             if not isinstance(actual, list):
                 return 0.0
-            if len(actual) > len(expected):
+            if len(actual) < len(expected):
                 return 0.0
-            score = 1.0
+            score = 0.75 if len(actual) > len(expected) else 1.0
             for exp_item, act_item in zip(expected, actual, strict=False):
                 score = min(score, Matcher.value(exp_item).match(act_item))
                 if score == 0.0:
@@ -208,10 +208,8 @@ class ValueMatcher(Matcher):
         if isinstance(expected, dict):
             if not isinstance(actual, dict):
                 return 0.0
-            if len(actual) > len(expected):
-                # Actual has unexpected extra keys
-                return 0.0
-            score = 1.0
+            extra_keys = set(actual.keys()) - set(expected.keys())
+            score = 0.75 if extra_keys else 1.0
             for key, exp_val in expected.items():
                 score = min(score, Matcher.value(exp_val).match(actual.get(key)))
                 if score == 0.0:
