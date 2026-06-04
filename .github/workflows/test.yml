@@ -20,16 +20,21 @@ jobs:
   # Integration Tests - All Transport Modes
   # ============================================
   integration-tests:
-    name: Integration (${{ matrix.transport }} transport)
+    name: Integration (${{ matrix.transport }} / cb-${{ matrix.couchbase_version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         transport: ["stdio", "http", "sse"]
+        # Run every transport against both the latest 8.x and the
+        # previous-major 7.6 series. list_indexes takes different code
+        # paths on each (system:indexes vs the REST Index Service), so
+        # both versions need explicit coverage.
+        couchbase_version: ["8.0.0", "7.6.11"]
 
     services:
       couchbase:
-        image: couchbase:enterprise-8.0.0
+        image: couchbase:enterprise-${{ matrix.couchbase_version }}
         ports:
           - 8091:8091
           - 8092:8092
@@ -180,6 +185,12 @@ jobs:
           CB_MCP_TRANSPORT: http
           CB_MCP_HOST: 127.0.0.1
           CB_MCP_PORT: 8000
+          # Required: most integration tests write data (KV upsert/insert/
+          # replace/delete + a few that exercise DML). Without this the
+          # running server defaults to read-only=true and those tests fail.
+          # The stdio path achieves the same via _build_stdio_subprocess_env;
+          # http/sse need it on the server-startup env directly.
+          CB_MCP_READ_ONLY_MODE: "false"
           PYTHONPATH: src
         run: |
           echo "Starting MCP server with HTTP transport..."
@@ -230,6 +241,8 @@ jobs:
           CB_MCP_TRANSPORT: sse
           CB_MCP_HOST: 127.0.0.1
           CB_MCP_PORT: 8000
+          # See HTTP startup step for rationale.
+          CB_MCP_READ_ONLY_MODE: "false"
           PYTHONPATH: src
         run: |
           echo "Starting MCP server with SSE transport..."

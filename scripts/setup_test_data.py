@@ -36,7 +36,7 @@ from datetime import timedelta
 
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions
+from couchbase.options import ClusterOptions, ClusterTimeoutOptions
 
 
 def get_env_or_exit(var_name: str) -> str:
@@ -409,10 +409,16 @@ def main() -> int:
 
     # Connect to cluster
     auth = PasswordAuthenticator(username, password)
-    cluster = Cluster(connection_string, ClusterOptions(auth))
+    timeout_opts = ClusterTimeoutOptions(
+        connect_timeout=timedelta(seconds=60),
+        kv_timeout=timedelta(seconds=30),
+    )
+    cluster = Cluster(
+        connection_string, ClusterOptions(auth, timeout_options=timeout_opts)
+    )
 
     try:
-        cluster.wait_until_ready(timedelta(seconds=30))
+        cluster.wait_until_ready(timedelta(seconds=60))
         print("  - Connected to cluster")
 
         # Create indexes
