@@ -99,19 +99,44 @@ jq -r '.packages[] |
 
 If versions don't match, run `./scripts/update_version.sh 0.5.2` again.
 
-### 3. Commit and Tag
+### 3. Open a Version-Bump PR
+
+Land the version changes on `main` through a pull request rather than pushing
+directly. The PR build runs the Docker workflow with `push: false`, giving you
+a final sanity check that the image builds before any release artefacts are
+published.
 
 ```bash
+git checkout -b bump-version-0.5.2
 git add pyproject.toml server.json uv.lock
 git commit -m "Bump version to 0.5.2"
+git push origin bump-version-0.5.2
+```
+
+Open the PR, get it reviewed, and merge it into `main` using whichever merge
+strategy the project normally uses (squash / rebase / merge commit are all
+fine — the tag in step 4 will point at whatever main resolves to).
+
+### 4. Tag the Merged Commit on `main`
+
+**Do not tag the PR head.** Squash and rebase merges produce new SHAs on
+`main`, so a tag on the PR head would point to a commit that is not reachable
+from `main`'s tip — the release workflows would then build the wrong tree.
+Always tag the commit that actually landed on `main`:
+
+```bash
+git checkout main
+git pull origin main
 git tag v0.5.2
-git push origin main
 git push origin v0.5.2
 ```
 
-> **Important:** Once you push the tag, **all workflows start immediately** and PyPI publishes within ~3 minutes. PyPI versions are **immutable** - if anything fails later, you'll need a new version number. There's no going back!
+> **Important:** Once you push the tag, **all workflows start immediately**
+> and PyPI publishes within ~3 minutes. PyPI versions are **immutable** — if
+> anything fails later, you'll need a new version number. There's no going
+> back!
 
-### 4. Automated Pipeline
+### 5. Automated Pipeline
 
 Once the tag is pushed, three GitHub Actions workflows run **in parallel/sequence**:
 
@@ -134,7 +159,7 @@ Once the tag is pushed, three GitHub Actions workflows run **in parallel/sequenc
 
 > **Note:** The MCP registry entry can be validated using this [third party option](https://registry.teamspark.ai/tester) before releasing or for debugging.
 
-### 5. Verify Release
+### 6. Verify Release
 
 Check that all three workflows succeeded:
 
@@ -162,11 +187,16 @@ Release candidates let you test the full release pipeline without committing to 
 
 # Or manually update pyproject.toml and server.json (root + all packages)
 
-# Commit and tag
+# Open a PR with the RC bump
+git checkout -b bump-version-0.5.2rc1
 git add pyproject.toml server.json uv.lock
 git commit -m "Bump version to 0.5.2rc1"
+git push origin bump-version-0.5.2rc1
+
+# After the PR merges, tag the resulting commit on main
+git checkout main
+git pull origin main
 git tag v0.5.2rc1
-git push origin main
 git push origin v0.5.2rc1
 ```
 
@@ -180,10 +210,16 @@ git push origin v0.5.2rc1
 
 ```bash
 ./scripts/update_version.sh 0.5.2
+
+git checkout -b bump-version-0.5.2
 git add pyproject.toml server.json uv.lock
 git commit -m "Bump version to 0.5.2"
+git push origin bump-version-0.5.2
+
+# After the PR merges, tag main
+git checkout main
+git pull origin main
 git tag v0.5.2
-git push origin main
 git push origin v0.5.2
 ```
 
@@ -207,10 +243,15 @@ If a release fails after PyPI has published (e.g., Docker build fails, MCP Regis
 # If v0.5.2 was published but release incomplete
 ./scripts/update_version.sh 0.5.3
 
+git checkout -b bump-version-0.5.3
 git add pyproject.toml server.json uv.lock
 git commit -m "Bump version to 0.5.3"
+git push origin bump-version-0.5.3
+
+# After the PR merges, tag main
+git checkout main
+git pull origin main
 git tag v0.5.3
-git push origin main
 git push origin v0.5.3
 ```
 
@@ -225,7 +266,7 @@ git push origin v0.5.3
 
 - **Always test with RC releases first** (e.g., `0.5.2rc1`)
 - **Use the helper script** (`./scripts/update_version.sh`) to ensure all versions match
-- **Review changes carefully** before pushing the tag (`git diff`)
+- **Review the version-bump PR carefully** before merging, and confirm `main` is at the expected commit before tagging
 - Verify all workflows succeeded before announcing release
 
 ## How Versioning Works

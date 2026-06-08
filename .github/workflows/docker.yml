@@ -86,6 +86,10 @@ jobs:
 
       - name: Update Docker Hub description
         if: github.ref_type == 'tag'
+        # Do not block a release on a Hub web-API hiccup or a
+        # transient PAT/permission issue. The image push has already succeeded
+        # by this point.
+        continue-on-error: true
         uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
