@@ -90,7 +90,7 @@ Add the configuration specified below to the MCP configuration in your MCP clien
         "CB_USERNAME=<database_username>",
         "-e",
         "CB_PASSWORD=<database_password>",
-        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+        "docker.io/couchbase/mcp-server:latest"
       ]
     }
   }
@@ -176,7 +176,7 @@ Lines starting with `#` are treated as comments and ignored.
         "CB_PASSWORD=password",
         "-e",
         "CB_MCP_DISABLED_TOOLS=upsert_document_by_id,delete_document_by_id",
-        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+        "docker.io/couchbase/mcp-server:latest"
       ]
     }
   }
@@ -204,7 +204,7 @@ Lines starting with `#` are treated as comments and ignored.
         "CB_PASSWORD=password",
         "-e",
         "CB_MCP_DISABLED_TOOLS=/app/disabled_tools.txt",
-        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+        "docker.io/couchbase/mcp-server:latest"
       ]
     }
   }
@@ -276,7 +276,7 @@ When a listed tool is invoked:
         "CB_PASSWORD=password",
         "-e",
         "CB_MCP_CONFIRMATION_REQUIRED_TOOLS=delete_document_by_id,replace_document_by_id",
-        "couchbase.docker.scarf.sh/couchbaseecosystem/mcp-server-couchbase:latest"
+        "docker.io/couchbase/mcp-server:latest"
       ]
     }
   }
