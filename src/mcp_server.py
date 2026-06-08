@@ -16,7 +16,10 @@ from cb_mcp.tools import TOOL_ANNOTATIONS
 from cb_mcp.utils import (
     ALLOWED_TRANSPORTS,
     DEFAULT_HOST,
+    DEFAULT_LOG_BACKUP_COUNT,
     DEFAULT_LOG_LEVEL,
+    DEFAULT_LOG_MAX_BYTES,
+    DEFAULT_LOG_SINKS,
     DEFAULT_PORT,
     DEFAULT_READ_ONLY_MODE,
     DEFAULT_TRANSPORT,
@@ -24,16 +27,13 @@ from cb_mcp.utils import (
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
+    configure_logging,
+    validate_log_level,
+    validate_log_sinks,
 )
 
 # Standalone-host provider implementation
 from providers.static import StaticClusterProvider
-
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, DEFAULT_LOG_LEVEL.upper()),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
 
 logger = logging.getLogger(MCP_SERVER_NAME)
 
@@ -124,6 +124,53 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     "Also accepts a file path containing one tool name per line. "
     "Requires the MCP client to support elicitation.",
 )
+@click.option(
+    "--log-level",
+    envvar="CB_MCP_LOG_LEVEL",
+    default=DEFAULT_LOG_LEVEL,
+    callback=validate_log_level,
+    help="Logging level for MCP server and Couchbase SDK. Allowed values: "
+    "OFF, DEBUG, INFO, WARNING, ERROR. Use OFF to disable logging entirely. "
+    "Invalid values fall back to INFO with an error log entry. Default: INFO.",
+)
+@click.option(
+    "--log-sinks",
+    envvar="CB_MCP_LOG_SINKS",
+    default=DEFAULT_LOG_SINKS,
+    callback=validate_log_sinks,
+    help="Comma-separated list of log sinks. Allowed values: stderr, file. "
+    "Default: stderr. Include 'file' (with --log-file and/or --error-log-file) "
+    "to write to files; include 'stderr' to write to the console.",
+)
+@click.option(
+    "--log-file",
+    envvar="CB_MCP_LOG_FILE",
+    default=None,
+    help="Path to a rotating log file. Used only when 'file' is in --log-sinks. "
+    "When set alongside --error-log-file, this file receives DEBUG/INFO only.",
+)
+@click.option(
+    "--error-log-file",
+    envvar="CB_MCP_ERROR_LOG_FILE",
+    default=None,
+    help="Path to a rotating error log file (WARNING and above). Used only "
+    "when 'file' is in --log-sinks. When set alongside --log-file, records "
+    "are split with no duplication between files.",
+)
+@click.option(
+    "--log-max-bytes",
+    envvar="CB_MCP_LOG_MAX_BYTES",
+    type=int,
+    default=DEFAULT_LOG_MAX_BYTES,
+    help="Maximum size in bytes per rotated log file. Applies to both file handlers.",
+)
+@click.option(
+    "--log-backup-count",
+    envvar="CB_MCP_LOG_BACKUP_COUNT",
+    type=int,
+    default=DEFAULT_LOG_BACKUP_COUNT,
+    help="Number of rotated log files to keep. Applies to both file handlers.",
+)
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context
 def main(
@@ -141,8 +188,27 @@ def main(
     port,
     disabled_tools,
     confirmation_required_tools,
+    log_level,
+    log_sinks,
+    log_file,
+    error_log_file,
+    log_max_bytes,
+    log_backup_count,
 ):
     """Couchbase MCP Server"""
+
+    resolved_level, invalid_level = log_level
+    parsed_sinks, invalid_sinks = log_sinks
+    configure_logging(
+        level=resolved_level,
+        sinks=parsed_sinks,
+        log_file=log_file,
+        error_log_file=error_log_file,
+        log_max_bytes=log_max_bytes,
+        log_backup_count=log_backup_count,
+        invalid_level=invalid_level,
+        invalid_sinks=invalid_sinks,
+    )
 
     (
         final_tools,

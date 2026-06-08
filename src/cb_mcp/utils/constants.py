@@ -25,3 +25,9 @@ QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION = 8
 # Logging Configuration
 # Change this to DEBUG, WARNING, ERROR as needed
 DEFAULT_LOG_LEVEL = "INFO"
+DEFAULT_LOG_MAX_BYTES = 1 * 1024 * 1024
+DEFAULT_LOG_BACKUP_COUNT = 5
+ALLOWED_LOG_LEVELS = ("OFF", "DEBUG", "INFO", "WARNING", "ERROR")
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+ALLOWED_LOG_SINKS = ("stderr", "file")
+DEFAULT_LOG_SINKS = "stderr"
