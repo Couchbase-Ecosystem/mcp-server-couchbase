@@ -138,7 +138,7 @@ Once the tag is pushed, three GitHub Actions workflows run **in parallel/sequenc
 
 Check that all three workflows succeeded:
 
-- [GitHub Actions](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/actions)
+- [GitHub Actions](https://github.com/couchbase/mcp-server-couchbase/actions)
 
 Verify the release is available on:
 

@@ -4,9 +4,9 @@ Pre-built images for the [Couchbase](https://www.couchbase.com/) MCP Server.
 
 A Model Context Protocol (MCP) server that allows AI agents to interact with Couchbase databases.
 
-GitHub Repo: <https://github.com/Couchbase-Ecosystem/mcp-server-couchbase>
+GitHub Repo: <https://github.com/couchbase/mcp-server-couchbase>
 
-Dockerfile: <https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/blob/main/Dockerfile>
+Dockerfile: <https://github.com/couchbase/mcp-server-couchbase/blob/main/Dockerfile>
 
 Documentation: <https://mcp-server.couchbase.com>
 
@@ -99,7 +99,7 @@ Add the configuration specified below to the MCP configuration in your MCP clien
 
 ### Environment Variables
 
-The detailed explanation for the environment variables can be found on the [GitHub Repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase?tab=readme-ov-file#additional-configuration-for-mcp-server).
+The detailed explanation for the environment variables can be found on the [GitHub Repo](https://github.com/couchbase/mcp-server-couchbase?tab=readme-ov-file#additional-configuration-for-mcp-server).
 
 | Variable                             | Description                                                                                                                                              | Default                                                        |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
