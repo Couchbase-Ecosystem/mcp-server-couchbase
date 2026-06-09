@@ -11,10 +11,11 @@ import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from _test_env import (
+    REQUIRED_ENV_VARS,
     _build_env,
     get_test_bucket,
     get_test_collection,
@@ -23,11 +24,15 @@ from _test_env import (
 )
 from mcp import ClientSession, StdioServerParameters, stdio_client
 
+if TYPE_CHECKING:
+    from typing import TextIO
+
 __all__ = [
     "EXPECTED_TOOLS",
     "TOOLS_BY_CATEGORY",
     "TOOL_REQUIRED_PARAMS",
     "_build_env",
+    "create_logging_test_session",
     "create_mcp_session",
     "ensure_list",
     "extract_payload",
@@ -59,6 +64,7 @@ def pytest_collection_modifyitems(config, items):
         except ValueError:
             continue
         item.add_marker(pytest.mark.integration)
+
 
 # Tools we expect to be registered by the server
 EXPECTED_TOOLS = {
@@ -254,3 +260,55 @@ def ensure_list(value: Any) -> list[Any]:
     if isinstance(value, list):
         return value
     return [value]
+
+
+@asynccontextmanager
+async def create_logging_test_session(
+    extra_args: list[str] | None = None,
+    env_overrides: dict[str, str] | None = None,
+    cwd: Path | None = None,
+    stderr_buffer: TextIO | None = None,
+) -> AsyncIterator[ClientSession]:
+    """Spawn the MCP server for CLI / logging tests; no cluster credentials.
+
+    Cluster credentials are deliberately stripped from the inherited environment
+    so the server boots in "no cluster" lazy mode (which is fine — tools that
+    don't touch the cluster, like ``get_server_configuration_status``, work
+    without connectivity). Use this helper for tests that exercise CLI flags,
+    env-var routing, or filesystem effects of logging — not for tests that
+    need to call cluster-touching tools.
+
+    Optional arguments:
+      - ``extra_args``: extra CLI flags appended after ``python -m mcp_server``.
+      - ``env_overrides``: merged onto the server's environment after credential
+        stripping. Use to set ``CB_MCP_LOG_LEVEL`` and friends.
+      - ``cwd``: working directory for the spawned process. Set to a
+        ``tmp_path`` when verifying default CWD-relative file paths.
+      - ``stderr_buffer``: a TextIO (e.g. ``io.StringIO()``) that captures
+        everything the server wrote to stderr. Inspect ``.getvalue()`` after
+        the session closes.
+    """
+    env = os.environ.copy()
+    # Strip credentials so the server starts in lazy mode without skipping.
+    for var in REQUIRED_ENV_VARS:
+        env.pop(var, None)
+    env["PYTHONUNBUFFERED"] = "1"
+    if env_overrides:
+        env.update(env_overrides)
+
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "mcp_server", *(extra_args or [])],
+        env=env,
+        cwd=str(cwd) if cwd is not None else None,
+    )
+
+    client_kwargs: dict[str, Any] = {}
+    if stderr_buffer is not None:
+        client_kwargs["errlog"] = stderr_buffer
+
+    async with asyncio.timeout(DEFAULT_TIMEOUT):
+        async with stdio_client(params, **client_kwargs) as (read_stream, write_stream):
+            async with ClientSession(read_stream, write_stream) as session:
+                await session.initialize()
+                yield session
