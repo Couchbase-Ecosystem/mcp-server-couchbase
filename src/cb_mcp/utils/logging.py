@@ -148,8 +148,9 @@ def configure_logging(
     The ``sinks`` set is authoritative: ``"stderr"`` attaches a stderr
     handler; ``"file"`` always attaches **two** rotating file handlers — a
     main log (DEBUG/INFO/WARNING) and an error log (ERROR/CRITICAL) — with
-    no overlap. Any path the caller omits falls back to the default name in
-    the process CWD (``mcp_server.log`` / ``mcp_server.error.log``).
+    no overlap. ``log_file`` and ``error_log_file`` are required; the CLI
+    layer supplies ``DEFAULT_LOG_FILE`` / ``DEFAULT_ERROR_LOG_FILE`` when
+    the user omits the flags, so callers always pass concrete paths here.
 
     Setting ``level="OFF"`` suppresses output regardless of sinks.
     """
@@ -166,6 +167,10 @@ def configure_logging(
     logger = logging.getLogger(MCP_SERVER_NAME)
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
+        # Close so RotatingFileHandlers release their file descriptor — otherwise
+        # repeated configure_logging() calls (tests, reloads) leak FDs and keep
+        # rotated files open against the filesystem.
+        handler.close()
     logger.propagate = False
 
     if level_name == "OFF":

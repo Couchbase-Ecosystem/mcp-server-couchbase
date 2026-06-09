@@ -176,11 +176,12 @@ logger = logging.getLogger(MCP_SERVER_NAME)
 @click.option(
     "--log-backup-count",
     envvar="CB_MCP_LOG_BACKUP_COUNT",
-    # 0 means 'keep no backups' (file truncated on rotation); negative rejected.
+    # 0 disables rotation entirely — RotatingFileHandler skips its rename
+    # logic when backupCount=0, so the file just grows. Negative is rejected.
     type=click.IntRange(min=0),
     default=DEFAULT_LOG_BACKUP_COUNT,
     help="Number of rotated log files to keep. Applies to both file handlers. "
-    "Set to 0 to keep no backups (file is truncated on rotation).",
+    "Set to 0 to disable rotation (log file grows without bound).",
 )
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context

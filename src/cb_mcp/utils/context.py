@@ -45,9 +45,10 @@ def get_logging_config(ctx: Context) -> Mapping[str, Any] | None:
 
     Returns ``None`` when the server entrypoint doesn't populate the
     field (e.g., implementations that don't use ``configure_logging`` from
-    :mod:`cb_mcp.utils.logging`).
+    :mod:`cb_mcp.utils.logging`) — including host servers whose lifespan
+    context type doesn't carry a ``logging_config`` attribute at all.
     """
-    return ctx.request_context.lifespan_context.logging_config  # type: ignore
+    return getattr(ctx.request_context.lifespan_context, "logging_config", None)  # type: ignore
 
 
 def get_cluster_connection(ctx: Context) -> Cluster:

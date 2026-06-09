@@ -35,7 +35,7 @@ DEFAULT_LOG_DATEFMT = "%Y-%m-%dT%H:%M:%S%z"
 ALLOWED_LOG_SINKS = ("stderr", "file")
 DEFAULT_LOG_SINKS = "stderr"
 # CWD-relative filenames used when file logging is active and the caller
-# omits --log-file / --error-log-file. Referenced from both the CLI help
-# text and the fallback inside configure_logging so the two stay in sync.
+# omits --log-file / --error-log-file. The CLI layer (mcp_server.py) wires
+# these as Click defaults; configure_logging itself requires both paths.
 DEFAULT_LOG_FILE = "mcp_server.log"
 DEFAULT_ERROR_LOG_FILE = "mcp_server.error.log"

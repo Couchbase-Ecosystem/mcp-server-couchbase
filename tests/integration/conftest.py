@@ -284,9 +284,12 @@ async def create_logging_test_session(
         stripping. Use to set ``CB_MCP_LOG_LEVEL`` and friends.
       - ``cwd``: working directory for the spawned process. Set to a
         ``tmp_path`` when verifying default CWD-relative file paths.
-      - ``stderr_buffer``: a TextIO (e.g. ``io.StringIO()``) that captures
-        everything the server wrote to stderr. Inspect ``.getvalue()`` after
-        the session closes.
+      - ``stderr_buffer``: a writable file object backed by a real file
+        descriptor (e.g. ``tmp_path / "server.stderr"`` opened in ``"w"``
+        mode). The MCP SDK passes this straight to ``asyncio.subprocess``,
+        which requires ``.fileno()`` — ``io.StringIO`` will not work.
+        Read the captured stderr back from the same path after the session
+        closes.
     """
     env = os.environ.copy()
     # Strip credentials so the server starts in lazy mode without skipping.
