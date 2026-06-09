@@ -1,0 +1,208 @@
+name: Accuracy (LLM evals)
+
+# Accuracy tests are LLM-in-the-loop evals: they cost real OpenAI API money,
+# they're non-deterministic, and they're not a good fit for blocking every PR.
+# Run them on demand from the Actions tab, or wire them into release-candidate
+# tagging if you want a release gate.
+
+permissions:
+  contents: read
+
+on:
+  # Run automatically on PyPI release tags so every published version has
+  # an accuracy/eval baseline you can compare against later.
+  # The pattern matches the existing release.yml convention
+  # (v0.1.0, v1.2.3, v1.2.3-alpha.1, etc.) so prereleases are evaluated too.
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+  # And on demand whenever you want a one-off run from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "OpenAI model id (default gpt-4o-mini)"
+        required: false
+        default: "gpt-4o-mini"
+        type: string
+      run_id:
+        description: "Run id used in tests/accuracy/results/<run_id>.json (defaults to release-<tag> on tag pushes, gh-run-<run_number> otherwise)"
+        required: false
+        type: string
+      test_filter:
+        description: "Pytest -k filter to narrow which cases run (optional)"
+        required: false
+        type: string
+
+env:
+  CB_USERNAME: Administrator
+  CB_PASSWORD: password
+  CB_MCP_TEST_BUCKET: travel-sample
+
+jobs:
+  accuracy:
+    name: Accuracy evals
+    runs-on: ubuntu-latest
+
+    services:
+      couchbase:
+        image: couchbase:enterprise-8.0.0
+        ports:
+          - 8091:8091
+          - 8092:8092
+          - 8093:8093
+          - 8094:8094
+          - 8095:8095
+          - 8096:8096
+          - 9102:9102
+          - 11210:11210
+          - 11207:11207
+        options: >-
+          --health-cmd "curl -s http://localhost:8091/pools || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python (latest)
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Wait for Couchbase to be ready
+        run: |
+          echo "Waiting for Couchbase to be fully ready..."
+          for i in {1..60}; do
+            if curl -s http://localhost:8091/pools > /dev/null 2>&1; then
+              echo "Couchbase REST API is responding"
+              break
+            fi
+            echo "Waiting for Couchbase... ($i/60)"
+            sleep 2
+          done
+
+      - name: Initialize Couchbase cluster
+        run: |
+          echo "Initializing Couchbase cluster..."
+          curl -s -X POST http://localhost:8091/nodes/self/controller/settings \
+            -d 'path=/opt/couchbase/var/lib/couchbase/data' \
+            -d 'index_path=/opt/couchbase/var/lib/couchbase/data'
+
+          curl -s -X POST http://localhost:8091/node/controller/setupServices \
+            -d 'services=kv,n1ql,index,fts'
+
+          curl -s -X POST http://localhost:8091/pools/default \
+            -d 'memoryQuota=512' \
+            -d 'indexMemoryQuota=256' \
+            -d 'ftsMemoryQuota=256'
+
+          curl -s -X POST http://localhost:8091/settings/web \
+            -d "password=${{ env.CB_PASSWORD }}" \
+            -d "username=${{ env.CB_USERNAME }}" \
+            -d 'port=SAME'
+
+          echo "Cluster initialization complete"
+
+      - name: Load travel-sample bucket
+        run: |
+          echo "Loading travel-sample bucket..."
+          sleep 5
+
+          curl -s -X POST http://localhost:8091/sampleBuckets/install \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -H "Content-Type: application/json" \
+            -d '["travel-sample"]'
+
+          echo "Waiting for travel-sample bucket to be ready..."
+          for i in {1..60}; do
+            if curl -s -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+               http://localhost:8091/pools/default/buckets/travel-sample 2>/dev/null | grep -q '"status":"healthy"'; then
+              echo "Bucket is healthy"
+              break
+            fi
+            echo "Waiting for bucket... ($i/60)"
+            sleep 3
+          done
+
+          echo "Waiting for sample data to be fully loaded..."
+          sleep 10
+
+      - name: Set indexer storage mode
+        run: |
+          sleep 5
+          curl -s -X POST http://localhost:8091/settings/indexes \
+            -u "${{ env.CB_USERNAME }}:${{ env.CB_PASSWORD }}" \
+            -d 'storageMode=plasma' \
+            || echo "Storage mode may already be set or indexer not ready"
+          sleep 5
+
+      - name: Setup test data (indexes and queries)
+        env:
+          CB_CONNECTION_STRING: couchbase://localhost
+          CB_USERNAME: ${{ env.CB_USERNAME }}
+          CB_PASSWORD: ${{ env.CB_PASSWORD }}
+          CB_MCP_TEST_BUCKET: ${{ env.CB_MCP_TEST_BUCKET }}
+          PYTHONPATH: src
+        run: |
+          uv run python scripts/setup_test_data.py
+
+      # Resolve a human-readable run id for the results file:
+      #   1. workflow_dispatch input wins if set
+      #   2. else "release-<tag>" on tag pushes
+      #   3. else "gh-run-<run_number>" as a fallback
+      # Exported as CB_ACCURACY_RUN_ID so the next step inherits it directly.
+      - name: Resolve accuracy run id
+        run: |
+          if [ -n "${{ inputs.run_id }}" ]; then
+            RUN_ID="${{ inputs.run_id }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            RUN_ID="release-${{ github.ref_name }}"
+          else
+            RUN_ID="gh-run-${{ github.run_number }}"
+          fi
+          echo "CB_ACCURACY_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo "Using accuracy run id: $RUN_ID"
+
+      - name: Run accuracy / eval tests
+        env:
+          # Couchbase
+          CB_CONNECTION_STRING: couchbase://localhost
+          CB_MCP_TRANSPORT: stdio
+          CB_MCP_TEST_SCOPE: inventory
+          CB_MCP_TEST_COLLECTION: airline
+          PYTHONPATH: src
+          # OpenAI / eval config (model defaults to gpt-4o-mini via conftest
+          # when inputs.model is empty, e.g. on tag-triggered runs).
+          # CB_ACCURACY_RUN_ID is set in the previous step via $GITHUB_ENV.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CB_ACCURACY_OPENAI_MODEL: ${{ inputs.model }}
+          CB_ACCURACY_RESULTS_DIR: ${{ github.workspace }}/accuracy-results
+        run: |
+          if [ -z "${OPENAI_API_KEY}" ]; then
+            echo "::error::OPENAI_API_KEY secret is not set. Add it under repo Settings → Secrets."
+            exit 1
+          fi
+          mkdir -p "$CB_ACCURACY_RESULTS_DIR"
+
+          if [ -n "${{ inputs.test_filter }}" ]; then
+            uv run pytest tests/accuracy -m accuracy -v --tb=short -k "${{ inputs.test_filter }}"
+          else
+            uv run pytest tests/accuracy -m accuracy -v --tb=short
+          fi
+
+      - name: Upload accuracy run JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-results-${{ github.run_number }}
+          path: accuracy-results/
+          if-no-files-found: warn
+          retention-days: 30
