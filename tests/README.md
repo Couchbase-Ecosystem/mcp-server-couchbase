@@ -166,7 +166,7 @@ Test → AccuracyTestingClient → MCP Server → Couchbase
 | `accuracy/tool_calling/test_server.py` | Server / cluster + conversational | 11 |
 | `accuracy/tool_calling/test_query.py` | SQL++ query + conversational | 6 |
 | `accuracy/tool_calling/test_index.py` | Indexes + conversational | 6 |
-| `accuracy/tool_calling/test_performance.py` | Query performance + conversational | 11 |
+| `accuracy/tool_calling/test_query_performance.py` | Query performance + conversational | 11 |
 
 ### Scoring
 
@@ -229,7 +229,7 @@ a correct answer must contain. There are two expectation styles:
 | `accuracy/result_validation/test_query.py` | run_sql (USE KEYS) / schema / explain | 4 | seeded + faithfulness |
 | `accuracy/result_validation/test_index.py` | list_indexes / advisor | 2 | faithfulness |
 | `accuracy/result_validation/test_server.py` | buckets / scopes / collections / health / config / connection | 7 | faithfulness |
-| `accuracy/result_validation/test_performance.py` | all 7 performance tools | 7 | faithfulness (empty-OK) |
+| `accuracy/result_validation/test_query_performance.py` | all 7 query-performance tools | 7 | faithfulness (empty-OK) |
 
 The judge defaults to the agent model; set `CB_ACCURACY_JUDGE_MODEL` to grade
 with a stronger model than the one under test.
