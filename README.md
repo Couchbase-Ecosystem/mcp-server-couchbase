@@ -127,7 +127,7 @@ The MCP server can be run from the source using this repository.
 #### Clone the repository to your local machine
 
 ```bash
-git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
+git clone https://github.com/couchbase/mcp-server-couchbase.git
 ```
 
 #### Server Configuration using Source for MCP Clients
@@ -679,7 +679,7 @@ uv run pytest tests/ -v
 
 We welcome contributions from the community! Whether you want to fix bugs, add features, or improve documentation, your help is appreciated.
 
-If you need help, have found a bug, or want to contribute improvements, the best place to do that is right here — by [opening a GitHub issue](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/issues).
+If you need help, have found a bug, or want to contribute improvements, the best place to do that is right here — by [opening a GitHub issue](https://github.com/couchbase/mcp-server-couchbase/issues).
 
 ### For Developers
 
@@ -697,7 +697,7 @@ If you're interested in contributing code or setting up a development environmen
 
 ```bash
 # Clone and setup
-git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
+git clone https://github.com/couchbase/mcp-server-couchbase.git
 cd mcp-server-couchbase
 
 # Install with development dependencies
