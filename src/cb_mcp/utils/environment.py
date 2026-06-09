@@ -25,6 +25,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from .constants import MCP_SERVER_NAME
+from .logging import get_resolved_logging_config
 
 logger = logging.getLogger(f"{MCP_SERVER_NAME}.utils.environment")
 
@@ -96,10 +97,15 @@ def log_environment_info(transport: str, server_settings: Mapping[str, Any]) -> 
     body lets log aggregators and support tooling parse individual fields
     without regex gymnastics.
 
+    The ``logging`` block mirrors what the ``get_server_configuration_status``
+    MCP tool returns, so support engineers reading the log and tools reading
+    the MCP response see the same shape and field names.
+
     Fires unconditionally; the record is filtered by the logger's effective
     level. Customers running at INFO see nothing; enabling DEBUG surfaces the
     full diagnostic line without any code change.
     """
+    resolved_logging = get_resolved_logging_config()
     info: dict[str, Any] = {
         "os": platform.platform(),
         "platform": sys.platform,
@@ -110,9 +116,7 @@ def log_environment_info(transport: str, server_settings: Mapping[str, Any]) -> 
             name: _package_version(name) for name in _REPORTED_DEPENDENCIES
         },
         "transport": transport,
-        "log_level": logging.getLevelName(
-            logging.getLogger(MCP_SERVER_NAME).getEffectiveLevel()
-        ),
+        "logging": resolved_logging.as_dict() if resolved_logging else None,
         "config": _redacted_settings(server_settings),
     }
     logger.debug("Environment | %s", json.dumps(info, default=str))

@@ -45,6 +45,7 @@ from .context import (
     AppContext,
     get_cluster_connection,
     get_cluster_provider,
+    get_logging_config,
 )
 
 # Elicitation utilities
@@ -59,7 +60,13 @@ from .index_utils import (
 )
 
 # Logging
-from .logging import configure_logging, parse_log_level, parse_log_sinks
+from .logging import (
+    ResolvedLoggingConfig,
+    configure_logging,
+    get_resolved_logging_config,
+    parse_log_level,
+    parse_log_sinks,
+)
 
 # Note: Individual modules create their own hierarchical loggers using:
 # logger = logging.getLogger(f"{MCP_SERVER_NAME}.module.name")
@@ -75,6 +82,7 @@ __all__ = [
     "AppContext",
     "get_cluster_connection",
     "get_cluster_provider",
+    "get_logging_config",
     # Index utilities
     "fetch_indexes_from_rest_api",
     # Constants
@@ -96,7 +104,9 @@ __all__ = [
     "NETWORK_TRANSPORTS",
     "NETWORK_TRANSPORTS_SDK_MAPPING",
     # Logging
+    "ResolvedLoggingConfig",
     "configure_logging",
+    "get_resolved_logging_config",
     "parse_log_level",
     "parse_log_sinks",
     # CLI adapters

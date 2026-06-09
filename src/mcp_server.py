@@ -30,6 +30,7 @@ from cb_mcp.utils import (
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
     configure_logging,
+    get_resolved_logging_config,
     log_environment_info,
     validate_log_level,
     validate_log_path,
@@ -260,11 +261,16 @@ def main(
         # Diagnostic snapshot for customer support. Filtered at INFO; visible
         # whenever the user runs with --log-level DEBUG.
         log_environment_info(transport, settings)
+        # Hand the resolved logging snapshot to AppContext so shared tools
+        # (e.g. get_server_configuration_status) can surface it without
+        # coupling to our specific logging module.
+        resolved_logging = get_resolved_logging_config()
         app_context = AppContext(
             cluster_provider=StaticClusterProvider(settings=settings),
             settings=settings,
             read_only_mode=read_only_mode,
             read_only_query_mode=read_only_query_mode,
+            logging_config=resolved_logging.as_dict() if resolved_logging else None,
         )
         try:
             yield app_context

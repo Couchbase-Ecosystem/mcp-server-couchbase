@@ -9,7 +9,9 @@ SDK records as well.
 
 import logging
 import sys
+from dataclasses import dataclass
 from logging.handlers import RotatingFileHandler
+from typing import Any
 
 import couchbase
 
@@ -28,6 +30,54 @@ from .constants import (
 # the threshold is unreachable, so this is the cheapest way to silence the
 # logger without touching other loggers in the process.
 LEVEL_OFF = logging.CRITICAL + 1
+
+
+@dataclass(frozen=True)
+class ResolvedLoggingConfig:
+    """Snapshot of the active logging configuration after configure_logging().
+
+    Built once per call to :func:`configure_logging` and stashed in a
+    module-level singleton so the server-config MCP tool and the env-info
+    diagnostic record can both report exactly what's running, without each
+    consumer keeping its own view in sync with the CLI flags.
+
+    The fields reflect what's *active*: ``sinks`` lists only the destinations
+    that received handler attachments, and ``log_file`` / ``error_log_file``
+    are ``None`` whenever the file sink isn't part of that set. Under
+    ``level="OFF"`` the function attaches no handlers, so ``sinks`` is empty
+    and both paths are ``None``.
+    """
+
+    level: str
+    sinks: tuple[str, ...]
+    log_file: str | None
+    error_log_file: str | None
+    log_max_bytes: int
+    log_backup_count: int
+
+    def as_dict(self) -> dict[str, Any]:
+        """Serialise to a JSON-friendly dict with shorter key names."""
+        return {
+            "level": self.level,
+            "sinks": list(self.sinks),
+            "log_file": self.log_file,
+            "error_log_file": self.error_log_file,
+            "max_bytes": self.log_max_bytes,
+            "backup_count": self.log_backup_count,
+        }
+
+
+# Module-level singleton holding the most recent configure_logging() snapshot.
+_resolved_config: ResolvedLoggingConfig | None = None
+
+
+def get_resolved_logging_config() -> ResolvedLoggingConfig | None:
+    """Return the snapshot recorded by the last configure_logging() call.
+
+    Returns ``None`` if configure_logging has not yet been invoked in this
+    process.
+    """
+    return _resolved_config
 
 
 def _below_error(record: logging.LogRecord) -> bool:
@@ -103,6 +153,9 @@ def configure_logging(
 
     Setting ``level="OFF"`` suppresses output regardless of sinks.
     """
+    # Both code paths below rebind the module-level snapshot.
+    global _resolved_config  # noqa: PLW0603
+
     level_name = level.upper()
     if level_name not in ALLOWED_LOG_LEVELS:
         # Defer logging about the invalid level until after handlers are configured,
@@ -118,6 +171,16 @@ def configure_logging(
     if level_name == "OFF":
         logger.setLevel(LEVEL_OFF)
         couchbase.configure_logging(MCP_SERVER_NAME, LEVEL_OFF)
+        # No handlers attached, no sinks active; record that state so the
+        # MCP tool and env-info reflect reality.
+        _resolved_config = ResolvedLoggingConfig(
+            level=level_name,
+            sinks=(),
+            log_file=None,
+            error_log_file=None,
+            log_max_bytes=log_max_bytes,
+            log_backup_count=log_backup_count,
+        )
         return
 
     logger.setLevel(level_name)
@@ -189,4 +252,15 @@ def configure_logging(
         error_log_file if file_sink_active else "-",
         log_max_bytes,
         log_backup_count,
+    )
+
+    # Record the snapshot so the server-config MCP tool and env-info diagnostic
+    # record can read the active configuration without re-deriving it.
+    _resolved_config = ResolvedLoggingConfig(
+        level=level_name,
+        sinks=tuple(sorted(effective_sinks)),
+        log_file=log_file if file_sink_active else None,
+        error_log_file=error_log_file if file_sink_active else None,
+        log_max_bytes=log_max_bytes,
+        log_backup_count=log_backup_count,
     )
