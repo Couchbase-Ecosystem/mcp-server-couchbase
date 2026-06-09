@@ -15,8 +15,10 @@ from cb_mcp.tool_registration import prepare_tools_for_registration
 from cb_mcp.tools import TOOL_ANNOTATIONS
 from cb_mcp.utils import (
     ALLOWED_TRANSPORTS,
+    DEFAULT_ERROR_LOG_FILE,
     DEFAULT_HOST,
     DEFAULT_LOG_BACKUP_COUNT,
+    DEFAULT_LOG_FILE,
     DEFAULT_LOG_LEVEL,
     DEFAULT_LOG_MAX_BYTES,
     DEFAULT_LOG_SINKS,
@@ -28,7 +30,9 @@ from cb_mcp.utils import (
     NETWORK_TRANSPORTS_SDK_MAPPING,
     AppContext,
     configure_logging,
+    log_environment_info,
     validate_log_level,
+    validate_log_path,
     validate_log_sinks,
 )
 
@@ -145,17 +149,21 @@ logger = logging.getLogger(MCP_SERVER_NAME)
 @click.option(
     "--log-file",
     envvar="CB_MCP_LOG_FILE",
-    default=None,
-    help="Path to a rotating log file. Used only when 'file' is in --log-sinks. "
-    "When set alongside --error-log-file, this file receives DEBUG/INFO only.",
+    default=DEFAULT_LOG_FILE,
+    show_default=True,
+    callback=validate_log_path,
+    help="Path to the main rotating log file (DEBUG/INFO/WARNING). Only "
+    "active when 'file' is in --log-sinks.",
 )
 @click.option(
     "--error-log-file",
     envvar="CB_MCP_ERROR_LOG_FILE",
-    default=None,
-    help="Path to a rotating error log file (WARNING and above). Used only "
-    "when 'file' is in --log-sinks. When set alongside --log-file, records "
-    "are split with no duplication between files.",
+    default=DEFAULT_ERROR_LOG_FILE,
+    show_default=True,
+    callback=validate_log_path,
+    help="Path to the rotating error log file (ERROR/CRITICAL). Only "
+    "active when 'file' is in --log-sinks. Records are split with the "
+    "main log; no duplication between files.",
 )
 @click.option(
     "--log-max-bytes",
@@ -247,6 +255,9 @@ def main(
             f"Modes: (read_only_mode={read_only_mode}, "
             f"read_only_query_mode={read_only_query_mode})"
         )
+        # Diagnostic snapshot for customer support. Filtered at INFO; visible
+        # whenever the user runs with --log-level DEBUG.
+        log_environment_info(transport, settings)
         app_context = AppContext(
             cluster_provider=StaticClusterProvider(settings=settings),
             settings=settings,

@@ -16,6 +16,7 @@ import couchbase
 from .constants import (
     ALLOWED_LOG_LEVELS,
     ALLOWED_LOG_SINKS,
+    DEFAULT_LOG_DATEFMT,
     DEFAULT_LOG_FORMAT,
     DEFAULT_LOG_LEVEL,
     DEFAULT_LOG_SINKS,
@@ -71,13 +72,12 @@ def parse_log_sinks(value: str) -> tuple[set[str], list[str]]:
     invalid: list[str] = []
     for part in value.split(","):
         token = part.strip()
-        if not token:
-            continue
-        normalised = token.lower()
-        if normalised in ALLOWED_LOG_SINKS:
-            sinks.add(normalised)
-        else:
-            invalid.append(token)
+        if token:
+            normalised = token.lower()
+            if normalised in ALLOWED_LOG_SINKS:
+                sinks.add(normalised)
+            else:
+                invalid.append(token)
     if not sinks:
         sinks.add(DEFAULT_LOG_SINKS)
     return sinks, invalid
@@ -86,30 +86,29 @@ def parse_log_sinks(value: str) -> tuple[set[str], list[str]]:
 def configure_logging(
     level: str,
     sinks: set[str],
-    log_file: str | None,
-    error_log_file: str | None,
+    log_file: str,
+    error_log_file: str,
     log_max_bytes: int,
     log_backup_count: int,
     invalid_sinks: list[str] | None = None,
     invalid_level: str | None = None,
 ) -> None:
-    """Configure the root MCP logger and the Couchbase SDK forwarder.
+    """Configure the root MCP logger and the Couchbase SDK logs.
 
-    The ``sinks`` set is authoritative: ``"stderr"`` attaches a stderr handler,
-    ``"file"`` attaches one or two rotating file handlers (only when a path is
-    provided). When ``"file"`` is requested without any path, the function
-    falls back to stderr and emits a warning so the operator knows. Setting
-    ``level="OFF"`` suppresses output regardless of sinks.
+    The ``sinks`` set is authoritative: ``"stderr"`` attaches a stderr
+    handler; ``"file"`` always attaches **two** rotating file handlers — a
+    main log (DEBUG/INFO/WARNING) and an error log (ERROR/CRITICAL) — with
+    no overlap. Any path the caller omits falls back to the default name in
+    the process CWD (``mcp_server.log`` / ``mcp_server.error.log``).
 
-    When both ``log_file`` and ``error_log_file`` are provided with the
-    ``"file"`` sink, the main file is filtered to DEBUG/INFO and the error
-    file captures WARNING+, so records are split rather than duplicated.
+    Setting ``level="OFF"`` suppresses output regardless of sinks.
     """
     level_name = level.upper()
     if level_name not in ALLOWED_LOG_LEVELS:
-        raise ValueError(
-            f"Invalid log level {level!r}; expected one of {ALLOWED_LOG_LEVELS}"
-        )
+        # Defer logging about the invalid level until after handlers are configured,
+        # so the message is visible even when the user sets an unrecognised level.
+        invalid_level = level
+        level_name = DEFAULT_LOG_LEVEL
 
     logger = logging.getLogger(MCP_SERVER_NAME)
     for handler in list(logger.handlers):
@@ -117,40 +116,26 @@ def configure_logging(
     logger.propagate = False
 
     if level_name == "OFF":
-        # The SDK's public configure_logging API takes an int; internally it
-        # maps the string "off" to a sentinel above CRITICAL. Passing our own
-        # LEVEL_OFF here makes the C++ side drop records at the source rather
-        # than forwarding them across to be filtered by the Python logger.
         logger.setLevel(LEVEL_OFF)
         couchbase.configure_logging(MCP_SERVER_NAME, LEVEL_OFF)
         return
 
     logger.setLevel(level_name)
 
-    formatter = logging.Formatter(DEFAULT_LOG_FORMAT)
+    formatter = logging.Formatter(DEFAULT_LOG_FORMAT, datefmt=DEFAULT_LOG_DATEFMT)
 
     effective_sinks = set(sinks)
-    file_paths_set = bool(log_file) or bool(error_log_file)
-
-    # TODO(logging): Temporary default — when the 'file' sink is requested
-    # without any explicit path, write a split pair (mcp_server.log and
-    # mcp_server.error.log) in the process's CWD so users get split file
-    # logging out of the box. Revisit after testing; CWD is unreliable across
-    # launchers (Claude Desktop, systemd, containers) and we may prefer to
-    # require explicit --log-file / --error-log-file values.
-    default_log_file_applied = False
-    if "file" in effective_sinks and not file_paths_set:
-        log_file = "mcp_server.log"
-        error_log_file = "mcp_server.error.log"
-        default_log_file_applied = True
 
     if "stderr" in effective_sinks:
         stderr_handler = logging.StreamHandler(sys.stderr)
         stderr_handler.setFormatter(formatter)
         logger.addHandler(stderr_handler)
 
-    split_files = bool(log_file) and bool(error_log_file)
-    if "file" in effective_sinks and log_file:
+    # File logging is always a two-file split when enabled. The caller (CLI
+    # or direct) is responsible for providing both paths; Click defaults
+    # supply DEFAULT_LOG_FILE / DEFAULT_ERROR_LOG_FILE when the flags are
+    # omitted, so we don't need an in-function fallback.
+    if "file" in effective_sinks:
         file_handler = RotatingFileHandler(
             log_file,
             maxBytes=log_max_bytes,
@@ -158,11 +143,9 @@ def configure_logging(
             encoding="utf-8",
         )
         file_handler.setFormatter(formatter)
-        if split_files:
-            file_handler.addFilter(_below_error)
+        file_handler.addFilter(_below_error)
         logger.addHandler(file_handler)
 
-    if "file" in effective_sinks and error_log_file:
         error_handler = RotatingFileHandler(
             error_log_file,
             maxBytes=log_max_bytes,
@@ -193,22 +176,17 @@ def configure_logging(
             ",".join(sorted(effective_sinks)),
         )
 
-    if default_log_file_applied:
-        logger.warning(
-            "CB_MCP_LOG_SINKS includes 'file' but no --log-file/--error-log-file "
-            "paths were provided; defaulting to %r and %r in the current "
-            "working directory. This default is temporary and may be removed.",
-            log_file,
-            error_log_file,
-        )
-
+    # Show file paths in the summary only when the file sink is active; the
+    # values are populated by Click defaults regardless, but printing them
+    # for a stderr-only run would falsely suggest files are being written.
+    file_sink_active = "file" in effective_sinks
     logger.info(
         "Logging configured: level=%s, sinks=%s, log_file=%s, error_log_file=%s, "
         "max_bytes=%d, backup_count=%d",
         level_name,
         ",".join(sorted(effective_sinks)),
-        log_file or "-",
-        error_log_file or "-",
+        log_file if file_sink_active else "-",
+        error_log_file if file_sink_active else "-",
         log_max_bytes,
         log_backup_count,
     )

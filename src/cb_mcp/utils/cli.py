@@ -26,7 +26,6 @@ def validate_log_level(
     level on invalid input and returns the original token so
     ``configure_logging`` can surface an error record once handlers are wired.
     """
-    # del ctx, param
     return parse_log_level(value)
 
 
@@ -39,5 +38,22 @@ def validate_log_sinks(
     invalid ones for later reporting, and falls back to the default sink set
     when nothing valid survives.
     """
-    # del ctx, param
     return parse_log_sinks(value)
+
+
+def validate_log_path(ctx: click.Context, param: click.Parameter, value: str) -> str:
+    """Click callback for ``--log-file`` / ``--error-log-file``.
+
+    Trims whitespace and rejects empty strings via :exc:`click.BadParameter`.
+    Unlike level/sink validation, an empty path is structurally invalid (we
+    have no way to interpret it) and warrants a loud rejection rather than a
+    silent fallback. The Click default still applies when the flag is omitted
+    entirely.
+    """
+    trimmed = value.strip() if value else ""
+    if not trimmed:
+        raise click.BadParameter(
+            "path cannot be empty; either omit the flag to use the default, "
+            "or provide a non-empty path."
+        )
+    return trimmed
