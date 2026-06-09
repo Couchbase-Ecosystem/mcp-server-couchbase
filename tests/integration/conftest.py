@@ -293,6 +293,11 @@ async def create_logging_test_session(
     for var in REQUIRED_ENV_VARS:
         env.pop(var, None)
     env["PYTHONUNBUFFERED"] = "1"
+    # Match _build_env(): always spawn the subprocess in stdio mode so the
+    # same test suite runs unchanged under the http-transport CI job (which
+    # exports CB_MCP_TRANSPORT=http and keeps a standing server on :8000).
+    env["CB_MCP_TRANSPORT"] = "stdio"
+    env.pop("MCP_TRANSPORT", None)
     if env_overrides:
         env.update(env_overrides)
 
