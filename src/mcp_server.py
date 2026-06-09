@@ -42,7 +42,7 @@ from providers.static import StaticClusterProvider
 logger = logging.getLogger(MCP_SERVER_NAME)
 
 
-@click.command()
+@click.command(context_settings={"show_default": True})
 @click.option(
     "--connection-string",
     envvar="CB_CONNECTION_STRING",
@@ -78,7 +78,7 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     envvar="CB_MCP_READ_ONLY_MODE",
     type=bool,
     default=DEFAULT_READ_ONLY_MODE,
-    help="Enable read-only mode. When True (default), all write operations (KV and Query) are disabled and KV write tools are not loaded. Set to False to enable write operations.",
+    help="Enable read-only mode. When True, all write operations (KV and Query) are disabled and KV write tools are not loaded. Set to False to enable write operations.",
 )
 @click.option(
     "--read-only-query-mode",
@@ -89,7 +89,7 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     type=bool,
     deprecated=True,
     default=DEFAULT_READ_ONLY_MODE,
-    help="[DEPRECATED: Use --read-only-mode instead] Enable read-only query mode. Set to True (default) to allow only read-only queries. Can be set to False to allow data modification queries.",
+    help="[DEPRECATED: Use --read-only-mode instead] Enable read-only query mode. Set to True to allow only read-only queries. Can be set to False to allow data modification queries.",
 )
 @click.option(
     "--transport",
@@ -99,19 +99,19 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     ],
     type=click.Choice(ALLOWED_TRANSPORTS),
     default=DEFAULT_TRANSPORT,
-    help="Transport mode for the server (stdio, http or sse). Default is stdio",
+    help="Transport mode for the server (stdio, http or sse).",
 )
 @click.option(
     "--host",
     envvar="CB_MCP_HOST",
     default=DEFAULT_HOST,
-    help="Host to run the server on (default: 127.0.0.1)",
+    help="Host to run the server on.",
 )
 @click.option(
     "--port",
     envvar="CB_MCP_PORT",
     default=DEFAULT_PORT,
-    help="Port to run the server on (default: 8000)",
+    help="Port to run the server on.",
 )
 @click.option(
     "--disabled-tools",
@@ -135,7 +135,7 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     callback=validate_log_level,
     help="Logging level for MCP server and Couchbase SDK. Allowed values: "
     "OFF, DEBUG, INFO, WARNING, ERROR. Use OFF to disable logging entirely. "
-    "Invalid values fall back to INFO with an error log entry. Default: INFO.",
+    "Invalid values fall back to the default with an error log entry.",
 )
 @click.option(
     "--log-sinks",
@@ -143,14 +143,13 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     default=DEFAULT_LOG_SINKS,
     callback=validate_log_sinks,
     help="Comma-separated list of log sinks. Allowed values: stderr, file. "
-    "Default: stderr. Include 'file' (with --log-file and/or --error-log-file) "
-    "to write to files; include 'stderr' to write to the console.",
+    "Include 'file' (with --log-file and/or --error-log-file) to write to "
+    "files; include 'stderr' to write to the console.",
 )
 @click.option(
     "--log-file",
     envvar="CB_MCP_LOG_FILE",
     default=DEFAULT_LOG_FILE,
-    show_default=True,
     callback=validate_log_path,
     help="Path to the main rotating log file (DEBUG/INFO/WARNING). Only "
     "active when 'file' is in --log-sinks.",
@@ -159,7 +158,6 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     "--error-log-file",
     envvar="CB_MCP_ERROR_LOG_FILE",
     default=DEFAULT_ERROR_LOG_FILE,
-    show_default=True,
     callback=validate_log_path,
     help="Path to the rotating error log file (ERROR/CRITICAL). Only "
     "active when 'file' is in --log-sinks. Records are split with the "
@@ -168,16 +166,20 @@ logger = logging.getLogger(MCP_SERVER_NAME)
 @click.option(
     "--log-max-bytes",
     envvar="CB_MCP_LOG_MAX_BYTES",
-    type=int,
+    # 0 means 'never rotate' (Python logging behaviour); negative is rejected.
+    type=click.IntRange(min=0),
     default=DEFAULT_LOG_MAX_BYTES,
-    help="Maximum size in bytes per rotated log file. Applies to both file handlers.",
+    help="Maximum size in bytes per rotated log file. Applies to both file "
+    "handlers. Set to 0 to disable rotation.",
 )
 @click.option(
     "--log-backup-count",
     envvar="CB_MCP_LOG_BACKUP_COUNT",
-    type=int,
+    # 0 means 'keep no backups' (file truncated on rotation); negative rejected.
+    type=click.IntRange(min=0),
     default=DEFAULT_LOG_BACKUP_COUNT,
-    help="Number of rotated log files to keep. Applies to both file handlers.",
+    help="Number of rotated log files to keep. Applies to both file handlers. "
+    "Set to 0 to keep no backups (file is truncated on rotation).",
 )
 @click.version_option(package_name="couchbase-mcp-server")
 @click.pass_context

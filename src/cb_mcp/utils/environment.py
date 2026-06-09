@@ -16,6 +16,7 @@ replaced with ``*_configured`` booleans; identifiers the user typed into
 their config (connection_string, username) are logged verbatim.
 """
 
+import json
 import logging
 import platform
 import sys
@@ -90,26 +91,28 @@ def _redacted_settings(server_settings: Mapping[str, Any]) -> dict[str, Any]:
 def log_environment_info(transport: str, server_settings: Mapping[str, Any]) -> None:
     """Emit one DEBUG record describing the runtime environment.
 
+    The payload is emitted as a JSON-encoded object after an ``Environment |``
+    prefix. The prefix keeps the record greppable in plain-text logs; the JSON
+    body lets log aggregators and support tooling parse individual fields
+    without regex gymnastics.
+
     Fires unconditionally; the record is filtered by the logger's effective
     level. Customers running at INFO see nothing; enabling DEBUG surfaces the
     full diagnostic line without any code change.
     """
-    effective_level = logging.getLevelName(
-        logging.getLogger(MCP_SERVER_NAME).getEffectiveLevel()
-    )
-    dep_versions = {name: _package_version(name) for name in _REPORTED_DEPENDENCIES}
-
-    logger.debug(
-        "Environment | os=%s | platform=%s | arch=%s | python=%s | "
-        "mcp_server_version=%s | dependencies=%s | transport=%s | "
-        "log_level=%s | config=%s",
-        platform.platform(),
-        sys.platform,
-        platform.machine(),
-        platform.python_version(),
-        _package_version("couchbase-mcp-server"),
-        dep_versions,
-        transport,
-        effective_level,
-        _redacted_settings(server_settings),
-    )
+    info: dict[str, Any] = {
+        "os": platform.platform(),
+        "platform": sys.platform,
+        "arch": platform.machine(),
+        "python": platform.python_version(),
+        "mcp_server_version": _package_version("couchbase-mcp-server"),
+        "dependencies": {
+            name: _package_version(name) for name in _REPORTED_DEPENDENCIES
+        },
+        "transport": transport,
+        "log_level": logging.getLevelName(
+            logging.getLogger(MCP_SERVER_NAME).getEffectiveLevel()
+        ),
+        "config": _redacted_settings(server_settings),
+    }
+    logger.debug("Environment | %s", json.dumps(info, default=str))
