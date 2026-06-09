@@ -114,8 +114,13 @@ class TestFileSinkSplitContract:
             "x", logging.WARNING, "f", 1, "w", None, None
         )
         error_record = logging.LogRecord("x", logging.ERROR, "f", 1, "e", None, None)
-        assert main.filter(warning_record) is True
-        assert main.filter(error_record) is False
+        # ``Handler.filter()`` returns the record (truthy) on accept, False on
+        # reject — not a strict True/False, so check truthiness rather than
+        # identity to ``True``.
+        assert main.filter(warning_record), "WARNING should pass the main-file filter"
+        assert not main.filter(error_record), (
+            "ERROR should be filtered off the main file"
+        )
 
     def test_error_handler_level_set_to_error(self, tmp_path):
         _call(

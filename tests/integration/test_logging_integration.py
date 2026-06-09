@@ -228,3 +228,107 @@ def test_empty_log_file_rejected_at_startup() -> None:
     assert "path cannot be empty" in result.stderr, (
         f"expected Click rejection message in stderr, got:\n{result.stderr}"
     )
+
+
+def test_help_renders_without_crashing() -> None:
+    """``--help`` exits cleanly and shows the expected options + defaults.
+
+    Catches a class of refactor regressions where a renamed constant
+    (e.g. ``default=DEFAULT_LOG_LEVL``) would slip past lint/unit tests but
+    crash any user who runs ``--help``. Also asserts ``show_default=True`` is
+    still wired — the bracket format would disappear if it ever regressed.
+    """
+    result = subprocess.run(
+        [sys.executable, "-m", "mcp_server", "--help"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, f"--help crashed:\n{result.stderr}"
+    # Key options are documented.
+    for option in ("--log-level", "--log-sinks", "--log-file", "--error-log-file"):
+        assert option in result.stdout, f"{option} missing from --help"
+    # ``show_default=True`` produces a ``[default: ...]`` bracket per option.
+    assert "[default:" in result.stdout, (
+        "show_default brackets missing — has show_default=True been removed?"
+    )
+
+
+@pytest.mark.asyncio
+async def test_log_file_rotates_when_max_bytes_exceeded(tmp_path) -> None:
+    """``RotatingFileHandler`` actually rotates once cumulative writes exceed
+    ``--log-max-bytes``.
+
+    Drives a deterministic amount of log volume by calling a chatty tool many
+    times under ``--log-level DEBUG`` (each call triggers SDK and MCP records).
+    The byte budget is set deliberately small (2 KiB) so a handful of calls
+    is enough to trigger rotation, but the loop count is generous so the test
+    isn't sensitive to small record-size shifts.
+    """
+    main_path = tmp_path / "main.log"
+    err_path = tmp_path / "err.log"
+    async with create_logging_test_session(
+        extra_args=[
+            "--log-level",
+            "DEBUG",
+            "--log-sinks",
+            "file",
+            "--log-file",
+            str(main_path),
+            "--error-log-file",
+            str(err_path),
+            "--log-max-bytes",
+            "2048",
+            "--log-backup-count",
+            "3",
+        ],
+    ) as session:
+        # Each tool call generates ~hundreds of bytes of records at DEBUG.
+        # 30 iterations is generous given the 2 KiB cap.
+        for _ in range(30):
+            await session.call_tool("get_server_configuration_status", arguments={})
+
+    rotated = tmp_path / "main.log.1"
+    assert rotated.exists(), (
+        f"rotation never triggered after 30 tool calls at 2 KiB/file. "
+        f"main.log size: {main_path.stat().st_size}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_combined_invalid_inputs_degrade_gracefully(tmp_path) -> None:
+    """Multiple invalid values (level + sink) both fall back and report errors.
+
+    Catches the "two lenient paths interfere" regression class — e.g. if a
+    future refactor accidentally short-circuited one fallback when the other
+    fired. Both should produce their own deferred error log records, and the
+    server must still start.
+    """
+    main_path = tmp_path / "main.log"
+    err_path = tmp_path / "err.log"
+    async with create_logging_test_session(
+        extra_args=[
+            "--log-level",
+            "BOGUS_LEVEL",
+            # ``file`` is in the sink list so the error file actually gets
+            # created and we can grep it for both deferred error records.
+            "--log-sinks",
+            "stderr,file,foo_sink",
+            "--log-file",
+            str(main_path),
+            "--error-log-file",
+            str(err_path),
+        ],
+    ):
+        pass
+
+    # Both deferred error records should appear in the error file (ERROR
+    # records always land in the error file under the split contract).
+    err_text = err_path.read_text()
+    assert "BOGUS_LEVEL" in err_text, (
+        f"invalid level fallback missing from error log:\n{err_text}"
+    )
+    assert "foo_sink" in err_text, (
+        f"invalid sink fallback missing from error log:\n{err_text}"
+    )
