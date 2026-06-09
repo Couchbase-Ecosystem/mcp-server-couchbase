@@ -14,9 +14,51 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from _test_env import (
+    _build_env,
+    get_test_bucket,
+    get_test_collection,
+    get_test_scope,
+    require_test_bucket,
+)
 from mcp import ClientSession, StdioServerParameters, stdio_client
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+__all__ = [
+    "EXPECTED_TOOLS",
+    "TOOLS_BY_CATEGORY",
+    "TOOL_REQUIRED_PARAMS",
+    "_build_env",
+    "create_mcp_session",
+    "ensure_list",
+    "extract_payload",
+    "get_test_bucket",
+    "get_test_collection",
+    "get_test_scope",
+    "require_test_bucket",
+]
+
+_INTEGRATION_DIR = Path(__file__).resolve().parent
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-tag every test in tests/integration/ with the `integration` marker.
+
+    Lets users select / skip the whole tier with ``-m integration`` /
+    ``-m "not integration"`` without decorating every test by hand.
+
+    ``items`` is the full session list, not just tests under this conftest's
+    directory, so we filter by path.
+    """
+    for item in items:
+        try:
+            item_path = Path(str(item.fspath)).resolve()
+        except Exception:
+            continue
+        try:
+            item_path.relative_to(_INTEGRATION_DIR)
+        except ValueError:
+            continue
+        item.add_marker(pytest.mark.integration)
 
 # Tools we expect to be registered by the server
 EXPECTED_TOOLS = {
@@ -129,38 +171,24 @@ TOOL_REQUIRED_PARAMS = {
     "get_index_advisor_recommendations": ["bucket_name", "scope_name", "query"],
 }
 
-# Minimum configuration needed to talk to a demo cluster
-REQUIRED_ENV_VARS = ("CB_CONNECTION_STRING", "CB_USERNAME", "CB_PASSWORD")
-
 # Default timeout (seconds) to guard against hangs when the Couchbase cluster
 # is unreachable or slow. Override with CB_MCP_TEST_TIMEOUT if needed.
 DEFAULT_TIMEOUT = int(os.getenv("CB_MCP_TEST_TIMEOUT", "120"))
 
 
-def _build_env() -> dict[str, str]:
-    """Build the environment passed to the test server process."""
-    env = os.environ.copy()
-    missing = [var for var in REQUIRED_ENV_VARS if not env.get(var)]
-    if missing:
-        pytest.skip(
-            "Integration tests require demo cluster credentials. "
-            f"Missing env vars: {', '.join(missing)}"
-        )
-
-    # Force stdio transport for the test server to match stdio_client
-    env["CB_MCP_TRANSPORT"] = "stdio"
-    # Disable read-only mode for integration tests so all tools are available
-    # This allows testing of KV write tools (upsert, insert, replace, delete)
-    env["CB_MCP_READ_ONLY_MODE"] = "false"
-    # Ensure unbuffered output to avoid stdout/stderr buffering surprises
-    env.setdefault("PYTHONUNBUFFERED", "1")
-    return env
-
-
 @asynccontextmanager
-async def create_mcp_session() -> AsyncIterator[ClientSession]:
-    """Create a fresh MCP client session connected to the server over stdio."""
+async def create_mcp_session(
+    env_overrides: dict[str, str] | None = None,
+) -> AsyncIterator[ClientSession]:
+    """Create a fresh MCP client session connected to the server over stdio.
+
+    Optional ``env_overrides`` are merged onto the environment passed to the
+    spawned server process, letting individual tests opt into things like
+    ``CB_MCP_READ_ONLY_MODE`` or ``CB_MCP_DISABLED_TOOLS``.
+    """
     env = _build_env()
+    if env_overrides:
+        env.update(env_overrides)
     params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "mcp_server"],
@@ -213,29 +241,6 @@ def extract_payload(response: Any) -> Any:
             return raw
 
     return raw
-
-
-def get_test_bucket() -> str | None:
-    """Get the test bucket name from environment, or None if not set."""
-    return os.getenv("CB_MCP_TEST_BUCKET")
-
-
-def get_test_scope() -> str:
-    """Get the test scope name from environment, defaults to _default."""
-    return os.getenv("CB_MCP_TEST_SCOPE", "_default")
-
-
-def get_test_collection() -> str:
-    """Get the test collection name from environment, defaults to _default."""
-    return os.getenv("CB_MCP_TEST_COLLECTION", "_default")
-
-
-def require_test_bucket() -> str:
-    """Get the test bucket name, skipping test if not set."""
-    bucket = get_test_bucket()
-    if not bucket:
-        pytest.skip("CB_MCP_TEST_BUCKET not set")
-    return bucket
 
 
 def ensure_list(value: Any) -> list[Any]:
