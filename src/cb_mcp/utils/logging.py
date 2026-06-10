@@ -161,8 +161,10 @@ def configure_logging(
     if level_name not in ALLOWED_LOG_LEVELS:
         # Defer logging about the invalid level until after handlers are configured,
         # so the message is visible even when the user sets an unrecognised level.
+        # ``DEFAULT_LOG_LEVEL`` is stored lowercase for help-text consistency;
+        # uppercase here so ``logger.setLevel`` accepts it.
         invalid_level = level
-        level_name = DEFAULT_LOG_LEVEL
+        level_name = DEFAULT_LOG_LEVEL.upper()
 
     logger = logging.getLogger(MCP_SERVER_NAME)
     for handler in list(logger.handlers):
