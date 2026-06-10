@@ -206,6 +206,7 @@ jobs:
           CB_MCP_TRANSPORT: http
           CB_MCP_HOST: 127.0.0.1
           CB_MCP_PORT: 8000
+          CB_MCP_READ_ONLY_MODE: "false"
           PYTHONPATH: src
         run: |
           echo "Starting MCP server with HTTP transport..."
