@@ -203,7 +203,7 @@ async def test_logging_block_exposed_via_mcp_tool(tmp_path) -> None:
     assert sorted(logging_block["sinks"]) == ["file"]
     assert logging_block["log_file"] == str(main_path)
     assert logging_block["max_bytes"] == 1048576
-    assert logging_block["backup_count"] == 5
+    assert logging_block["backup_count"] == 100
 
 
 def test_empty_log_file_rejected_at_startup() -> None:
