@@ -10,3 +10,6 @@ wheels/
 .venv
 # Environment variables
 .env
+
+#test coverage file
+.coverage
