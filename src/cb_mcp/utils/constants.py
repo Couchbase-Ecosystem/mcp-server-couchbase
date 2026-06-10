@@ -15,6 +15,11 @@ NETWORK_TRANSPORTS_SDK_MAPPING = {
     "sse": "sse",
 }
 
+# The MCP spec ties OAuth to streamable-HTTP transport specifically (not SSE),
+# so we gate the OAuth wiring strictly on this transport name. SSE is a
+# network transport but is explicitly out of scope for OAuth in this build.
+STREAMABLE_HTTP_TRANSPORT = "http"
+
 # Index Service Configuration
 # Cluster major version at which list_indexes prefers the query service over
 # the Index Service REST API. From this version, system:indexes exposes the

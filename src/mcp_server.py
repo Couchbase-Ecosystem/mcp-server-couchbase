@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 import click
 from fastmcp import FastMCP
 from fastmcp.tools import FunctionTool
+from pydantic import AnyHttpUrl, ValidationError
 
 # Reusable tools and utilities from the cb_mcp package
 from cb_mcp.auth import build_oauth
@@ -26,16 +27,12 @@ from cb_mcp.utils import (
     MCP_SERVER_NAME,
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
+    STREAMABLE_HTTP_TRANSPORT,
     AppContext,
 )
 
 # Standalone-host provider implementation
 from providers.static import StaticClusterProvider
-
-# The MCP spec ties OAuth to streamable-HTTP transport specifically (not SSE),
-# so we gate the OAuth wiring strictly on this transport name. SSE is a
-# network transport but is explicitly out of scope for OAuth in this build.
-STREAMABLE_HTTP_TRANSPORT = "http"
 
 # Configure logging
 logging.basicConfig(
@@ -306,6 +303,12 @@ def _resolve_oauth(
         loud instead of silently disabling auth.
       - ``algorithm`` always has a default and isn't part of the
         all-or-nothing check.
+      - When ``base_url`` is set, ``issuer`` is published in PRM as an
+        authorization server and must be a valid http(s) URL. We validate
+        that here (rather than letting the Pydantic ``AnyHttpUrl`` coercion
+        inside ``build_oauth`` raise a raw traceback) so the user gets a
+        clear ``click.UsageError``. Token-only mode does not require a URL
+        issuer, matching ``JWTVerifier``'s plain-string ``iss`` handling.
     """
     jwt_fields = {
         "--oauth-jwks-uri / CB_MCP_OAUTH_JWT_JWKS_URI": jwks_uri,
@@ -341,6 +344,17 @@ def _resolve_oauth(
             + ", ".join(jwt_fields)
             + f". Missing: {missing}."
         )
+
+    if base_url:
+        try:
+            AnyHttpUrl(issuer)
+        except ValidationError as e:
+            raise click.UsageError(
+                f"--oauth-issuer / CB_MCP_OAUTH_JWT_ISSUER must be a valid "
+                f"http(s) URL when --oauth-mcp-base-url is set, because the "
+                f"issuer is published in Protected Resource Metadata as an "
+                f"authorization server. Got: {issuer!r}."
+            ) from e
 
     return build_oauth(
         jwks_uri=jwks_uri,

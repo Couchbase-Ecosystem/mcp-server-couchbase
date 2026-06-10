@@ -90,13 +90,7 @@ def build_oauth(
     )
 
     if not base_url:
-        logger.info(
-            "OAuth enabled (token verification only; PRM disabled). "
-            "issuer=%s audience=%s algorithm=%s",
-            issuer,
-            audience,
-            algorithm,
-        )
+        logger.info("OAuth enabled (token verification only; PRM disabled). ")
         return verifier
 
     auth = RemoteAuthProvider(
@@ -107,12 +101,8 @@ def build_oauth(
         resource_name="Couchbase MCP Server",
     )
     logger.info(
-        "OAuth enabled with PRM at %s/.well-known/oauth-protected-resource "
-        "(issuer=%s, audience=%s, algorithm=%s, scopes=%s)",
+        "OAuth enabled with PRM at %s/.well-known/oauth-protected-resource (scopes=%s)",
         base_url.rstrip("/"),
-        issuer,
-        audience,
-        algorithm,
         SUPPORTED_SCOPES,
     )
     return auth
