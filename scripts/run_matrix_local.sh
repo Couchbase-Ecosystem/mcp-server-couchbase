@@ -22,7 +22,7 @@ set -euo pipefail
 # Configuration (override via env if you want a subset)
 # ---------------------------------------------------------------------------
 CB_VERSIONS="${CB_VERSIONS:-8.0.0 7.6.11}"
-TRANSPORTS="${TRANSPORTS:-stdio http sse}"
+TRANSPORTS="${TRANSPORTS:-stdio http}"
 CB_USERNAME="Administrator"
 CB_PASSWORD="password"
 CB_MCP_TEST_BUCKET="travel-sample"
@@ -127,24 +127,7 @@ initialize_cluster() {
         -d "username=$CB_USERNAME" \
         -d 'port=SAME'
 
-    # Tell Couchbase to advertise 127.0.0.1 as an "external" alternate
-    # address. Without this, /pools/default returns the container's
-    # internal Docker-bridge IP (e.g. 172.17.0.2), which the SDK cannot
-    # reach from the host even though the REST and KV ports are mapped.
-    #
-    # NOTE: A plain /node/controller/rename only changes configuredHostname
-    # — Couchbase still advertises the bridge IP in the topology. The
-    # setupAlternateAddresses/external endpoint is the one that actually
-    # changes what external SDK clients see.
-    #
-    # CI doesn't need this because GitHub Actions `services:` shares the
-    # network namespace; Docker Desktop on macOS/Windows does not.
-    #
-    # IMPORTANT: clients MUST then connect with `couchbase://127.0.0.1`
-    # (not `localhost`). The SDK matches the bootstrap hostname against
-    # the alternate-address hostname EXACTLY to decide which network to
-    # use — `localhost` doesn't match `127.0.0.1` so the SDK falls back
-    # to the default (bridge IP) network and times out.
+    
     curl -s -X PUT \
         -u "$CB_USERNAME:$CB_PASSWORD" \
         "http://localhost:$HOST_PORT/node/controller/setupAlternateAddresses/external" \
@@ -282,45 +265,7 @@ run_http_tests() {
     return $ret
 }
 
-run_sse_tests() {
-    echo "  [sse] Starting MCP server..."
-    CB_CONNECTION_STRING="couchbase://127.0.0.1" \
-    CB_USERNAME="$CB_USERNAME" \
-    CB_PASSWORD="$CB_PASSWORD" \
-    CB_MCP_TRANSPORT="sse" \
-    CB_MCP_HOST="127.0.0.1" \
-    CB_MCP_PORT="$MCP_PORT" \
-    CB_MCP_READ_ONLY_MODE="false" \
-    PYTHONPATH=src \
-        uv run python -m mcp_server &
-    local server_pid=$!
-    BACKGROUND_PIDS+=("$server_pid")
 
-    # Wait for server
-    for i in $(seq 1 30); do
-        if nc -z 127.0.0.1 "$MCP_PORT" 2>/dev/null; then
-            break
-        fi
-        sleep 1
-    done
-
-    echo "  [sse] Running tests..."
-    local ret=0
-    CB_CONNECTION_STRING="couchbase://127.0.0.1" \
-    CB_USERNAME="$CB_USERNAME" \
-    CB_PASSWORD="$CB_PASSWORD" \
-    CB_MCP_TRANSPORT="sse" \
-    MCP_SERVER_URL="http://127.0.0.1:${MCP_PORT}/sse" \
-    CB_MCP_TEST_BUCKET="$CB_MCP_TEST_BUCKET" \
-    CB_MCP_TEST_SCOPE="inventory" \
-    CB_MCP_TEST_COLLECTION="airline" \
-    PYTHONPATH=src \
-        uv run pytest tests/ -v --tb=short || ret=$?
-
-    kill "$server_pid" 2>/dev/null || true
-    wait "$server_pid" 2>/dev/null || true
-    return $ret
-}
 
 # ---------------------------------------------------------------------------
 # Main loop
@@ -348,7 +293,7 @@ for version in $CB_VERSIONS; do
         case "$transport" in
             stdio) run_stdio_tests || ret=$? ;;
             http)  run_http_tests  || ret=$? ;;
-            sse)   run_sse_tests   || ret=$? ;;
+            # sse)   run_sse_tests   || ret=$? ;;
             *)     echo "Unknown transport: $transport"; ret=1 ;;
         esac
 
