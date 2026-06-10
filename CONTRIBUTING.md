@@ -15,11 +15,11 @@ Thank you for your interest in contributing to the Couchbase MCP Server! This gu
 
 ```bash
 # Clone the repository
-git clone https://github.com/Couchbase-Ecosystem/mcp-server-couchbase.git
+git clone https://github.com/couchbase/mcp-server-couchbase.git
 cd mcp-server-couchbase
 ```
 
-**Note:** External contributors do not have commit permissions on the main repository. [Fork the repo](https://github.com/Couchbase-Ecosystem/mcp-server-couchbase/fork) to your own GitHub account and clone your fork instead of this repo.
+**Note:** External contributors do not have commit permissions on the main repository. [Fork the repo](https://github.com/couchbase/mcp-server-couchbase/fork) to your own GitHub account and clone your fork instead of this repo.
 
 ```bash
 # Install dependencies (including development tools)
@@ -81,7 +81,7 @@ Our Ruff configuration includes:
 3. **Add proper logging**: Use the hierarchical logging system
 4. **Handle errors gracefully**: Provide helpful error messages
 5. **Consider read-only mode**: If your tool modifies data, respect `read_only_mode` settings
-6. **Update documentation**: Update README.md, DOCKER.md, and the docs site (`website/versioned_docs/version-<X>/`) if adding user-facing features
+6. **Update documentation**: Update README.md, DOCKER.md, and the docs site (in the [couchbase/mcp-server-couchbase-docs](https://github.com/couchbase/mcp-server-couchbase-docs) repo, under `versioned_docs/version-<X>/`) if adding user-facing features
 
 ## 🏗️ Project Structure
 
