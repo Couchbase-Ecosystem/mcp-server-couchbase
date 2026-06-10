@@ -3,19 +3,31 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import cast
+
+from fastmcp import Context
 
 from cb_mcp.tools.server import get_server_configuration_status
 
 
-def _make_ctx(settings=None, cluster_provider=None, logging_config=None):
-    return SimpleNamespace(
-        request_context=SimpleNamespace(
-            lifespan_context=SimpleNamespace(
-                cluster_provider=cluster_provider,
-                settings=settings if settings is not None else {},
-                logging_config=logging_config,
+def _make_ctx(settings=None, cluster_provider=None, logging_config=None) -> Context:
+    # SimpleNamespace duck-types the bits get_server_configuration_status
+    # actually reads (request_context.lifespan_context.{settings,
+    # cluster_provider, logging_config}); the cast tells pyright that's
+    # fine for these tests — building a real fastmcp Context would mean
+    # standing up a server and a request, which is far more setup than
+    # the assertions warrant.
+    return cast(
+        Context,
+        SimpleNamespace(
+            request_context=SimpleNamespace(
+                lifespan_context=SimpleNamespace(
+                    cluster_provider=cluster_provider,
+                    settings=settings if settings is not None else {},
+                    logging_config=logging_config,
+                )
             )
-        )
+        ),
     )
 
 
@@ -78,10 +90,22 @@ def test_logging_block_is_none_when_lifespan_omits_it():
     """A host server that doesn't populate logging_config gets a clean ``None``.
 
     Decoupling check: a third-party implementation using a different logging
-    stack can leave AppContext.logging_config unset, and the tool degrades to
-    ``"logging": null`` without raising.
+    stack may use a lifespan-context type that doesn't even *declare* a
+    ``logging_config`` attribute. ``get_logging_config()`` uses ``getattr``
+    with a default, so the tool degrades to ``"logging": null`` without
+    raising ``AttributeError``.
     """
-    payload = get_server_configuration_status(_make_ctx())
+    # Build a lifespan_context with no logging_config attribute at all —
+    # this exercises the missing-attribute path, not just the value-is-None
+    # path. _make_ctx() always sets the field, so we build the ctx by hand.
+    lifespan = SimpleNamespace(cluster_provider=None, settings={})
+    assert not hasattr(lifespan, "logging_config")
+    ctx = cast(
+        Context,
+        SimpleNamespace(request_context=SimpleNamespace(lifespan_context=lifespan)),
+    )
+
+    payload = get_server_configuration_status(ctx)
     assert payload["logging"] is None
 
 

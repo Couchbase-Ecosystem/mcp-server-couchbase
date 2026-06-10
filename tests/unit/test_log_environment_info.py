@@ -50,12 +50,18 @@ def _capture_env_record() -> logging.LogRecord:
     handler = _Capture(level=logging.DEBUG)
     env_logger.addHandler(handler)
     prev_level = env_logger.level
+    prev_propagate = env_logger.propagate
     env_logger.setLevel(logging.DEBUG)
+    # Stop the record from bubbling to root handlers another test may have
+    # configured — otherwise we'd see noise in pytest output and risk
+    # tripping caplog-based assertions elsewhere.
+    env_logger.propagate = False
     try:
         log_environment_info(transport="http", server_settings={"read_only_mode": True})
     finally:
         env_logger.removeHandler(handler)
         env_logger.setLevel(prev_level)
+        env_logger.propagate = prev_propagate
 
     assert len(captured) == 1, f"expected exactly one record, got {len(captured)}"
     return captured[0]
