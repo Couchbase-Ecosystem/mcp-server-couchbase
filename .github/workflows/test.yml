@@ -46,16 +46,17 @@ jobs:
   # Integration Tests - All Transport Modes
   # ============================================
   integration-tests:
-    name: Integration (${{ matrix.transport }} transport)
+    name: Integration (${{ matrix.transport }} / cb-${{ matrix.cb_version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         transport: ["stdio", "http"]
+        cb_version: ["8.0.0", "7.6.11"]
 
     services:
       couchbase:
-        image: couchbase:enterprise-8.0.0
+        image: couchbase:enterprise-${{ matrix.cb_version }}
         ports:
           - 8091:8091
           - 8092:8092
