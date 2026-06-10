@@ -11,13 +11,15 @@ from fastmcp import FastMCP
 from fastmcp.tools import FunctionTool
 
 # Reusable tools and utilities from the cb_mcp package
-from cb_mcp.auth import build_remote_auth, make_metadata_proxy_handler
+from cb_mcp.auth import build_oauth
 from cb_mcp.tool_registration import prepare_tools_for_registration
 from cb_mcp.tools import TOOL_ANNOTATIONS
 from cb_mcp.utils import (
+    ALLOWED_OAUTH_ALGORITHMS,
     ALLOWED_TRANSPORTS,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
+    DEFAULT_OAUTH_ALGORITHM,
     DEFAULT_PORT,
     DEFAULT_READ_ONLY_MODE,
     DEFAULT_TRANSPORT,
@@ -29,6 +31,11 @@ from cb_mcp.utils import (
 
 # Standalone-host provider implementation
 from providers.static import StaticClusterProvider
+
+# The MCP spec ties OAuth to streamable-HTTP transport specifically (not SSE),
+# so we gate the OAuth wiring strictly on this transport name. SSE is a
+# network transport but is explicitly out of scope for OAuth in this build.
+STREAMABLE_HTTP_TRANSPORT = "http"
 
 # Configure logging
 logging.basicConfig(
@@ -96,7 +103,7 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     ],
     type=click.Choice(ALLOWED_TRANSPORTS),
     default=DEFAULT_TRANSPORT,
-    help="Transport mode for the server (stdio, http or sse). Default is stdio",
+    help="Transport mode for the server (stdio, http or sse). Default is stdio. OAuth is only honored with http (streamable-http).",
 )
 @click.option(
     "--host",
@@ -126,64 +133,47 @@ logger = logging.getLogger(MCP_SERVER_NAME)
     "Requires the MCP client to support elicitation.",
 )
 @click.option(
-    "--mcp-base-url",
-    envvar="MCP_BASE_URL",
-    default=None,
-    help="Public base URL of this MCP server (e.g. https://api.yourcompany.com). "
-    "Advertised in OAuth 2.0 protected-resource metadata. "
-    "Required to enable auth.",
-)
-@click.option(
-    "--auth-jwks-uri",
-    envvar="AUTH_JWKS_URI",
+    "--oauth-jwks-uri",
+    envvar="CB_MCP_OAUTH_JWT_JWKS_URI",
     default=None,
     help="JWKS endpoint of the upstream identity provider, used to verify "
-    "bearer JWT signatures (e.g. https://test.stytch.com/v1/sessions/jwks/<project_id>).",
+    "bearer JWT signatures (e.g. https://auth.example.com/.well-known/jwks.json). "
+    "Required to enable OAuth (along with --oauth-issuer and --oauth-audience). "
+    "Only honored when --transport=http.",
 )
 @click.option(
-    "--auth-issuer",
-    envvar="AUTH_ISSUER",
+    "--oauth-issuer",
+    envvar="CB_MCP_OAUTH_JWT_ISSUER",
     default=None,
-    help="Expected JWT 'iss' claim value (e.g. stytch.com/<project_id>).",
+    help="Expected JWT 'iss' claim value. Also advertised as the authorization "
+    "server in the protected-resource metadata when --oauth-mcp-base-url is set. "
+    "Required to enable OAuth.",
 )
 @click.option(
-    "--auth-audience",
-    envvar="AUTH_AUDIENCE",
+    "--oauth-audience",
+    envvar="CB_MCP_OAUTH_JWT_AUDIENCE",
     default=None,
-    help="Expected JWT 'aud' claim value. Omit to skip audience checks.",
+    help="Expected JWT 'aud' claim value. Required to enable OAuth.",
 )
 @click.option(
-    "--auth-authorization-server",
-    envvar="AUTH_AUTHORIZATION_SERVER",
-    default=None,
-    help="Upstream OAuth authorization server URL advertised to MCP clients "
-    "for OAuth metadata discovery and Dynamic Client Registration.",
+    "--oauth-algorithm",
+    envvar="CB_MCP_OAUTH_JWT_ALGORITHM",
+    type=click.Choice(ALLOWED_OAUTH_ALGORITHMS),
+    default=DEFAULT_OAUTH_ALGORITHM,
+    show_default=True,
+    help="JWT signing algorithm. One of RS256/384/512, ES256/384/512, PS256/384/512.",
 )
 @click.option(
-    "--auth-required-scopes",
-    envvar="AUTH_REQUIRED_SCOPES",
+    "--oauth-mcp-base-url",
+    envvar="CB_MCP_OAUTH_MCP_BASE_URL",
     default=None,
-    help="Comma-separated OAuth scopes a token must carry to access this server.",
+    help="Public base URL of this MCP server (e.g. https://api.yourcompany.com). "
+    "When set, the server publishes RFC 9728 Protected Resource Metadata at "
+    "<base_url>/.well-known/oauth-protected-resource so PRM-aware clients can "
+    "discover the authorization server and perform DCR directly against it. "
+    "Optional — omit to run as a JWT-validating resource server only.",
 )
 @click.version_option(package_name="couchbase-mcp-server")
-@click.option(
-    "--auth-upstream-metadata-url",
-    envvar="AUTH_UPSTREAM_METADATA_URL",
-    default=None,
-    help="Enable metadata-proxy mode by fetching upstream AS metadata from "
-    "this URL (typically the provider's OIDC discovery doc). When set, this "
-    "server advertises itself as the AS and serves an augmented metadata doc "
-    "at /.well-known/oauth-authorization-server. Use together with "
-    "--auth-registration-endpoint when the upstream omits it.",
-)
-@click.option(
-    "--auth-registration-endpoint",
-    envvar="AUTH_REGISTRATION_ENDPOINT",
-    default=None,
-    help="Dynamic Client Registration endpoint URL to inject into the "
-    "metadata-proxy response. Use this when the upstream provider supports "
-    "DCR but doesn't advertise registration_endpoint in its OIDC doc.",
-)
 @click.pass_context
 def main(
     ctx,
@@ -200,16 +190,22 @@ def main(
     port,
     disabled_tools,
     confirmation_required_tools,
-    mcp_base_url,
-    auth_jwks_uri,
-    auth_issuer,
-    auth_audience,
-    auth_authorization_server,
-    auth_required_scopes,
-    auth_upstream_metadata_url,
-    auth_registration_endpoint,
+    oauth_jwks_uri,
+    oauth_issuer,
+    oauth_audience,
+    oauth_algorithm,
+    oauth_mcp_base_url,
 ):
     """Couchbase MCP Server"""
+
+    auth = _resolve_oauth(
+        transport=transport,
+        jwks_uri=oauth_jwks_uri,
+        issuer=oauth_issuer,
+        audience=oauth_audience,
+        algorithm=oauth_algorithm,
+        base_url=oauth_mcp_base_url,
+    )
 
     (
         final_tools,
@@ -219,6 +215,7 @@ def main(
         read_only_mode=read_only_mode,
         disabled_tools=disabled_tools,
         confirmation_required_tools=confirmation_required_tools,
+        enforce_scopes=auth is not None,
     )
 
     # CLI-resolved configuration lives on AppContext, not in a module global.
@@ -267,63 +264,7 @@ def main(
     # Map user-friendly transport names to SDK transport names
     sdk_transport = NETWORK_TRANSPORTS_SDK_MAPPING.get(transport, transport)
 
-    required_scopes_list = (
-        [s.strip() for s in auth_required_scopes.split(",") if s.strip()]
-        if auth_required_scopes
-        else None
-    )
-    auth = build_remote_auth(
-        base_url=mcp_base_url,
-        jwks_uri=auth_jwks_uri,
-        issuer=auth_issuer,
-        audience=auth_audience,
-        authorization_server=auth_authorization_server,
-        required_scopes=required_scopes_list,
-        upstream_metadata_url=auth_upstream_metadata_url,
-    )
-    if auth is not None and transport not in NETWORK_TRANSPORTS:
-        logger.warning(
-            "Auth was configured but transport=%s; "
-            "auth is only meaningful for network transports (http, sse).",
-            transport,
-        )
-
     mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan, auth=auth)
-
-    # Metadata-proxy mode: serve an augmented AS metadata doc at the
-    # well-known paths so clients discover registration_endpoint (and any
-    # other fields the upstream omits).
-    if auth is not None and auth_upstream_metadata_url:
-        if not auth_registration_endpoint:
-            logger.warning(
-                "--auth-upstream-metadata-url is set without "
-                "--auth-registration-endpoint; the augmented metadata "
-                "will pass through unchanged. DCR clients may still fail."
-            )
-        extra_fields = {}
-        if auth_registration_endpoint:
-            extra_fields["registration_endpoint"] = auth_registration_endpoint
-        metadata_handler = make_metadata_proxy_handler(
-            upstream_metadata_url=auth_upstream_metadata_url,
-            extra_fields=extra_fields,
-        )
-
-        @mcp.custom_route("/.well-known/oauth-authorization-server", methods=["GET"])
-        async def _as_metadata(request):
-            return await metadata_handler(request)
-
-        @mcp.custom_route("/.well-known/openid-configuration", methods=["GET"])
-        async def _oidc_metadata(request):
-            return await metadata_handler(request)
-
-        logger.info(
-            "Metadata-proxy routes mounted at "
-            "/.well-known/oauth-authorization-server and "
-            "/.well-known/openid-configuration (upstream=%s, injecting=%s)",
-            auth_upstream_metadata_url,
-            sorted(extra_fields),
-        )
-    mcp = FastMCP(MCP_SERVER_NAME, lifespan=app_lifespan)
 
     logger.info(
         f"Registering {len(final_tools)} tool(s) with modes (read_only_mode={read_only_mode}, "
@@ -340,6 +281,74 @@ def main(
 
     run_kwargs = {"host": host, "port": port} if transport in NETWORK_TRANSPORTS else {}
     mcp.run(transport=sdk_transport, show_banner=False, **run_kwargs)  # type: ignore
+
+
+def _resolve_oauth(
+    *,
+    transport: str,
+    jwks_uri: str | None,
+    issuer: str | None,
+    audience: str | None,
+    algorithm: str,
+    base_url: str | None,
+):
+    """Resolve CLI/env OAuth settings into a FastMCP ``AuthProvider`` or ``None``.
+
+    Contract:
+      - OAuth is honored only when ``transport`` is the streamable-http
+        transport. For any other transport (stdio, sse), OAuth settings —
+        if any are provided — are ignored with a warning, and ``None`` is
+        returned.
+      - If none of the three required JWT settings are provided, OAuth is
+        opt-in via absence: returns ``None`` silently.
+      - If the user provides some but not all of (jwks_uri, issuer,
+        audience), raise ``click.UsageError`` so misconfiguration fails
+        loud instead of silently disabling auth.
+      - ``algorithm`` always has a default and isn't part of the
+        all-or-nothing check.
+    """
+    jwt_fields = {
+        "--oauth-jwks-uri / CB_MCP_OAUTH_JWT_JWKS_URI": jwks_uri,
+        "--oauth-issuer / CB_MCP_OAUTH_JWT_ISSUER": issuer,
+        "--oauth-audience / CB_MCP_OAUTH_JWT_AUDIENCE": audience,
+    }
+    provided = {k: v for k, v in jwt_fields.items() if v}
+    any_provided = bool(provided)
+    any_oauth_setting = any_provided or bool(base_url)
+
+    if transport != STREAMABLE_HTTP_TRANSPORT:
+        if any_oauth_setting:
+            logger.warning(
+                "OAuth settings provided but transport=%s; OAuth is only honored "
+                "for streamable-http (--transport=http). Ignoring OAuth config.",
+                transport,
+            )
+        return None
+
+    if not any_provided:
+        if base_url:
+            logger.warning(
+                "CB_MCP_OAUTH_MCP_BASE_URL set without any JWT settings; "
+                "ignoring (PRM publication requires a configured token verifier)."
+            )
+        logger.info("OAuth disabled (no CB_MCP_OAUTH_JWT_* settings provided).")
+        return None
+
+    if len(provided) != len(jwt_fields):
+        missing = sorted(set(jwt_fields) - set(provided))
+        raise click.UsageError(
+            "Incomplete OAuth configuration. To enable OAuth, set all of: "
+            + ", ".join(jwt_fields)
+            + f". Missing: {missing}."
+        )
+
+    return build_oauth(
+        jwks_uri=jwks_uri,
+        issuer=issuer,
+        audience=audience,
+        algorithm=algorithm,
+        base_url=base_url,
+    )
 
 
 if __name__ == "__main__":

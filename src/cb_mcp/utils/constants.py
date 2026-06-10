@@ -25,3 +25,28 @@ QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION = 8
 # Logging Configuration
 # Change this to DEBUG, WARNING, ERROR as needed
 DEFAULT_LOG_LEVEL = "INFO"
+
+# OAuth Scopes
+# Tokens carrying SCOPE_READ may call read-only tools (including SQL++ query,
+# which is classified read-only at startup and runtime-gated by
+# read_only_query_mode). Tokens carrying SCOPE_WRITE may call KV mutation
+# tools only. Both scopes are required for full access; the model is
+# deliberately strict — SCOPE_WRITE alone cannot reach read tools or SQL++.
+SCOPE_READ = "couchbase-mcp:read"
+SCOPE_WRITE = "couchbase-mcp:write"
+
+# JWT signing algorithms permitted by JWTVerifier (FastMCP supports HS* too,
+# but we restrict to asymmetric per spec since JWKS-based verification is the
+# intended deployment).
+ALLOWED_OAUTH_ALGORITHMS = [
+    "RS256",
+    "RS384",
+    "RS512",
+    "ES256",
+    "ES384",
+    "ES512",
+    "PS256",
+    "PS384",
+    "PS512",
+]
+DEFAULT_OAUTH_ALGORITHM = "RS256"
