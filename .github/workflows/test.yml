@@ -213,16 +213,40 @@ jobs:
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
 
-          # Wait for server to be ready (check if port is listening)
-          echo "Waiting for HTTP server to be ready..."
-          for i in {1..30}; do
-            if nc -z 127.0.0.1 8000 2>/dev/null; then
-              echo "HTTP server is ready"
-              break
-            fi
-            echo "Waiting for HTTP server... ($i/30)"
-            sleep 1
-          done
+          # Wait until the server can complete an MCP initialize — not just
+          # bind the port. `nc -z` returns true as soon as uvicorn opens the
+          # socket but before lifespan startup finishes, which races the
+          # first few tests. The probe below actually drives a session.
+          echo "Waiting for HTTP server to accept MCP initialize..."
+          uv run python - <<'PY'
+          import asyncio
+          import sys
+          from mcp import ClientSession
+          from mcp.client.streamable_http import streamable_http_client
+
+          URL = "http://127.0.0.1:8000/mcp"
+
+          async def probe() -> bool:
+              try:
+                  async with streamable_http_client(URL) as (r, w, _):
+                      async with ClientSession(r, w) as s:
+                          await asyncio.wait_for(s.initialize(), timeout=5)
+                          return True
+              except Exception as e:
+                  print(f"  not ready: {type(e).__name__}: {e}", flush=True)
+                  return False
+
+          async def main() -> None:
+              for _ in range(30):
+                  if await probe():
+                      print("HTTP server accepted MCP initialize.")
+                      return
+                  await asyncio.sleep(1)
+              print("HTTP server never accepted MCP initialize.", flush=True)
+              sys.exit(1)
+
+          asyncio.run(main())
+          PY
 
       - name: Run HTTP transport tests
         if: matrix.transport == 'http'

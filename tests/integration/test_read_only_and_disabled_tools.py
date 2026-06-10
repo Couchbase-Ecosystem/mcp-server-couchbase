@@ -12,7 +12,7 @@ these tests verify they're wired correctly through the server entry point.
 from __future__ import annotations
 
 import pytest
-from conftest import create_mcp_session, extract_payload
+from conftest import create_stdio_session, extract_payload
 
 KV_WRITE_TOOLS = {
     "upsert_document_by_id",
@@ -34,7 +34,7 @@ ALWAYS_AVAILABLE_TOOLS = {
 @pytest.mark.asyncio
 async def test_read_only_mode_filters_kv_write_tools() -> None:
     """READ_ONLY_MODE=true must hide every KV write tool from the registry."""
-    async with create_mcp_session(
+    async with create_stdio_session(
         env_overrides={"CB_MCP_READ_ONLY_MODE": "true"}
     ) as session:
         tools_response = await session.list_tools()
@@ -54,7 +54,7 @@ async def test_read_only_mode_filters_kv_write_tools() -> None:
 @pytest.mark.asyncio
 async def test_read_only_mode_reported_in_configuration_status() -> None:
     """get_server_configuration_status must reflect read-only mode."""
-    async with create_mcp_session(
+    async with create_stdio_session(
         env_overrides={"CB_MCP_READ_ONLY_MODE": "true"}
     ) as session:
         response = await session.call_tool(
@@ -72,16 +72,14 @@ async def test_read_only_mode_reported_in_configuration_status() -> None:
 @pytest.mark.asyncio
 async def test_write_mode_exposes_kv_write_tools() -> None:
     """READ_ONLY_MODE=false must expose every KV write tool."""
-    async with create_mcp_session(
+    async with create_stdio_session(
         env_overrides={"CB_MCP_READ_ONLY_MODE": "false"}
     ) as session:
         tools_response = await session.list_tools()
         tool_names = {tool.name for tool in tools_response.tools}
 
         missing = KV_WRITE_TOOLS - tool_names
-        assert not missing, (
-            f"KV write tools missing in write mode: {sorted(missing)}"
-        )
+        assert not missing, f"KV write tools missing in write mode: {sorted(missing)}"
 
 
 @pytest.mark.asyncio
@@ -89,7 +87,7 @@ async def test_disabled_tools_excluded_from_registry() -> None:
     """Tools named in CB_MCP_DISABLED_TOOLS must not be registered."""
     disabled = "list_indexes,get_buckets_in_cluster"
 
-    async with create_mcp_session(
+    async with create_stdio_session(
         env_overrides={"CB_MCP_DISABLED_TOOLS": disabled}
     ) as session:
         tools_response = await session.list_tools()
@@ -115,7 +113,7 @@ async def test_disabled_tools_reported_in_configuration_status() -> None:
     """get_server_configuration_status must surface the disabled-tools list."""
     disabled = "list_indexes,get_buckets_in_cluster"
 
-    async with create_mcp_session(
+    async with create_stdio_session(
         env_overrides={"CB_MCP_DISABLED_TOOLS": disabled}
     ) as session:
         response = await session.call_tool(
@@ -135,7 +133,7 @@ async def test_disabled_tools_reported_in_configuration_status() -> None:
 @pytest.mark.asyncio
 async def test_disabled_tools_invalid_names_ignored() -> None:
     """Unknown tool names in CB_MCP_DISABLED_TOOLS must be silently ignored."""
-    async with create_mcp_session(
+    async with create_stdio_session(
         env_overrides={
             "CB_MCP_DISABLED_TOOLS": "list_indexes,not_a_real_tool,definitely_fake"
         }
@@ -152,21 +150,20 @@ async def test_disabled_tools_invalid_names_ignored() -> None:
 @pytest.mark.asyncio
 async def test_calling_disabled_tool_fails() -> None:
     """A disabled tool must not be callable via the MCP session."""
-    async with create_mcp_session(
+    async with create_stdio_session(
         env_overrides={"CB_MCP_DISABLED_TOOLS": "get_buckets_in_cluster"}
     ) as session:
         response = await session.call_tool("get_buckets_in_cluster", arguments={})
 
         assert getattr(response, "isError", False), (
-            "Calling a disabled tool should produce an error response, "
-            f"got: {response}"
+            f"Calling a disabled tool should produce an error response, got: {response}"
         )
 
 
 @pytest.mark.asyncio
 async def test_read_only_mode_blocks_calling_write_tools() -> None:
     """A KV write tool must not be invokable when read-only mode is on."""
-    async with create_mcp_session(
+    async with create_stdio_session(
         env_overrides={"CB_MCP_READ_ONLY_MODE": "true"}
     ) as session:
         response = await session.call_tool(
