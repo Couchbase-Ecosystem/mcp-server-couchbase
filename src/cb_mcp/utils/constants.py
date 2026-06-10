@@ -23,5 +23,19 @@ NETWORK_TRANSPORTS_SDK_MAPPING = {
 QUERY_SERVICE_LIST_INDEXES_MIN_MAJOR_VERSION = 8
 
 # Logging Configuration
-# Change this to DEBUG, WARNING, ERROR as needed
-DEFAULT_LOG_LEVEL = "INFO"
+DEFAULT_LOG_LEVEL = "info"
+DEFAULT_LOG_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
+DEFAULT_LOG_BACKUP_COUNT = 100
+ALLOWED_LOG_LEVELS = ("OFF", "DEBUG", "INFO", "WARNING", "ERROR")
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# ISO 8601 local time with UTC offset (e.g. 2026-06-09T18:08:49+0530).
+# Milliseconds are intentionally omitted; we can switch to a sub-second
+# format later via a custom Formatter if support diagnostics need it.
+DEFAULT_LOG_DATEFMT = "%Y-%m-%dT%H:%M:%S%z"
+ALLOWED_LOG_SINKS = ("stderr", "file")
+DEFAULT_LOG_SINKS = "stderr"
+# CWD-relative filenames used when file logging is active and the caller
+# omits --log-file / --error-log-file. The CLI layer (mcp_server.py) wires
+# these as Click defaults; configure_logging itself requires both paths.
+DEFAULT_LOG_FILE = "mcp_server.log"
+DEFAULT_ERROR_LOG_FILE = "mcp_server.error.log"
