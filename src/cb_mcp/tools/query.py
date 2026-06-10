@@ -100,9 +100,11 @@ def run_sql_plus_plus_query(
             if data_modification_query or structure_modification_query:
                 kind = "data" if data_modification_query else "structure"
                 if lacks_write_scope and not (read_only_mode or read_only_query_mode):
+                    # lacks_write_scope implies token is not None here.
+                    held_scopes = sorted(set(token.scopes or []))
                     msg = (
                         f"SQL++ {kind} modification requires the "
-                        f"'{SCOPE_WRITE}' scope; token only holds read scope."
+                        f"'{SCOPE_WRITE}' scope; token scopes are {held_scopes}."
                     )
                     logger.warning(msg)
                     raise PermissionError(msg)
