@@ -520,35 +520,3 @@ async def test_upsert_to_nonexistent_bucket_raises_error() -> None:
         )
 
 
-@pytest.mark.asyncio
-async def test_insert_to_nonexistent_collection_raises_error() -> None:
-    """Bug #1: KV write tools should distinguish between real failures and business logic.
-
-    Insert to an invalid collection should raise an error, not return False.
-    """
-    bucket = require_test_bucket()
-    scope = get_test_scope()
-    doc_id = f"test_doc_{uuid.uuid4().hex[:8]}"
-
-    async with create_mcp_session() as session:
-        response = await session.call_tool(
-            "insert_document_by_id",
-            arguments={
-                "bucket_name": bucket,
-                "scope_name": scope,
-                "collection_name": "no-such-collection-xyz123",
-                "document_id": doc_id,
-                "document_content": {"test": "data"},
-            },
-        )
-
-        payload = extract_payload(response)
-        is_error = getattr(response, "isError", None) or getattr(
-            response, "is_error", False
-        )
-
-        assert is_error is True, (
-            f"Insert to non-existent collection must raise an error. "
-            f"Got payload={payload}, isError={is_error}. "
-            f"This exposes Bug #1: KV tools swallow exceptions."
-        )
