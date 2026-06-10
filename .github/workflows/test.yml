@@ -206,6 +206,10 @@ jobs:
           CB_MCP_TRANSPORT: http
           CB_MCP_HOST: 127.0.0.1
           CB_MCP_PORT: 8000
+          # Match _build_env() so the standing server exposes the same tool
+          # registry the stdio leg gets — otherwise KV write tools are hidden
+          # (default is read-only=true) and ~12 cluster tests fail.
+          CB_MCP_READ_ONLY_MODE: "false"
           PYTHONPATH: src
         run: |
           echo "Starting MCP server with HTTP transport..."
