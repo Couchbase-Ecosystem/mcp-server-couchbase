@@ -310,7 +310,7 @@ run_http_docker_tests() {
 
     echo "  [http/docker] Waiting for MCP server..."
     for i in $(seq 1 30); do
-        code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${MCP_PORT}/mcp" 2>/dev/null)
+        code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${MCP_PORT}/mcp" 2>/dev/null || echo "000")
         if [[ -n "$code" && "$code" != "000" ]]; then
             echo "  MCP server ready (HTTP $code after ${i}s)"
             break

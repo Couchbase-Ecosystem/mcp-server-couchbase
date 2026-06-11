@@ -263,7 +263,7 @@ jobs:
 
           echo "Waiting for HTTP server to be ready..."
           for i in {1..30}; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/mcp 2>/dev/null)
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/mcp 2>/dev/null || echo "000")
             if [[ -n "$code" && "$code" != "000" ]]; then
               echo "HTTP server is ready (HTTP $code after ${i}s)"
               break
