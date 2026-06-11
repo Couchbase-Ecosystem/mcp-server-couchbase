@@ -271,6 +271,9 @@ jobs:
             echo "Waiting for HTTP server... ($i/30)"
             sleep 1
           done
+          # Uvicorn can accept connections before FastMCP's session manager
+          # finishes initializing — give it a moment to fully settle.
+          sleep 3
 
       - name: Run HTTP transport tests
         if: matrix.transport == 'http'
