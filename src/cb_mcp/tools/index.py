@@ -47,8 +47,8 @@ def get_index_advisor_recommendations(
     - statements: Array of statement objects with the query and run count
     """
     try:
-        # Build the ADVISOR query using a named parameter
-        advisor_query = "SELECT ADVISOR($query) AS advisor_result"
+        # Build the ADVISOR query using a named parameter.
+        advisor_query = "SELECT ADVISOR($advise_statement) AS advisor_result"
 
         logger.info("Running Index Advisor for the provided query")
 
@@ -60,7 +60,7 @@ def get_index_advisor_recommendations(
             bucket_name,
             scope_name,
             advisor_query,
-            named_parameters={"query": query},
+            named_parameters={"advise_statement": query},
         )
 
         if not advisor_results:
