@@ -130,24 +130,28 @@ jobs:
           echo "version=$ROOT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Install MCP Publisher
-        # Pin the version (no "latest") and verify the download against a checksum
-        # committed to THIS repo (a trusted, code-reviewed source) rather than one
-        # fetched from the same remote as the artifact -- a tampered release cannot
-        # also supply a matching checksum. The binary runs with the registry
-        # publishing token, so an unverified/moving artifact would be a
-        # token-exfiltration path. The pinned hash is the upstream-published SHA-256
-        # for the linux/amd64 asset, which is what this ubuntu runner downloads; on
-        # any other platform the check fails closed. Bump BOTH version and checksum
-        # deliberately on upgrade after reviewing the new release.
+        # Pin the version (no "latest") and verify the download against a SHA-512
+        # committed to THIS repo (.github/mcp-publisher.sha512 -- a trusted,
+        # code-reviewed source) rather than one fetched from the same remote as the
+        # artifact, so a tampered release cannot also supply a matching checksum.
+        # The binary runs with the registry publishing token, so an unverified/moving
+        # artifact would be a token-exfiltration path. The committed checksum is for
+        # the linux/amd64 asset, which is what this ubuntu runner downloads; on any
+        # other platform the check fails closed. Bump BOTH MCP_PUBLISHER_VERSION and
+        # .github/mcp-publisher.sha512 deliberately on upgrade (the new SHA-512 should
+        # be derived from an artifact first authenticated against the release's
+        # upstream-published SHA-256) after reviewing the new release.
         env:
           MCP_PUBLISHER_VERSION: v1.7.9
           MCP_PUBLISHER_ASSET: mcp-publisher_linux_amd64.tar.gz
-          MCP_PUBLISHER_SHA256: ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac
+          # SHA-512 verified against the file committed at .github/mcp-publisher.sha512.
+          MCP_PUBLISHER_CHECKSUM_FILE: .github/mcp-publisher.sha512
         run: |
           set -euo pipefail
           url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/${MCP_PUBLISHER_ASSET}"
           curl -fsSL -o "$MCP_PUBLISHER_ASSET" "$url"
-          echo "${MCP_PUBLISHER_SHA256}  ${MCP_PUBLISHER_ASSET}" | sha256sum -c -
+          # Verify in check mode against the trusted, committed checksum file; aborts on mismatch.
+          sha512sum -c "$MCP_PUBLISHER_CHECKSUM_FILE"
           tar xzf "$MCP_PUBLISHER_ASSET" mcp-publisher
 
       - name: Login to MCP Registry
