@@ -20,6 +20,7 @@ from mcp.client.streamable_http import streamablehttp_client
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+
 # Tools we expect to be registered by the server
 EXPECTED_TOOLS = {
     "get_buckets_in_cluster",

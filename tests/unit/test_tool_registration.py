@@ -2,7 +2,14 @@
 Unit tests for prepare_tools_for_registration — tool disabling and confirmation wrapping.
 """
 
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import pytest
+
 from cb_mcp.tool_registration import prepare_tools_for_registration
+from cb_mcp.utils.constants import SCOPE_READ, SCOPE_WRITE
 
 
 class TestPrepareToolsDisabling:
@@ -71,6 +78,71 @@ class TestPrepareToolsConfirmation:
             confirmation_required_tools="delete_document_by_id",
         )
         assert "delete_document_by_id" not in confirmed
+
+
+class TestPrepareToolsScopeEnforcement:
+    """Tests that enforce_scopes wires per-tool scope checks correctly."""
+
+    def test_enforce_scopes_false_leaves_tools_unwrapped(self):
+        """Without enforce_scopes, tools are not gated by the access token."""
+        tools, _, _ = prepare_tools_for_registration(
+            read_only_mode=False,
+            disabled_tools=None,
+            confirmation_required_tools=None,
+            enforce_scopes=False,
+        )
+        get_doc = next(t for t in tools if t.__name__ == "get_document_by_id")
+        # No scope wrapper installed → calling without a token must NOT
+        # raise PermissionError on missing scopes. Without a real cluster
+        # the call may error for other reasons; we only assert it isn't
+        # the scope-check error.
+        with patch(
+            "cb_mcp.utils.scope_enforcement.get_access_token", return_value=None
+        ):
+            try:
+                asyncio.run(get_doc(None, "b", "s", "c", "id"))
+            except PermissionError as e:
+                pytest.fail(f"unexpected scope-check rejection: {e}")
+            except Exception:
+                pass  # expected — no cluster context
+
+    def test_enforce_scopes_true_rejects_write_token_for_read_tool(self):
+        """A token with only SCOPE_WRITE must be denied at a read tool."""
+        tools, _, _ = prepare_tools_for_registration(
+            read_only_mode=False,
+            disabled_tools=None,
+            confirmation_required_tools=None,
+            enforce_scopes=True,
+        )
+        get_doc = next(t for t in tools if t.__name__ == "get_document_by_id")
+        token = SimpleNamespace(scopes=[SCOPE_WRITE])
+
+        with (
+            patch(
+                "cb_mcp.utils.scope_enforcement.get_access_token", return_value=token
+            ),
+            pytest.raises(PermissionError),
+        ):
+            asyncio.run(get_doc(None, "b", "s", "c", "id"))
+
+    def test_enforce_scopes_true_rejects_read_token_for_write_tool(self):
+        """A token with only SCOPE_READ must be denied at a write tool."""
+        tools, _, _ = prepare_tools_for_registration(
+            read_only_mode=False,
+            disabled_tools=None,
+            confirmation_required_tools=None,
+            enforce_scopes=True,
+        )
+        upsert = next(t for t in tools if t.__name__ == "upsert_document_by_id")
+        token = SimpleNamespace(scopes=[SCOPE_READ])
+
+        with (
+            patch(
+                "cb_mcp.utils.scope_enforcement.get_access_token", return_value=token
+            ),
+            pytest.raises(PermissionError),
+        ):
+            asyncio.run(upsert(None, "b", "s", "c", "id", {}))
 
 
 class TestDisabledAndConfirmationOverlap:

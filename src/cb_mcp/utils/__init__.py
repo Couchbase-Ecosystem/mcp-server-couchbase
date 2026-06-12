@@ -18,15 +18,20 @@ from .connection import (
 
 # Constants
 from .constants import (
+    ALLOWED_OAUTH_ALGORITHMS,
     ALLOWED_TRANSPORTS,
     DEFAULT_HOST,
     DEFAULT_LOG_LEVEL,
+    DEFAULT_OAUTH_ALGORITHM,
     DEFAULT_PORT,
     DEFAULT_READ_ONLY_MODE,
     DEFAULT_TRANSPORT,
     MCP_SERVER_NAME,
     NETWORK_TRANSPORTS,
     NETWORK_TRANSPORTS_SDK_MAPPING,
+    SCOPE_READ,
+    SCOPE_WRITE,
+    STREAMABLE_HTTP_TRANSPORT,
 )
 
 # Context utilities
@@ -43,6 +48,9 @@ from .elicitation import wrap_with_confirmation
 from .index_utils import (
     fetch_indexes_from_rest_api,
 )
+
+# OAuth scope enforcement
+from .scope_enforcement import required_scopes_for_tool, wrap_with_scope_check
 
 # Note: Individual modules create their own hierarchical loggers using:
 # logger = logging.getLogger(f"{MCP_SERVER_NAME}.module.name")
@@ -70,6 +78,14 @@ __all__ = [
     "ALLOWED_TRANSPORTS",
     "NETWORK_TRANSPORTS",
     "NETWORK_TRANSPORTS_SDK_MAPPING",
+    "STREAMABLE_HTTP_TRANSPORT",
+    "SCOPE_READ",
+    "SCOPE_WRITE",
+    "ALLOWED_OAUTH_ALGORITHMS",
+    "DEFAULT_OAUTH_ALGORITHM",
     # Elicitation
     "wrap_with_confirmation",
+    # OAuth scope enforcement
+    "required_scopes_for_tool",
+    "wrap_with_scope_check",
 ]
