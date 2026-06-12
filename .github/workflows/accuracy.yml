@@ -160,13 +160,18 @@ jobs:
       #   3. else "gh-run-<run_number>" as a fallback
       # Exported as CB_ACCURACY_RUN_ID so the next step inherits it directly.
       - name: Resolve accuracy run id
+        env:
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
-          if [ -n "${{ inputs.run_id }}" ]; then
-            RUN_ID="${{ inputs.run_id }}"
-          elif [ "${{ github.ref_type }}" = "tag" ]; then
-            RUN_ID="release-${{ github.ref_name }}"
+          if [ -n "$INPUT_RUN_ID" ]; then
+            RUN_ID="$INPUT_RUN_ID"
+          elif [ "$REF_TYPE" = "tag" ]; then
+            RUN_ID="release-$REF_NAME"
           else
-            RUN_ID="gh-run-${{ github.run_number }}"
+            RUN_ID="gh-run-$RUN_NUMBER"
           fi
           echo "CB_ACCURACY_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
           echo "Using accuracy run id: $RUN_ID"
@@ -185,6 +190,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CB_ACCURACY_OPENAI_MODEL: ${{ inputs.model }}
           CB_ACCURACY_RESULTS_DIR: ${{ github.workspace }}/accuracy-results
+          CB_ACCURACY_TEST_FILTER: ${{ inputs.test_filter }}
         run: |
           if [ -z "${OPENAI_API_KEY}" ]; then
             echo "::error::OPENAI_API_KEY secret is not set. Add it under repo Settings → Secrets."
@@ -192,8 +198,8 @@ jobs:
           fi
           mkdir -p "$CB_ACCURACY_RESULTS_DIR"
 
-          if [ -n "${{ inputs.test_filter }}" ]; then
-            uv run pytest tests/accuracy -m accuracy -v --tb=short -k "${{ inputs.test_filter }}"
+          if [ -n "$CB_ACCURACY_TEST_FILTER" ]; then
+            uv run pytest tests/accuracy -m accuracy -v --tb=short -k "$CB_ACCURACY_TEST_FILTER"
           else
             uv run pytest tests/accuracy -m accuracy -v --tb=short
           fi
