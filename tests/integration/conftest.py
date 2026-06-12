@@ -23,6 +23,7 @@ from _test_env import (
     require_test_bucket,
 )
 from mcp import ClientSession, StdioServerParameters, stdio_client
+from mcp.client.streamable_http import streamable_http_client
 
 if TYPE_CHECKING:
     from typing import TextIO
@@ -34,6 +35,7 @@ __all__ = [
     "_build_env",
     "create_logging_test_session",
     "create_mcp_session",
+    "create_stdio_session",
     "ensure_list",
     "extract_payload",
     "get_test_bucket",
@@ -183,14 +185,50 @@ DEFAULT_TIMEOUT = int(os.getenv("CB_MCP_TEST_TIMEOUT", "120"))
 
 
 @asynccontextmanager
-async def create_mcp_session(
+async def create_mcp_session() -> AsyncIterator[ClientSession]:
+    """Create an MCP client session, transport chosen by the environment.
+
+    When ``MCP_SERVER_URL`` is set (the http-transport CI leg exports it
+    pointing at the standing server), connect over streamable-http and
+    reuse that shared server. Otherwise spawn a fresh stdio subprocess.
+
+    Tests that need a fresh server *process* per test — to apply env-var
+    overrides like ``CB_MCP_READ_ONLY_MODE`` or ``CB_MCP_DISABLED_TOOLS``
+    — must use :func:`create_stdio_session` instead, which always spawns
+    and accepts ``env_overrides``. Per-test env can't be applied to the
+    shared HTTP server.
+    """
+    server_url = os.getenv("MCP_SERVER_URL")
+    if server_url:
+        async with asyncio.timeout(DEFAULT_TIMEOUT):
+            async with streamable_http_client(server_url) as (
+                read_stream,
+                write_stream,
+                _,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    yield session
+        return
+
+    async with create_stdio_session() as session:
+        yield session
+
+
+@asynccontextmanager
+async def create_stdio_session(
     env_overrides: dict[str, str] | None = None,
 ) -> AsyncIterator[ClientSession]:
-    """Create a fresh MCP client session connected to the server over stdio.
+    """Spawn a fresh stdio MCP server subprocess and connect to it.
 
-    Optional ``env_overrides`` are merged onto the environment passed to the
-    spawned server process, letting individual tests opt into things like
-    ``CB_MCP_READ_ONLY_MODE`` or ``CB_MCP_DISABLED_TOOLS``.
+    Use this when a test needs server-process-private state — typically
+    because it sets ``CB_MCP_READ_ONLY_MODE``, ``CB_MCP_DISABLED_TOOLS``,
+    or another env var that's read at server startup. These can't be
+    applied to a shared HTTP server, so this helper bypasses transport
+    routing and always spawns.
+
+    ``env_overrides`` are merged onto the spawned process's environment
+    after the standard ``_build_env()`` setup.
     """
     env = _build_env()
     if env_overrides:
