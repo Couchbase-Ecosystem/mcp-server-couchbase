@@ -54,12 +54,20 @@ def _is_explain_statement(query: str) -> bool:
 
 
 def run_sql_plus_plus_query(
-    ctx: Context, bucket_name: str, scope_name: str, query: str
+    ctx: Context,
+    bucket_name: str,
+    scope_name: str,
+    query: str,
+    named_parameters: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Run a SQL++ query on a scope and return the results as a list of JSON objects.
 
     The query will be run on the specified scope in the specified bucket.
     The query should use collection names directly without bucket/scope prefixes, as the scope context is automatically set.
+
+    Use ``named_parameters`` to bind values to ``$name`` placeholders in the
+    query instead of concatenating user input into the statement. This prevents
+    SQL++ injection
 
     Example:
         query = "SELECT * FROM users WHERE age > 18"
@@ -112,8 +120,14 @@ def run_sql_plus_plus_query(
                 logger.error(msg)
                 raise ValueError(msg)
 
-        # Run the query if it is not a data or structure modification query
-        result = scope.query(query)
+        # Run the query if it is not a data or structure modification query.
+        # Forward named parameters only when provided so existing callers that
+        # pass none keep the exact previous behaviour.
+        result = (
+            scope.query(query, named_parameters=named_parameters)
+            if named_parameters is not None
+            else scope.query(query)
+        )
         for row in result:
             results.append(row)
         return results
