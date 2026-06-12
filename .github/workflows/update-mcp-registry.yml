@@ -130,8 +130,22 @@ jobs:
           echo "version=$ROOT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Install MCP Publisher
+        # Pin the version (no "latest") and verify the download against the
+        # release's published SHA-256 checksums before extracting. The binary
+        # runs with the registry publishing token, so an unverified/moving
+        # artifact would be a token-exfiltration path. Bump MCP_PUBLISHER_VERSION
+        # to adopt a new release after reviewing it.
+        env:
+          MCP_PUBLISHER_VERSION: v1.7.9
         run: |
-          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          set -euo pipefail
+          asset="mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
+          base="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl -fsSL -o "$asset" "${base}/${asset}"
+          curl -fsSL -o checksums.txt "${base}/registry_${MCP_PUBLISHER_VERSION#v}_checksums.txt"
+          # Abort if the checksum for our asset is missing or does not match.
+          grep " ${asset}\$" checksums.txt | sha256sum -c -
+          tar xzf "$asset" mcp-publisher
 
       - name: Login to MCP Registry
         run: ./mcp-publisher login github-oidc
