@@ -99,14 +99,54 @@ class TestGetIndexAdvisorRecommendations:
         see the real Couchbase error rather than a fabricated empty result."""
         mock_ctx = MagicMock()
 
+        with (
+            patch(
+                "cb_mcp.tools.index.run_sql_plus_plus_query",
+                side_effect=Exception("syntax error in ADVISOR"),
+            ),
+            pytest.raises(Exception, match="syntax error in ADVISOR"),
+        ):
+            get_index_advisor_recommendations(mock_ctx, "b", "s", "SELECT * FROM x")
+
+    def test_advised_query_bound_as_named_parameter_not_reserved_name(self) -> None:
+        """Regression: the advisor must bind the advised query via a named
+        parameter whose name is NOT ``query``.
+
+        The Couchbase SDK spreads named-parameter keys as kwargs into
+        ``N1QLQuery(statement, ...)`` whose first positional arg is ``query``,
+        so a parameter named ``query`` raises "got multiple values for
+        argument 'query'" against a live cluster. These mock-based tests can't
+        see that crash, so we assert the contract directly: no reserved key,
+        the placeholder in the SQL matches the bound key, and the user's query
+        flows through as the value.
+        """
+        mock_ctx = MagicMock()
+        user_query = "SELECT * FROM airline WHERE country = 'United States'"
+
         with patch(
             "cb_mcp.tools.index.run_sql_plus_plus_query",
-            side_effect=Exception("syntax error in ADVISOR"),
-        ):
-            with pytest.raises(Exception, match="syntax error in ADVISOR"):
-                get_index_advisor_recommendations(
-                    mock_ctx, "b", "s", "SELECT * FROM x"
-                )
+            return_value=[],
+        ) as mock_run:
+            get_index_advisor_recommendations(mock_ctx, "b", "s", user_query)
+
+        # The advisor SQL is passed positionally; named_parameters as a kwarg.
+        args, kwargs = mock_run.call_args
+        advisor_sql = args[3] if len(args) > 3 else kwargs["query"]
+        named_parameters = kwargs["named_parameters"]
+
+        # The reserved SDK name must never be used as a parameter key.
+        assert "query" not in named_parameters, (
+            "Named parameter 'query' collides with the SDK's N1QLQuery "
+            "positional arg and crashes against a live cluster."
+        )
+
+        # Exactly one placeholder, referenced by the SQL, bound to the user query.
+        assert len(named_parameters) == 1
+        ((param_name, param_value),) = named_parameters.items()
+        assert param_value == user_query
+        assert f"${param_name}" in advisor_sql, (
+            f"Placeholder ${param_name} not found in advisor SQL: {advisor_sql!r}"
+        )
 
 
 class TestListIndexesRestRawPath:
@@ -185,6 +225,6 @@ class TestListIndexesErrorPropagation:
                 "cb_mcp.tools.index.get_cluster_connection",
                 side_effect=Exception("cluster down"),
             ),
+            pytest.raises(Exception, match="cluster down"),
         ):
-            with pytest.raises(Exception, match="cluster down"):
-                list_indexes(mock_ctx)
+            list_indexes(mock_ctx)

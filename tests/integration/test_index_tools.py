@@ -413,16 +413,28 @@ async def test_list_indexes_primary_index_flag_consistency() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_index_advisor_recommendations() -> None:
-    """Verify get_index_advisor_recommendations returns recommendations."""
+@pytest.mark.parametrize(
+    "where_clause",
+    [
+        pytest.param("WHERE id > 100", id="numeric"),
+        # Single-quoted string literal: exercises the named-parameter binding
+        # path. This used to break ADVISOR under string concatenation; it must
+        # work now that the user query is bound rather than embedded.
+        pytest.param("WHERE country = 'France'", id="single_quote_literal"),
+    ],
+)
+async def test_get_index_advisor_recommendations(where_clause: str) -> None:
+    """Verify get_index_advisor_recommendations returns recommendations.
+
+    Includes a single-quote case so the SQL++ injection hardening (binding the
+    user query as a named parameter) stays exercised against a live cluster.
+    """
     bucket = require_test_bucket()
     scope = get_test_scope()
     collection = get_test_collection()
     skip_reason = None
 
-    # A query that might benefit from an index (avoid single quotes - they break ADVISOR)
-    # Use a numeric comparison instead of string literal
-    query = f"SELECT * FROM `{collection}` WHERE id > 100"
+    query = f"SELECT * FROM `{collection}` {where_clause}"
 
     async with create_mcp_session() as session:
         response = await session.call_tool(
