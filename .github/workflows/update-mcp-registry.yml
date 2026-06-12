@@ -129,29 +129,32 @@ jobs:
           echo "All version checks passed!"
           echo "version=$ROOT_VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
       - name: Install MCP Publisher
-        # Pin the version (no "latest") and verify the download against a SHA-512
-        # committed to THIS repo (.github/mcp-publisher.sha512 -- a trusted,
-        # code-reviewed source) rather than one fetched from the same remote as the
-        # artifact, so a tampered release cannot also supply a matching checksum.
-        # The binary runs with the registry publishing token, so an unverified/moving
-        # artifact would be a token-exfiltration path. The committed checksum is for
-        # the linux/amd64 asset, which is what this ubuntu runner downloads; on any
-        # other platform the check fails closed. Bump BOTH MCP_PUBLISHER_VERSION and
-        # .github/mcp-publisher.sha512 deliberately on upgrade (the new SHA-512 should
-        # be derived from an artifact first authenticated against the release's
-        # upstream-published SHA-256) after reviewing the new release.
+        # Pin the version (no "latest") and cryptographically verify the download
+        # against its upstream Sigstore signature before running it. The binary runs
+        # with the registry publishing (OIDC) token, so an unverified/moving artifact
+        # would be a token-exfiltration path. We verify the keyless signature was
+        # produced by modelcontextprotocol/registry's own release.yml workflow at the
+        # pinned tag (Fulcio identity + GitHub OIDC issuer), which proves provenance
+        # rather than just matching a self-derived hash -- and needs no per-version
+        # checksum maintenance. cosign exits non-zero (job fails closed) on any
+        # mismatch. To upgrade, bump MCP_PUBLISHER_VERSION only.
         env:
           MCP_PUBLISHER_VERSION: v1.7.9
           MCP_PUBLISHER_ASSET: mcp-publisher_linux_amd64.tar.gz
-          # SHA-512 verified against the file committed at .github/mcp-publisher.sha512.
-          MCP_PUBLISHER_CHECKSUM_FILE: .github/mcp-publisher.sha512
         run: |
           set -euo pipefail
-          url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/${MCP_PUBLISHER_ASSET}"
-          curl -fsSL -o "$MCP_PUBLISHER_ASSET" "$url"
-          # Verify in check mode against the trusted, committed checksum file; aborts on mismatch.
-          sha512sum -c "$MCP_PUBLISHER_CHECKSUM_FILE"
+          base="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl -fsSL -o "$MCP_PUBLISHER_ASSET" "${base}/${MCP_PUBLISHER_ASSET}"
+          curl -fsSL -o "${MCP_PUBLISHER_ASSET}.sigstore.json" "${base}/${MCP_PUBLISHER_ASSET}.sigstore.json"
+          cosign verify-blob \
+            --bundle "${MCP_PUBLISHER_ASSET}.sigstore.json" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            "$MCP_PUBLISHER_ASSET"
           tar xzf "$MCP_PUBLISHER_ASSET" mcp-publisher
 
       - name: Login to MCP Registry
