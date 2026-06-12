@@ -41,14 +41,24 @@ def test_advisor_binds_user_query_as_named_parameter(user_query: str) -> None:
     mock_run.assert_called_once()
     args, kwargs = mock_run.call_args
 
-    # The statement is a constant with a $query placeholder; the user query is
-    # NOT interpolated into it. This is the core of the injection hardening.
+    # The statement passes the user query via an ADVISOR($placeholder) bind; the
+    # raw user query is NOT interpolated into it. This is the core of the
+    # injection hardening — kept placeholder-name-agnostic so renaming the bind
+    # variable doesn't require touching this assertion.
     statement = args[3]
-    assert statement == "SELECT ADVISOR($query) AS advisor_result"
     assert user_query not in statement
 
-    # The user query is passed through as a bound named parameter only.
-    assert kwargs["named_parameters"] == {"query": user_query}
+    # The user query is passed through as a bound named parameter only, and the
+    # placeholder used in the statement must match that parameter's name.
+    named_parameters = kwargs["named_parameters"]
+    assert len(named_parameters) == 1
+    ((param_name, param_value),) = named_parameters.items()
+    assert param_value == user_query
+    assert statement == f"SELECT ADVISOR(${param_name}) AS advisor_result"
+
+    # The reserved SDK name 'query' collides with N1QLQuery's positional arg and
+    # crashes against a live cluster — it must never be used as the bind name.
+    assert param_name != "query"
 
     # Response shape is still assembled from the advisor result.
     assert "recommended_indexes" in result
