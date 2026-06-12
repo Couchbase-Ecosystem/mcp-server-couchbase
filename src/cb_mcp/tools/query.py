@@ -114,7 +114,7 @@ def run_sql_plus_plus_query(
         # pass none keep the exact previous behaviour.
         result = (
             scope.query(query, named_parameters=named_parameters)
-            if named_parameters
+            if named_parameters is not None
             else scope.query(query)
         )
         for row in result:
