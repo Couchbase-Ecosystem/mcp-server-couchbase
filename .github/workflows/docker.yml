@@ -41,10 +41,10 @@ jobs:
 
           # Only match vX.Y.Z format (no suffixes like rc, alpha, beta)
           if [[ "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "is_stable=true" >> $GITHUB_OUTPUT
+            echo "is_stable=true" >> "$GITHUB_OUTPUT"
             echo "This is a STABLE release: $TAG_NAME"
           else
-            echo "is_stable=false" >> $GITHUB_OUTPUT
+            echo "is_stable=false" >> "$GITHUB_OUTPUT"
             echo "This is a PRE-RELEASE: $TAG_NAME (will not update 'latest' or major.minor tags)"
           fi
 
@@ -68,7 +68,7 @@ jobs:
 
       - name: Set build timestamp
         id: timestamp
-        run: echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+        run: echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6

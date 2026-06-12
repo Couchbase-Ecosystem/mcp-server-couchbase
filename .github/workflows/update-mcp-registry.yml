@@ -127,7 +127,7 @@ jobs:
 
           echo ""
           echo "All version checks passed!"
-          echo "version=$ROOT_VERSION" >> $GITHUB_OUTPUT
+          echo "version=$ROOT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Install MCP Publisher
         run: |

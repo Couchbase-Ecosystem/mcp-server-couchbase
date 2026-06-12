@@ -211,7 +211,7 @@ jobs:
           echo "Starting MCP server with HTTP transport..."
           uv run python -m mcp_server &
           SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          echo "SERVER_PID=$SERVER_PID" >> "$GITHUB_ENV"
 
           # Wait for server to be ready (check if port is listening)
           echo "Waiting for HTTP server to be ready..."
@@ -243,7 +243,7 @@ jobs:
         if: matrix.transport == 'http' && always()
         run: |
           if [ -n "$SERVER_PID" ]; then
-            kill $SERVER_PID 2>/dev/null || true
+            kill "$SERVER_PID" 2>/dev/null || true
           fi
 
   # ============================================
